@@ -35,7 +35,7 @@ int parse_number(const char *source, int *index) {
 
 char *parse_identifier(const char *source, int *index) {
   int i = (*index) + 1;
-  while (isalnum(source[i])) {
+  while ((0 != isalnum(source[i]) || ('_' == source[i]))) {
     ++i;
   }
 

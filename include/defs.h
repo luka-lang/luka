@@ -34,7 +34,12 @@ typedef struct {
 
 typedef token_t *token_ptr_t;
 
-typedef enum { AST_TYPE_NUMBER, AST_TYPE_BINARY_EXPR } AST_node_type;
+typedef enum {
+  AST_TYPE_NUMBER,
+  AST_TYPE_BINARY_EXPR,
+  AST_TYPE_PROTOTYPE,
+  AST_TYPE_FUNCTION
+} AST_node_type;
 
 typedef enum {
   BINOP_ADD,
@@ -55,12 +60,27 @@ typedef struct {
   ASTnode *rhs;
 } AST_binary_expr;
 
+typedef struct {
+  char *name;
+  char **args;
+  unsigned int arity;
+} AST_prototype;
+
+typedef struct {
+  ASTnode *prototype;
+  ASTnode *body;
+} AST_function;
+
 typedef struct ASTnode_s {
   AST_node_type type;
   union {
     AST_number number;
     AST_binary_expr binary_expr;
+    AST_prototype prototype;
+    AST_function function;
   };
 } ASTnode;
+
+typedef ASTnode *ast_node_ptr_t;
 
 #endif // __DEFS_H_

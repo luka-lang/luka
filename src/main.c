@@ -5,8 +5,6 @@
 #include <llvm-c/Analysis.h>
 #include <llvm-c/BitWriter.h>
 #include <llvm-c/Core.h>
-#include <llvm-c/ExecutionEngine.h>
-#include <llvm-c/Object.h>
 #include <llvm-c/Target.h>
 #include <llvm-c/Transforms/InstCombine.h>
 #include <llvm-c/Transforms/PassManagerBuilder.h>
@@ -45,6 +43,19 @@ void free_tokens_vector(Vector *tokens) {
   vector_destroy(tokens);
 }
 
+void free_functions_vector(Vector *functions) {
+  ASTnode *function = NULL;
+  Iterator iterator = vector_begin(functions);
+  Iterator last = vector_end(functions);
+  for (; !iterator_equals(&iterator, &last); iterator_increment(&iterator)) {
+    function = *(ast_node_ptr_t *)iterator_get(&iterator);
+    free_ast_node(function);
+  }
+
+  vector_clear(functions);
+  vector_destroy(functions);
+}
+
 int main(int argc, char **argv) {
   return_code_t status_code = LUKA_UNINITIALIZED;
   char *file_path = NULL;
@@ -53,11 +64,22 @@ int main(int argc, char **argv) {
   char *file_contents = NULL;
 
   Vector tokens;
+  Vector *functions;
   token_t *token = NULL;
 
   parser_t *parser = NULL;
 
-  ASTnode *root = NULL;
+  ASTnode *function = NULL;
+
+  LLVMModuleRef module = NULL;
+  LLVMBuilderRef builder = NULL;
+  LLVMPassManagerRef pass_manager = NULL;
+
+  LLVMTypeRef func_type = NULL;
+  LLVMValueRef func = NULL, tmp = NULL;
+  LLVMBasicBlockRef entry = NULL;
+
+  char *error = NULL;
 
   if (argc != 2) {
     fprintf(stderr, "USAGE: luka [luka source file]\n");
@@ -79,35 +101,38 @@ int main(int argc, char **argv) {
 
   print_parser_tokens(parser);
 
-  // start_parsing(parser);
-  root = parse_binexpr(parser, 0);
+  functions = parse_top_level(parser); // parse_binexpr(parser, 0);
 
-  LLVMModuleRef module = LLVMModuleCreateWithName("luka_main_module");
+  module = LLVMModuleCreateWithName("luka_main_module");
 
-  LLVMTypeRef main_type = LLVMFunctionType(LLVMInt32Type(), NULL, 0, 0);
-  LLVMValueRef main = LLVMAddFunction(module, "main", main_type);
+  VECTOR_FOR_EACH(functions, iterator) {
+    function = ITERATOR_GET_AS(ast_node_ptr_t, &iterator);
 
-  LLVMBasicBlockRef entry = LLVMAppendBasicBlock(main, "entry");
-  LLVMBuilderRef builder = LLVMCreateBuilder();
-  LLVMPositionBuilderAtEnd(builder, entry);
+    func_type = LLVMFunctionType(LLVMInt32Type(), NULL, 0, 0);
+    func = LLVMAddFunction(module, function->function.prototype->prototype.name,
+                           func_type);
 
-  LLVMValueRef tmp = codegen(root, module, builder);
+    entry = LLVMAppendBasicBlock(func, "entry");
+    builder = LLVMCreateBuilder();
+    LLVMPositionBuilderAtEnd(builder, entry);
 
-  LLVMBuildRet(builder, tmp);
+    tmp = codegen(function->function.body, module, builder);
 
-  char *error = NULL;
+    LLVMBuildRet(builder, tmp);
+  }
+
   LLVMVerifyModule(module, LLVMAbortProcessAction, &error);
   LLVMDisposeMessage(error);
 
-  LLVMPassManagerRef pm = LLVMCreatePassManager();
-  LLVMAddConstantPropagationPass(pm);
-  LLVMAddInstructionCombiningPass(pm);
-  LLVMAddPromoteMemoryToRegisterPass(pm);
-  LLVMAddReassociatePass(pm);
-  LLVMAddGVNPass(pm);
-  LLVMAddCFGSimplificationPass(pm);
+  pass_manager = LLVMCreatePassManager();
+  LLVMAddConstantPropagationPass(pass_manager);
+  LLVMAddInstructionCombiningPass(pass_manager);
+  LLVMAddPromoteMemoryToRegisterPass(pass_manager);
+  LLVMAddReassociatePass(pass_manager);
+  LLVMAddGVNPass(pass_manager);
+  LLVMAddCFGSimplificationPass(pass_manager);
 
-  LLVMRunPassManager(pm, module);
+  LLVMRunPassManager(pass_manager, module);
 
   LLVMDumpModule(module);
 
@@ -121,17 +146,23 @@ exit:
     free(parser);
   }
 
-  if (NULL != root) {
-    free_ast_node(root);
-  }
-
   free_tokens_vector(&tokens);
+  free_functions_vector(functions);
 
   // LLVM STUFF
 
-  LLVMDisposePassManager(pm);
-  LLVMDisposeBuilder(builder);
-  LLVMDisposeModule(module);
+  if (NULL != pass_manager) {
+    LLVMDisposePassManager(pass_manager);
+  }
+
+  if (NULL != builder) {
+
+    LLVMDisposeBuilder(builder);
+  }
+  if (NULL != module) {
+
+    LLVMDisposeModule(module);
+  }
 
   return status_code;
 }
