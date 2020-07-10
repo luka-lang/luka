@@ -1,4 +1,5 @@
 #include "../include/parser.h"
+#include "../include/ast.h"
 #include "../include/expr.h"
 
 void initialize_parser(parser_t *parser, Vector *tokens,
@@ -7,7 +8,6 @@ void initialize_parser(parser_t *parser, Vector *tokens,
 
   parser->tokens = tokens;
   parser->index = 0;
-  parser->tree = NULL;
   parser->file_path = file_path;
 }
 
@@ -60,13 +60,13 @@ void EXPECT_ADVANCE(parser_t *parser, toktype_t type, const char *message) {
 int parse_arithop(token_t *token) {
   switch (token->type) {
   case T_PLUS:
-    return A_ADD;
+    return BINOP_ADD;
   case T_MINUS:
-    return A_SUBTRACT;
+    return BINOP_SUBTRACT;
   case T_STAR:
-    return A_MULTIPLY;
+    return BINOP_MULTIPLY;
   case T_SLASH:
-    return A_DIVIDE;
+    return BINOP_DIVIDE;
   default:
     fprintf(stderr, "unknown token in parse_arithop at %ld:%ld\n", token->line,
             token->offset);
@@ -80,7 +80,7 @@ ASTnode *parse_primary(parser_t *parser) {
 
   switch (token->type) {
   case T_NUMBER:
-    n = mk_ast_leaf(A_INT_LITERAL, atoi(token->content));
+    n = new_ast_number(atoi(token->content));
     ADVANCE(parser);
     return n;
 
@@ -106,63 +106,11 @@ ASTnode *parse_binexpr(parser_t *parser, int ptp) {
   while (op_precedence(token) > ptp) {
     ADVANCE(parser);
     right = parse_binexpr(parser, OpPrec[token->type - T_PLUS]);
-    left = mk_ast_node(parse_arithop(token), left, right, 0);
+    left = new_ast_binary_expr(parse_arithop(token), left, right);
 
     token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
     if (T_EOF == token->type) {
       return left;
-    }
-  }
-
-  return left;
-}
-
-ASTnode *parse_multiplicative_expr(parser_t *parser) {
-  ASTnode *left, *right;
-  token_t *token;
-
-  left = parse_primary(parser);
-
-  token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
-  if (T_EOF == token->type) {
-    return left;
-  }
-
-  while ((T_STAR == token->type) || (T_SLASH == token->type)) {
-    right = parse_primary(parser);
-
-    left = mk_ast_node(parse_arithop(token), left, right, 0);
-
-    token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
-
-    if (T_EOF == token->type) {
-      break;
-    }
-  }
-
-  return left;
-}
-
-ASTnode *parse_additive_expr(parser_t *parser) {
-  ASTnode *left, *right;
-  token_t *token;
-
-  left = parse_multiplicative_expr(parser);
-
-  token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
-  if (T_EOF == token->type) {
-    return left;
-  }
-
-  while (true) {
-    right = parse_multiplicative_expr(parser);
-
-    left = mk_ast_node(parse_arithop(token), left, right, 0);
-
-    token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
-
-    if (T_EOF == token->type) {
-      break;
     }
   }
 

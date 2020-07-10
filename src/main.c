@@ -2,7 +2,19 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
-#include "../include/interp.h"
+#include <llvm-c/Analysis.h>
+#include <llvm-c/BitWriter.h>
+#include <llvm-c/Core.h>
+#include <llvm-c/ExecutionEngine.h>
+#include <llvm-c/Object.h>
+#include <llvm-c/Target.h>
+#include <llvm-c/Transforms/InstCombine.h>
+#include <llvm-c/Transforms/PassManagerBuilder.h>
+#include <llvm-c/Transforms/Scalar.h>
+#include <llvm-c/Transforms/Utils.h>
+
+#include "../include/ast.h"
+#include "../include/gen.h"
 #include "../include/io.h"
 #include "../include/lexer.h"
 #include "../include/parser.h"
@@ -45,7 +57,7 @@ int main(int argc, char **argv) {
 
   parser_t *parser = NULL;
 
-  ASTnode *n = NULL;
+  ASTnode *root = NULL;
 
   if (argc != 2) {
     fprintf(stderr, "USAGE: luka [luka source file]\n");
@@ -68,8 +80,38 @@ int main(int argc, char **argv) {
   print_parser_tokens(parser);
 
   // start_parsing(parser);
-  n = parse_binexpr(parser, 0);
-  printf("%d\n", interpretAST(n));
+  root = parse_binexpr(parser, 0);
+
+  LLVMModuleRef module = LLVMModuleCreateWithName("luka_main_module");
+
+  LLVMTypeRef main_type = LLVMFunctionType(LLVMInt32Type(), NULL, 0, 0);
+  LLVMValueRef main = LLVMAddFunction(module, "main", main_type);
+
+  LLVMBasicBlockRef entry = LLVMAppendBasicBlock(main, "entry");
+  LLVMBuilderRef builder = LLVMCreateBuilder();
+  LLVMPositionBuilderAtEnd(builder, entry);
+
+  LLVMValueRef tmp = codegen(root, module, builder);
+
+  LLVMBuildRet(builder, tmp);
+
+  char *error = NULL;
+  LLVMVerifyModule(module, LLVMAbortProcessAction, &error);
+  LLVMDisposeMessage(error);
+
+  LLVMPassManagerRef pm = LLVMCreatePassManager();
+  LLVMAddConstantPropagationPass(pm);
+  LLVMAddInstructionCombiningPass(pm);
+  LLVMAddPromoteMemoryToRegisterPass(pm);
+  LLVMAddReassociatePass(pm);
+  LLVMAddGVNPass(pm);
+  LLVMAddCFGSimplificationPass(pm);
+
+  LLVMRunPassManager(pm, module);
+
+  LLVMDumpModule(module);
+
+  LLVMWriteBitcodeToFile(module, "life.bc");
 
   status_code = LUKA_SUCCESS;
 
@@ -79,7 +121,17 @@ exit:
     free(parser);
   }
 
+  if (NULL != root) {
+    free_ast_node(root);
+  }
+
   free_tokens_vector(&tokens);
+
+  // LLVM STUFF
+
+  LLVMDisposePassManager(pm);
+  LLVMDisposeBuilder(builder);
+  LLVMDisposeModule(module);
 
   return status_code;
 }

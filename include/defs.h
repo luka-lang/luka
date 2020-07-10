@@ -33,15 +33,34 @@ typedef struct {
 } token_t;
 
 typedef token_t *token_ptr_t;
-typedef token_t **vectok_t;
 
-enum { A_ADD, A_SUBTRACT, A_MULTIPLY, A_DIVIDE, A_INT_LITERAL };
+typedef enum { AST_TYPE_NUMBER, AST_TYPE_BINARY_EXPR } AST_node_type;
+
+typedef enum {
+  BINOP_ADD,
+  BINOP_SUBTRACT,
+  BINOP_MULTIPLY,
+  BINOP_DIVIDE
+} AST_binop_type;
+
+typedef struct ASTnode_s ASTnode;
+
+typedef struct {
+  int value;
+} AST_number;
+
+typedef struct {
+  AST_binop_type operator;
+  ASTnode *lhs;
+  ASTnode *rhs;
+} AST_binary_expr;
 
 typedef struct ASTnode_s {
-  int op;
-  struct ASTnode_s *left;
-  struct ASTnode_s *right;
-  int intvalue;
+  AST_node_type type;
+  union {
+    AST_number number;
+    AST_binary_expr binary_expr;
+  };
 } ASTnode;
 
 #endif // __DEFS_H_
