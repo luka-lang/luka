@@ -60,8 +60,7 @@ LLVMValueRef codegen_prototype(ASTnode *n, LLVMModuleRef module,
   }
   func_type = LLVMFunctionType(LLVMInt32Type(), params, arity, 0);
 
-  return LLVMAddFunction(module, n->function.prototype->prototype.name,
-                         func_type);
+  return LLVMAddFunction(module, n->prototype.name, func_type);
 }
 
 LLVMValueRef codegen_stmts(Vector *statements, LLVMModuleRef module,
@@ -88,20 +87,28 @@ LLVMValueRef codegen_stmts(Vector *statements, LLVMModuleRef module,
 LLVMValueRef codegen_function(ASTnode *n, LLVMModuleRef module,
                               LLVMBuilderRef builder) {
   LLVMValueRef func = NULL, tmp = NULL, ret_val = NULL;
-  LLVMBasicBlockRef entry = NULL;
+  LLVMBasicBlockRef block = NULL;
   ASTnode *stmt = NULL;
   bool has_return_stmt = false;
 
-  func = codegen_prototype(n, module, builder);
+  func = codegen(n->function.prototype, module, builder);
+  if (NULL == func) {
+    return NULL;
+  }
 
-  entry = LLVMAppendBasicBlock(func, "entry");
-  builder = LLVMCreateBuilder();
-  LLVMPositionBuilderAtEnd(builder, entry);
+  block = LLVMAppendBasicBlock(func, "entry");
+  LLVMPositionBuilderAtEnd(builder, block);
 
   ret_val = codegen_stmts(n->function.body, module, builder, &has_return_stmt);
 
   if (false == has_return_stmt) {
     LLVMBuildRet(builder, ret_val);
+  }
+
+  if (1 == LLVMVerifyFunction(func, LLVMPrintMessageAction)) {
+    fprintf(stderr, "Invalid function");
+    LLVMDeleteFunction(func);
+    return NULL;
   }
 
   return func;
@@ -174,8 +181,6 @@ LLVMValueRef codegen_if_expr(ASTnode *n, LLVMModuleRef module,
   phi = LLVMBuildPhi(builder, LLVMInt32Type(), "phi");
 
   LLVMAddIncoming(phi, &then_value, &then_block, 1);
-
-  LLVMDumpModule(module);
 
   if (NULL != n->if_expr.else_body) {
     LLVMAddIncoming(phi, &else_value, &else_block, 1);

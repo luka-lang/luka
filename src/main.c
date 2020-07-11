@@ -54,17 +54,18 @@ void free_functions_vector(Vector *functions) {
 
   vector_clear(functions);
   vector_destroy(functions);
+  free(functions);
 }
 
 int main(int argc, char **argv) {
   return_code_t status_code = LUKA_UNINITIALIZED;
   char *file_path = NULL;
 
-  int file_size;
+  int file_size = 0;
   char *file_contents = NULL;
 
   Vector tokens;
-  Vector *functions;
+  Vector *functions = NULL;
   token_t *token = NULL;
 
   parser_t *parser = NULL;
@@ -101,7 +102,10 @@ int main(int argc, char **argv) {
 
   print_functions(functions, 0);
 
+  LLVMInitializeCore(LLVMGetGlobalPassRegistry());
+
   module = LLVMModuleCreateWithName("luka_main_module");
+  builder = LLVMCreateBuilder();
 
   VECTOR_FOR_EACH(functions, iterator) {
     function = ITERATOR_GET_AS(ast_node_ptr_t, &iterator);
@@ -150,6 +154,8 @@ exit:
 
     LLVMDisposeModule(module);
   }
+
+  LLVMShutdown();
 
   return status_code;
 }
