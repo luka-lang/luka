@@ -39,7 +39,8 @@ typedef enum {
   AST_TYPE_NUMBER,
   AST_TYPE_BINARY_EXPR,
   AST_TYPE_PROTOTYPE,
-  AST_TYPE_FUNCTION
+  AST_TYPE_FUNCTION,
+  AST_TYPE_RETURN_STMT
 } AST_node_type;
 
 typedef enum {
@@ -72,6 +73,10 @@ typedef struct {
   ASTnode *body;
 } AST_function;
 
+typedef struct {
+  ASTnode *expr;
+} AST_return_stmt;
+
 typedef struct ASTnode_s {
   AST_node_type type;
   union {
@@ -79,6 +84,7 @@ typedef struct ASTnode_s {
     AST_binary_expr binary_expr;
     AST_prototype prototype;
     AST_function function;
+    AST_return_stmt return_stmt;
   };
 } ASTnode;
 

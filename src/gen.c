@@ -30,6 +30,17 @@ LLVMValueRef codegen_binexpr(ASTnode *n, LLVMModuleRef module,
   return NULL;
 }
 
+LLVMValueRef codegen_return_stmt(ASTnode *n, LLVMModuleRef module,
+                                 LLVMBuilderRef builder) {
+  LLVMValueRef expr;
+  if (n->return_stmt.expr) {
+    expr = codegen(n->return_stmt.expr, module, builder);
+  }
+
+  LLVMBuildRet(builder, expr);
+  return NULL;
+}
+
 LLVMValueRef codegen(ASTnode *node, LLVMModuleRef module,
                      LLVMBuilderRef builder) {
   switch (node->type) {
@@ -37,6 +48,8 @@ LLVMValueRef codegen(ASTnode *node, LLVMModuleRef module,
     return LLVMConstInt(LLVMInt32Type(), node->number.value, 0);
   case AST_TYPE_BINARY_EXPR:
     return codegen_binexpr(node, module, builder);
+  case AST_TYPE_RETURN_STMT:
+    return codegen_return_stmt(node, module, builder);
   }
 
   return NULL;

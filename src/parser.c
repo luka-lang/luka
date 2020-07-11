@@ -145,12 +145,44 @@ ASTnode *parse_binexpr(parser_t *parser, int ptp) {
 
     token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
 
+    if (T_SEMI_COLON == token->type) {
+      return left;
+    }
+
     if (T_EOF == token->type) {
       return left;
     }
   }
 
   return left;
+}
+
+ASTnode *parse_expression(parser_t *parser) { return parse_binexpr(parser, 0); }
+
+ASTnode *parse_statement(parser_t *parser) {
+  ASTnode *node = NULL, *expr = NULL;
+  token_t *token = NULL;
+
+  token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+  switch (token->type) {
+  case T_RETURN: {
+    ADVANCE(parser);
+    expr = parse_expression(parser);
+    --parser->index;
+    EXPECT_ADVANCE(parser, T_SEMI_COLON,
+                   "Expected a ';' at the end of a return statement");
+    node = new_ast_return_stmt(expr);
+    return node;
+    break;
+  }
+  default: {
+    fprintf(stderr, "Not a statement: %ld:%ld - %s\n", token->line,
+            token->offset, token->content);
+    exit(1);
+  }
+  }
+
+  return NULL;
 }
 
 ASTnode *parse_prototype(parser_t *parser) {
@@ -201,7 +233,7 @@ ASTnode *parse_function(parser_t *parser) {
   prototype = parse_prototype(parser);
   EXPECT_ADVANCE(parser, T_OPEN_BRACKET, "Expected a '{'");
   ADVANCE(parser);
-  body = parse_binexpr(parser, 0);
+  body = parse_statement(parser);
   EXPECT_ADVANCE(parser, T_CLOSE_BRACKET, "Expected a '}'");
 
   return new_ast_function(prototype, body);

@@ -1,12 +1,12 @@
 fn main() {
 	// Returns the meaning of life
-	3 * 4 + 5 * 6
+	return 3 * 4 + 5 * 6;
 }
 
 fn other_func(a) {
-	654
+	return 654;
 }
 
 fn maybe_a_third_one(a, b) {
-	3
+	return 3;
 }

@@ -39,6 +39,13 @@ ASTnode *new_ast_function(ASTnode *prototype, ASTnode *body) {
   return node;
 }
 
+ASTnode *new_ast_return_stmt(ASTnode *expr) {
+  ASTnode *node = calloc(1, sizeof(ASTnode));
+  node->type = AST_TYPE_RETURN_STMT;
+  node->return_stmt.expr = expr;
+  return node;
+}
+
 void free_ast_node(ASTnode *node) {
   if (!node)
     return;
@@ -68,6 +75,12 @@ void free_ast_node(ASTnode *node) {
       free_ast_node(node->function.prototype);
     if (node->function.body)
       free_ast_node(node->function.body);
+    break;
+  }
+  case AST_TYPE_RETURN_STMT: {
+    if (node->return_stmt.expr)
+      free_ast_node(node->return_stmt.expr);
+    break;
   }
   }
 

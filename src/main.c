@@ -123,8 +123,9 @@ int main(int argc, char **argv) {
     LLVMPositionBuilderAtEnd(builder, entry);
 
     tmp = codegen(function->function.body, module, builder);
-
-    LLVMBuildRet(builder, tmp);
+    if (NULL != tmp) {
+      LLVMBuildRet(builder, tmp);
+    }
   }
 
   LLVMVerifyModule(module, LLVMAbortProcessAction, &error);
