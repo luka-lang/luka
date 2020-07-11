@@ -66,6 +66,16 @@ bool EXPECT(parser_t *parser, toktype_t type) {
   return token->type == type;
 }
 
+bool MATCH(parser_t *parser, toktype_t type) {
+  token_t *token = NULL;
+
+  assert(parser->index < parser->tokens->size);
+
+  token = *(token_ptr_t *)vector_get(parser->tokens, parser->index);
+
+  return token->type == type;
+}
+
 void ADVANCE(parser_t *parser) {
   ++parser->index;
   assert(parser->index < parser->tokens->size);
@@ -73,6 +83,14 @@ void ADVANCE(parser_t *parser) {
 
 void EXPECT_ADVANCE(parser_t *parser, toktype_t type, const char *message) {
   if (!EXPECT(parser, type)) {
+    ERR(parser, message);
+  }
+
+  ADVANCE(parser);
+}
+
+void MATCH_ADVANCE(parser_t *parser, toktype_t type, const char *message) {
+  if (!MATCH(parser, type)) {
     ERR(parser, message);
   }
 
@@ -168,9 +186,8 @@ ASTnode *parse_statement(parser_t *parser) {
   case T_RETURN: {
     ADVANCE(parser);
     expr = parse_expression(parser);
-    --parser->index;
-    EXPECT_ADVANCE(parser, T_SEMI_COLON,
-                   "Expected a ';' at the end of a return statement");
+    MATCH_ADVANCE(parser, T_SEMI_COLON,
+                  "Expected a ';' at the end of a return statement");
     node = new_ast_return_stmt(expr);
     return node;
     break;
@@ -183,6 +200,32 @@ ASTnode *parse_statement(parser_t *parser) {
   }
 
   return NULL;
+}
+
+Vector *parse_statements(parser_t *parser) {
+  Vector *stmts = NULL;
+  ASTnode *stmt = NULL;
+  token_t *token = NULL;
+  stmts = calloc(1, sizeof(Vector));
+
+  vector_setup(stmts, 10, sizeof(ast_node_ptr_t));
+
+  EXPECT_ADVANCE(parser, T_OPEN_BRACKET,
+                 "Expected '{' to open a body of statements");
+
+  while (T_CLOSE_BRACKET !=
+         (token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index + 1))
+             ->type) {
+    ADVANCE(parser);
+    stmt = parse_statement(parser);
+    vector_push_back(stmts, &stmt);
+    --parser->index;
+  }
+
+  ADVANCE(parser);
+
+  vector_shrink_to_fit(stmts);
+  return stmts;
 }
 
 ASTnode *parse_prototype(parser_t *parser) {
@@ -229,13 +272,10 @@ ASTnode *parse_prototype(parser_t *parser) {
 
 ASTnode *parse_function(parser_t *parser) {
   int number = 0;
-  ASTnode *prototype = NULL, *body = NULL;
+  ASTnode *prototype = NULL;
+  Vector *body = NULL;
   prototype = parse_prototype(parser);
-  EXPECT_ADVANCE(parser, T_OPEN_BRACKET, "Expected a '{'");
-  ADVANCE(parser);
-  body = parse_statement(parser);
-  EXPECT_ADVANCE(parser, T_CLOSE_BRACKET, "Expected a '}'");
-
+  body = parse_statements(parser);
   return new_ast_function(prototype, body);
 }
 

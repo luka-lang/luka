@@ -31,7 +31,7 @@ ASTnode *new_ast_prototype(char *name, char **args, int arity) {
   return node;
 }
 
-ASTnode *new_ast_function(ASTnode *prototype, ASTnode *body) {
+ASTnode *new_ast_function(ASTnode *prototype, Vector *body) {
   ASTnode *node = calloc(1, sizeof(ASTnode));
   node->type = AST_TYPE_FUNCTION;
   node->function.prototype = prototype;
@@ -73,8 +73,17 @@ void free_ast_node(ASTnode *node) {
   case AST_TYPE_FUNCTION: {
     if (node->function.prototype)
       free_ast_node(node->function.prototype);
-    if (node->function.body)
-      free_ast_node(node->function.body);
+    if (node->function.body) {
+      ASTnode *stmt = NULL;
+      VECTOR_FOR_EACH(node->function.body, stmts) {
+        stmt = ITERATOR_GET_AS(ast_node_ptr_t, &stmts);
+        free_ast_node(stmt);
+      }
+
+      vector_clear(node->function.body);
+      vector_destroy(node->function.body);
+      free(node->function.body);
+    }
     break;
   }
   case AST_TYPE_RETURN_STMT: {

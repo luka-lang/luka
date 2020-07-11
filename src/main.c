@@ -75,10 +75,6 @@ int main(int argc, char **argv) {
   LLVMBuilderRef builder = NULL;
   LLVMPassManagerRef pass_manager = NULL;
 
-  LLVMTypeRef func_type = NULL;
-  LLVMValueRef func = NULL, tmp = NULL;
-  LLVMBasicBlockRef entry = NULL;
-
   char *error = NULL;
 
   if (argc != 2) {
@@ -107,25 +103,7 @@ int main(int argc, char **argv) {
 
   VECTOR_FOR_EACH(functions, iterator) {
     function = ITERATOR_GET_AS(ast_node_ptr_t, &iterator);
-
-    int arity = function->prototype.arity;
-    LLVMTypeRef params[arity];
-    for (int i = 0; i < arity; ++i) {
-      // int32_t by default
-      params[i] = LLVMInt32Type();
-    }
-    func_type = LLVMFunctionType(LLVMInt32Type(), params, arity, 0);
-    func = LLVMAddFunction(module, function->function.prototype->prototype.name,
-                           func_type);
-
-    entry = LLVMAppendBasicBlock(func, "entry");
-    builder = LLVMCreateBuilder();
-    LLVMPositionBuilderAtEnd(builder, entry);
-
-    tmp = codegen(function->function.body, module, builder);
-    if (NULL != tmp) {
-      LLVMBuildRet(builder, tmp);
-    }
+    codegen(function, module, builder);
   }
 
   LLVMVerifyModule(module, LLVMAbortProcessAction, &error);

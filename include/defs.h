@@ -1,6 +1,8 @@
 #ifndef __DEFS_H_
 #define __DEFS_H_
 
+#include "vector.h"
+
 #define NUMBER_OF_KEYWORDS 2
 extern const char *keywords[NUMBER_OF_KEYWORDS];
 
@@ -70,7 +72,7 @@ typedef struct {
 
 typedef struct {
   ASTnode *prototype;
-  ASTnode *body;
+  Vector *body;
 } AST_function;
 
 typedef struct {

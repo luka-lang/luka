@@ -1,6 +1,9 @@
 fn main() {
 	// Returns the meaning of life
 	return 3 * 4 + 5 * 6;
+
+    // V Unreachable code V
+	return 666;
 }
 
 fn other_func(a) {
@@ -10,3 +13,5 @@ fn other_func(a) {
 fn maybe_a_third_one(a, b) {
 	return 3;
 }
+
+fn empty_func() {}
