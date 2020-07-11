@@ -265,20 +265,29 @@ Vector *parse_statements(parser_t *parser) {
 
   vector_setup(stmts, 10, sizeof(ast_node_ptr_t));
 
-  EXPECT_ADVANCE(parser, T_OPEN_BRACKET,
-                 "Expected '{' to open a body of statements");
+  token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index + 1);
 
-  while (T_CLOSE_BRACKET !=
-         (token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index + 1))
-             ->type) {
+  if (T_OPEN_BRACKET != token->type) {
     ADVANCE(parser);
     stmt = parse_statement(parser);
     vector_push_back(stmts, &stmt);
     --parser->index;
+  } else {
+    EXPECT_ADVANCE(parser, T_OPEN_BRACKET,
+                   "Expected '{' to open a body of statements");
+
+    while (
+        T_CLOSE_BRACKET !=
+        (token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index + 1))
+            ->type) {
+      ADVANCE(parser);
+      stmt = parse_statement(parser);
+      vector_push_back(stmts, &stmt);
+      --parser->index;
+    }
+
+    ADVANCE(parser);
   }
-
-  ADVANCE(parser);
-
   vector_shrink_to_fit(stmts);
   return stmts;
 }
