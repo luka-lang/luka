@@ -4,6 +4,8 @@
 
 #include <string.h>
 
+Vector *parse_statements(parser_t *parser);
+
 void initialize_parser(parser_t *parser, Vector *tokens,
                        const char *file_path) {
   assert(parser != NULL);
@@ -126,48 +128,54 @@ ASTnode *parse_primary(parser_t *parser) {
   }
 
   default:
-    fprintf(stderr, "parse_primary: Syntax error at %ld:%ld\n", token->line,
-            token->offset);
+    fprintf(stderr, "parse_primary: Syntax error at %ld:%ld - %s\n",
+            token->line, token->offset, token->content);
     exit(1);
   }
+}
+
+bool should_finish_expression(token_t *token) {
+  if (T_OPEN_BRACKET == token->type) {
+    return true;
+  }
+
+  if (T_CLOSE_BRACKET == token->type) {
+    return true;
+  }
+
+  if (T_SEMI_COLON == token->type) {
+    return true;
+  }
+
+  if (T_EOF == token->type) {
+    return true;
+  }
+
+  return false;
 }
 
 ASTnode *parse_binexpr(parser_t *parser, int ptp) {
   ASTnode *left, *right;
   int nodetype;
-  token_t *token = NULL, *lookahead = NULL;
+  token_t *token = NULL;
 
   left = parse_primary(parser);
 
   token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
 
-  if (T_CLOSE_BRACKET == token->type) {
-    --parser->index;
-    return left;
-  }
-
-  if ((T_EOF == token->type) || (T_SEMI_COLON == token->type)) {
+  if (should_finish_expression(token)) {
     return left;
   }
 
   while (op_precedence(token) > ptp) {
     ADVANCE(parser);
-    lookahead = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
-    if (T_CLOSE_BRACKET == lookahead->type) {
-      --parser->index;
-      return left;
-    }
 
     right = parse_binexpr(parser, OpPrec[token->type - T_PLUS]);
     left = new_ast_binary_expr(parse_arithop(token), left, right);
 
     token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
 
-    if (T_SEMI_COLON == token->type) {
-      return left;
-    }
-
-    if (T_EOF == token->type) {
+    if (should_finish_expression(token)) {
       return left;
     }
   }
@@ -175,7 +183,35 @@ ASTnode *parse_binexpr(parser_t *parser, int ptp) {
   return left;
 }
 
-ASTnode *parse_expression(parser_t *parser) { return parse_binexpr(parser, 0); }
+ASTnode *parse_expression(parser_t *parser) {
+  ASTnode *node = NULL, *expr = NULL, *cond = false;
+  Vector *then_body = NULL, *else_body = NULL;
+  token_t *token = NULL;
+
+  token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+
+  switch (token->type) {
+  case T_IF: {
+    ADVANCE(parser);
+    cond = parse_expression(parser);
+    --parser->index;
+    then_body = parse_statements(parser);
+    if (EXPECT(parser, T_ELSE)) {
+      ADVANCE(parser);
+      else_body = parse_statements(parser);
+    } else {
+      else_body = NULL;
+    }
+    ADVANCE(parser);
+
+    node = new_ast_if_expr(cond, then_body, else_body);
+    return node;
+  };
+  default: {
+    return parse_binexpr(parser, 0);
+  }
+  }
+}
 
 ASTnode *parse_statement(parser_t *parser) {
   ASTnode *node = NULL, *expr = NULL;
@@ -190,9 +226,14 @@ ASTnode *parse_statement(parser_t *parser) {
                   "Expected a ';' at the end of a return statement");
     node = new_ast_return_stmt(expr);
     return node;
-    break;
   }
   default: {
+    expr = parse_expression(parser);
+    token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+
+    if (should_finish_expression(token)) {
+      return expr;
+    }
     fprintf(stderr, "Not a statement: %ld:%ld - %s\n", token->line,
             token->offset, token->content);
     exit(1);

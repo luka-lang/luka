@@ -14,6 +14,12 @@ ASTnode *new_ast_function(ASTnode *prototype, Vector *body);
 
 ASTnode *new_ast_return_stmt(ASTnode *expr);
 
+ASTnode *new_ast_if_expr(ASTnode *cond, Vector *then_body, Vector *else_body);
+
 void free_ast_node(ASTnode *node);
+
+void print_statements_block(Vector *statements, int offset);
+void print_functions(Vector *functions, int offset);
+void print_ast(ASTnode *node, int offset);
 
 #endif // __AST_H_

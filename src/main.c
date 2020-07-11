@@ -99,6 +99,8 @@ int main(int argc, char **argv) {
 
   functions = parse_top_level(parser); // parse_binexpr(parser, 0);
 
+  print_functions(functions, 0);
+
   module = LLVMModuleCreateWithName("luka_main_module");
 
   VECTOR_FOR_EACH(functions, iterator) {

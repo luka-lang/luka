@@ -1,17 +1,10 @@
 fn main() {
-	// Returns the meaning of life
-	return 3 * 4 + 5 * 6;
-
-    // V Unreachable code V
-	return 666;
+   if 1
+   {
+     42
+   }
+   else
+   {
+     30
+   }
 }
-
-fn other_func(a) {
-	return 654;
-}
-
-fn maybe_a_third_one(a, b) {
-	return 3;
-}
-
-fn empty_func() {}
