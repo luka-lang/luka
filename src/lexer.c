@@ -160,6 +160,39 @@ void tokenize_source(Vector *tokens, const char *source) {
       token->content = "/";
       break;
     }
+    case '=': {
+      if ('=' == source[i + 1]) {
+        ++i;
+        token->type = T_EQEQ;
+        token->content = "==";
+      } else {
+        token->type = T_EQUALS;
+        token->content = "=";
+      }
+      break;
+    }
+    case '<': {
+      if ('=' == source[i + 1]) {
+        ++i;
+        token->type = T_LEQ;
+        token->content = "<=";
+      } else {
+        token->type = T_OPEN_ANG;
+        token->content = "<";
+      }
+      break;
+    }
+    case '>': {
+      if ('=' == source[i + 1]) {
+        ++i;
+        token->type = T_GEQ;
+        token->content = ">=";
+      } else {
+        token->type = T_CLOSE_ANG;
+        token->content = ">";
+      }
+      break;
+    }
     case '"': {
       token->type = T_STRING;
       identifier = parse_string(source, &i);

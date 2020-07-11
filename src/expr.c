@@ -2,8 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// PLUS MINUS MULT DIV INTLIT EOF
-int OpPrec[] = {10, 10, 20, 20, 0, 0};
+// PLUS MINUS MULT DIV INTLIT EQUALS BANG OPEN_ANG CLOSE_ANG EQEQ NEQ LEQ GEQ
+// EOF
+int OpPrec[] = {12, 12, 13, 13, 0, 2, 15, 9, 9, 8, 8, 9, 9, 0};
 
 int op_precedence(token_t *token) {
   int prec = OpPrec[token->type - T_PLUS];

@@ -26,6 +26,24 @@ LLVMValueRef codegen_binexpr(ASTnode *n, LLVMModuleRef module,
     return LLVMBuildMul(builder, lhs, rhs, "multmp");
   case BINOP_DIVIDE:
     return LLVMBuildFDiv(builder, lhs, rhs, "divtmp");
+  case BINOP_NOT:
+    return LLVMBuildNot(builder, lhs, "nottmp");
+  case BINOP_LESSER:
+    return LLVMBuildICmp(builder, LLVMIntSLT, lhs, rhs, "lessertmp");
+  case BINOP_GREATER:
+    return LLVMBuildICmp(builder, LLVMIntSGT, lhs, rhs, "greatertmp");
+  case BINOP_EQUALS:
+    return LLVMBuildICmp(builder, LLVMIntEQ, lhs, rhs, "eqeqtmp");
+  case BINOP_NEQ:
+    return LLVMBuildICmp(builder, LLVMIntNE, lhs, rhs, "neqtmp");
+  case BINOP_LEQ:
+    return LLVMBuildICmp(builder, LLVMIntSLE, lhs, rhs, "leqtmp");
+  case BINOP_GEQ:
+    return LLVMBuildICmp(builder, LLVMIntSGE, lhs, rhs, "geqtmp");
+  default: {
+    fprintf(stderr, "No handler found for op: %d\n", n->binary_expr.operator);
+    exit(1);
+  }
   }
 
   return NULL;
@@ -107,11 +125,6 @@ LLVMValueRef codegen_if_expr(ASTnode *n, LLVMModuleRef module,
   LLVMBasicBlockRef cond_block = NULL, then_block = NULL, else_block = NULL,
                     merge_block = NULL, incoming_blocks[2] = {NULL, NULL};
 
-  cond = codegen(n->if_expr.cond, module, builder);
-  if (NULL == cond) {
-    return NULL;
-  }
-
   func = LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder));
 
   cond_block = LLVMAppendBasicBlock(func, "if_cond");
@@ -124,8 +137,10 @@ LLVMValueRef codegen_if_expr(ASTnode *n, LLVMModuleRef module,
   LLVMBuildBr(builder, cond_block);
   LLVMPositionBuilderAtEnd(builder, cond_block);
 
-  zero = LLVMConstInt(LLVMInt32Type(), 0, 0);
-  cond = LLVMBuildICmp(builder, LLVMIntNE, cond, zero, "cond");
+  cond = codegen(n->if_expr.cond, module, builder);
+  if (NULL == cond) {
+    return NULL;
+  }
 
   if (NULL != n->if_expr.else_body) {
     LLVMBuildCondBr(builder, cond, then_block, else_block);
@@ -158,16 +173,15 @@ LLVMValueRef codegen_if_expr(ASTnode *n, LLVMModuleRef module,
   LLVMPositionBuilderAtEnd(builder, merge_block);
   phi = LLVMBuildPhi(builder, LLVMInt32Type(), "phi");
 
-  incoming_values[0] = then_value;
-  incoming_blocks[0] = then_block;
+  LLVMAddIncoming(phi, &then_value, &then_block, 1);
+
+  LLVMDumpModule(module);
 
   if (NULL != n->if_expr.else_body) {
-    incoming_values[1] = else_value;
-    incoming_blocks[1] = else_block;
-
-    LLVMAddIncoming(phi, incoming_values, incoming_blocks, 2);
+    LLVMAddIncoming(phi, &else_value, &else_block, 1);
   } else {
-    LLVMAddIncoming(phi, incoming_values, incoming_blocks, 1);
+    incoming_values[0] = LLVMConstInt(LLVMInt32Type(), 0, 0);
+    LLVMAddIncoming(phi, incoming_values, &cond_block, 1);
   }
 
   return phi;

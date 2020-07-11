@@ -99,7 +99,7 @@ void MATCH_ADVANCE(parser_t *parser, toktype_t type, const char *message) {
   ADVANCE(parser);
 }
 
-int parse_arithop(token_t *token) {
+int parse_op(token_t *token) {
   switch (token->type) {
   case T_PLUS:
     return BINOP_ADD;
@@ -109,8 +109,22 @@ int parse_arithop(token_t *token) {
     return BINOP_MULTIPLY;
   case T_SLASH:
     return BINOP_DIVIDE;
+  case T_OPEN_ANG:
+    return BINOP_LESSER;
+  case T_CLOSE_ANG:
+    return BINOP_GREATER;
+  case T_BANG:
+    return BINOP_NOT;
+  case T_EQEQ:
+    return BINOP_EQUALS;
+  case T_NEQ:
+    return BINOP_NEQ;
+  case T_LEQ:
+    return BINOP_LEQ;
+  case T_GEQ:
+    return BINOP_GEQ;
   default:
-    fprintf(stderr, "unknown token in parse_arithop at %ld:%ld\n", token->line,
+    fprintf(stderr, "unknown token in parse_op at %ld:%ld\n", token->line,
             token->offset);
     exit(1);
   }
@@ -171,7 +185,7 @@ ASTnode *parse_binexpr(parser_t *parser, int ptp) {
     ADVANCE(parser);
 
     right = parse_binexpr(parser, OpPrec[token->type - T_PLUS]);
-    left = new_ast_binary_expr(parse_arithop(token), left, right);
+    left = new_ast_binary_expr(parse_op(token), left, right);
 
     token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
 

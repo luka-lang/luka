@@ -27,6 +27,15 @@ typedef enum {
   T_SLASH,
   T_INTLIT,
 
+  T_EQUALS,
+  T_BANG,
+  T_OPEN_ANG,
+  T_CLOSE_ANG,
+  T_EQEQ,
+  T_NEQ,
+  T_LEQ,
+  T_GEQ,
+
   T_EOF,
 } toktype_t;
 
@@ -52,7 +61,14 @@ typedef enum {
   BINOP_ADD,
   BINOP_SUBTRACT,
   BINOP_MULTIPLY,
-  BINOP_DIVIDE
+  BINOP_DIVIDE,
+  BINOP_NOT,
+  BINOP_LESSER,
+  BINOP_GREATER,
+  BINOP_EQUALS,
+  BINOP_NEQ,
+  BINOP_LEQ,
+  BINOP_GEQ,
 } AST_binop_type;
 
 typedef struct ASTnode_s ASTnode;

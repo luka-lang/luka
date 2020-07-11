@@ -160,6 +160,20 @@ char *op_to_str(AST_binop_type op) {
     return "*";
   case BINOP_DIVIDE:
     return "/";
+  case BINOP_NOT:
+    return "!";
+  case BINOP_LESSER:
+    return "<";
+  case BINOP_GREATER:
+    return ">";
+  case BINOP_EQUALS:
+    return "==";
+  case BINOP_NEQ:
+    return "!=";
+  case BINOP_LEQ:
+    return "<=";
+  case BINOP_GEQ:
+    return ">=";
   default:
     fprintf(stderr, "Unknown operator: %d\n", op);
     exit(1);
@@ -179,7 +193,7 @@ void print_ast(ASTnode *node, int offset) {
     printf("%*c\b AST number %d\n", offset, ' ', node->number.value);
     break;
   case AST_TYPE_BINARY_EXPR: {
-    printf("%*c\b Binary Expr\n", offset, ' ');
+    printf("%*c\b Binary Expression\n", offset, ' ');
     printf("%*c\b Operator: %s\n", offset + 2, ' ',
            op_to_str(node->binary_expr.operator));
     if (node->binary_expr.lhs)
@@ -212,13 +226,19 @@ void print_ast(ASTnode *node, int offset) {
     break;
   }
   case AST_TYPE_IF_EXPR: {
-    if (node->if_expr.cond)
-      print_ast(node->if_expr.cond, offset + 2);
+    printf("%*c\b If Expression\n", offset, ' ');
+    if (node->if_expr.cond) {
+      printf("%*c\b Condition\n", offset + 2, ' ');
+
+      print_ast(node->if_expr.cond, offset + 4);
+    }
     if (node->if_expr.then_body) {
-      print_statements_block(node->if_expr.then_body, offset);
+      printf("%*c\b Then Body\n", offset + 2, ' ');
+      print_statements_block(node->if_expr.then_body, offset + 4);
     }
     if (node->if_expr.else_body) {
-      print_statements_block(node->if_expr.else_body, offset);
+      printf("%*c\b Else Body\n", offset + 2, ' ');
+      print_statements_block(node->if_expr.else_body, offset + 4);
     }
     break;
   }
