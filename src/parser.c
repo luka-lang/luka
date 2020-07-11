@@ -2,6 +2,8 @@
 #include "../include/ast.h"
 #include "../include/expr.h"
 
+#include <string.h>
+
 void initialize_parser(parser_t *parser, Vector *tokens,
                        const char *file_path) {
   assert(parser != NULL);
@@ -125,6 +127,7 @@ ASTnode *parse_binexpr(parser_t *parser, int ptp) {
     --parser->index;
     return left;
   }
+
   if ((T_EOF == token->type) || (T_SEMI_COLON == token->type)) {
     return left;
   }
@@ -150,18 +153,52 @@ ASTnode *parse_binexpr(parser_t *parser, int ptp) {
   return left;
 }
 
-ASTnode *parse_function(parser_t *parser) {
+ASTnode *parse_prototype(parser_t *parser) {
   char *name = NULL;
-  int number = 0;
-  ASTnode *prototype = NULL, *body = NULL;
+  char **args = NULL;
+  int arity = 0;
+
+  token_t *token = NULL;
+
   EXPECT_ADVANCE(parser, T_IDENTIFIER,
                  "Expected an identifier after 'fn' keyword");
   name = (VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index))->content;
 
   EXPECT_ADVANCE(parser, T_OPEN_PAREN, "Expected a '('");
-  EXPECT_ADVANCE(parser, T_CLOSE_PAREN, "Expected a ')'");
-  prototype = new_ast_prototype(name, NULL, 0);
 
+  if (T_CLOSE_PAREN ==
+      (VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index + 1))->type) {
+    // No args
+    ADVANCE(parser);
+    return new_ast_prototype(name, args, arity);
+  }
+
+  ADVANCE(parser);
+
+  token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+  args = calloc(1, sizeof(char *));
+  args[0] = strdup(token->content);
+  arity = 1;
+
+  while (T_CLOSE_PAREN !=
+         (token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index + 1))
+             ->type) {
+    EXPECT_ADVANCE(parser, T_COMMA, "Expected ',' after arg");
+    EXPECT_ADVANCE(parser, T_IDENTIFIER, "Expected another arg after ','");
+    token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+    ++arity;
+    args = realloc(args, sizeof(char *) * arity);
+    args[arity - 1] = strdup(token->content);
+  }
+  EXPECT_ADVANCE(parser, T_CLOSE_PAREN, "Expected a ')'");
+
+  return new_ast_prototype(name, args, arity);
+}
+
+ASTnode *parse_function(parser_t *parser) {
+  int number = 0;
+  ASTnode *prototype = NULL, *body = NULL;
+  prototype = parse_prototype(parser);
   EXPECT_ADVANCE(parser, T_OPEN_BRACKET, "Expected a '{'");
   ADVANCE(parser);
   body = parse_binexpr(parser, 0);

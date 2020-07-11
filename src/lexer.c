@@ -127,6 +127,11 @@ void tokenize_source(Vector *tokens, const char *source) {
       token->content = ";";
       break;
     }
+    case ',': {
+      token->type = T_COMMA;
+      token->content = ",";
+      break;
+    }
     case '+': {
       token->type = T_PLUS;
       token->content = "+";

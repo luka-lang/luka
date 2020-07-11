@@ -14,6 +14,7 @@ typedef enum {
   T_OPEN_BRACKET,
   T_CLOSE_BRACKET,
   T_SEMI_COLON,
+  T_COMMA,
   T_NUMBER,
   T_STRING,
   T_PLUS,

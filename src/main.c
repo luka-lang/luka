@@ -108,7 +108,13 @@ int main(int argc, char **argv) {
   VECTOR_FOR_EACH(functions, iterator) {
     function = ITERATOR_GET_AS(ast_node_ptr_t, &iterator);
 
-    func_type = LLVMFunctionType(LLVMInt32Type(), NULL, 0, 0);
+    int arity = function->prototype.arity;
+    LLVMTypeRef params[arity];
+    for (int i = 0; i < arity; ++i) {
+      // int32_t by default
+      params[i] = LLVMInt32Type();
+    }
+    func_type = LLVMFunctionType(LLVMInt32Type(), params, arity, 0);
     func = LLVMAddFunction(module, function->function.prototype->prototype.name,
                            func_type);
 

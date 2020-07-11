@@ -3,10 +3,10 @@ fn main() {
 	3 * 4 + 5 * 6
 }
 
-fn other_func() {
+fn other_func(a) {
 	654
 }
 
-fn maybe_a_third_one() {
+fn maybe_a_third_one(a, b) {
 	3
 }
