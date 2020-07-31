@@ -1,8 +1,10 @@
-#include "../include/parser.h"
-#include "../include/ast.h"
-#include "../include/expr.h"
+#include "parser.h"
+#include "ast.h"
+#include "expr.h"
 
 #include <string.h>
+
+ASTnode *parse_expression(parser_t *parser);
 
 Vector *parse_statements(parser_t *parser);
 
@@ -130,15 +132,68 @@ int parse_op(token_t *token) {
   }
 }
 
+ASTnode *parse_paren_expr(parser_t *parser) {
+  ASTnode *expr;
+  ADVANCE(parser);
+  expr = parse_expression(parser);
+  EXPECT_ADVANCE(parser, T_CLOSE_PAREN, "Expected ')'");
+  ADVANCE(parser);
+  return expr;
+}
+
+ASTnode *parse_ident_expr(parser_t *parser) {
+  token_t *token;
+  ASTnode *node, *expr;
+  char *ident_name;
+  Vector *args;
+
+  token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+  ident_name = token->content;
+
+  ADVANCE(parser);
+  token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+  if (T_OPEN_PAREN != token->type) {
+    return new_ast_variable(ident_name);
+  }
+
+  ADVANCE(parser);
+  args = calloc(1, sizeof(Vector));
+  vector_setup(args, 10, sizeof(ASTnode));
+  token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+  if (T_CLOSE_PAREN != token->type) {
+    while (true) {
+      expr = parse_expression(parser);
+      vector_push_back(args, &expr);
+
+      token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+      if (T_CLOSE_PAREN == token->type) {
+        break;
+      }
+
+      MATCH_ADVANCE(parser, T_COMMA, "Expected ')' or ',' in argument list.");
+    }
+    ADVANCE(parser);
+  }
+
+  vector_shrink_to_fit(args);
+  return new_ast_call_expr(ident_name, args);
+}
+
 ASTnode *parse_primary(parser_t *parser) {
   ASTnode *n;
   token_t *token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
 
   switch (token->type) {
+  case T_IDENTIFIER: {
+    return parse_ident_expr(parser);
+  }
   case T_NUMBER: {
     n = new_ast_number(atoi(token->content));
     ADVANCE(parser);
     return n;
+  }
+  case T_OPEN_PAREN: {
+    return parse_paren_expr(parser);
   }
 
   default:
@@ -162,6 +217,14 @@ bool should_finish_expression(token_t *token) {
   }
 
   if (T_EOF == token->type) {
+    return true;
+  }
+
+  if (T_COMMA == token->type) {
+    return true;
+  }
+
+  if (T_CLOSE_PAREN == token->type) {
     return true;
   }
 
@@ -228,7 +291,7 @@ ASTnode *parse_expression(parser_t *parser) {
 }
 
 ASTnode *parse_statement(parser_t *parser) {
-  ASTnode *node = NULL, *expr = NULL;
+  ASTnode *node = NULL, *expr = NULL, *var = NULL;
   token_t *token = NULL;
 
   token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
@@ -239,6 +302,19 @@ ASTnode *parse_statement(parser_t *parser) {
     MATCH_ADVANCE(parser, T_SEMI_COLON,
                   "Expected a ';' at the end of a return statement");
     node = new_ast_return_stmt(expr);
+    return node;
+  }
+  case T_LET: {
+    EXPECT_ADVANCE(parser, T_IDENTIFIER,
+                   "Expected an identifier after a 'let'");
+    token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+    var = new_ast_variable(token->content);
+    EXPECT_ADVANCE(parser, T_EQUALS,
+                   "Expected a '=' after ident in variable declaration");
+    ADVANCE(parser);
+    expr = parse_expression(parser);
+    node = new_ast_let_stmt(var, expr);
+    MATCH_ADVANCE(parser, T_SEMI_COLON, "Expected a ';' after let statement");
     return node;
   }
   default: {

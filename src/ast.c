@@ -56,6 +56,29 @@ ASTnode *new_ast_if_expr(ASTnode *cond, Vector *then_body, Vector *else_body) {
   return node;
 }
 
+ASTnode *new_ast_variable(char *name) {
+  ASTnode *node = calloc(1, sizeof(ASTnode));
+  node->type = AST_TYPE_VARIABLE;
+  node->variable.name = name;
+  return node;
+}
+
+ASTnode *new_ast_let_stmt(ASTnode *var, ASTnode *expr) {
+  ASTnode *node = calloc(1, sizeof(ASTnode));
+  node->type = AST_TYPE_LET_STMT;
+  node->let_stmt.var = var;
+  node->let_stmt.expr = expr;
+  return node;
+}
+
+ASTnode *new_ast_call_expr(char *name, Vector *args) {
+  ASTnode *node = calloc(1, sizeof(ASTnode));
+  node->type = AST_TYPE_CALL_EXPR;
+  node->call_expr.name = name;
+  node->call_expr.args = args;
+  return node;
+}
+
 void free_ast_node(ASTnode *node) {
   if (!node)
     return;
@@ -126,6 +149,45 @@ void free_ast_node(ASTnode *node) {
       vector_destroy(node->if_expr.else_body);
       free(node->if_expr.else_body);
     }
+    break;
+  }
+
+  case AST_TYPE_VARIABLE: {
+    if (node->variable.name) {
+      free(node->variable.name);
+    }
+    break;
+  }
+
+  case AST_TYPE_LET_STMT: {
+    if (node->let_stmt.var) {
+      free_ast_node(node->let_stmt.var);
+    }
+
+    if (node->let_stmt.expr) {
+      free_ast_node(node->let_stmt.expr);
+    }
+    break;
+  }
+
+  case AST_TYPE_CALL_EXPR: {
+    if (node->call_expr.args) {
+      ASTnode *arg = NULL;
+      VECTOR_FOR_EACH(node->call_expr.args, args) {
+        arg = ITERATOR_GET_AS(ast_node_ptr_t, &args);
+        free_ast_node(arg);
+      }
+
+      vector_clear(node->call_expr.args);
+      vector_destroy(node->call_expr.args);
+      free(node->call_expr.args);
+    }
+    break;
+  }
+
+  default: {
+    printf("I dont now how to free type - %d\n", node->type);
+    break;
   }
   }
 
@@ -181,6 +243,8 @@ char *op_to_str(AST_binop_type op) {
 }
 
 void print_ast(ASTnode *node, int offset) {
+  ASTnode *arg = NULL;
+  size_t i = 0;
   if (!node)
     return;
 
@@ -205,6 +269,10 @@ void print_ast(ASTnode *node, int offset) {
   case AST_TYPE_PROTOTYPE: {
     printf("%*c\b %s - %d args\n", offset, '-', node->prototype.name,
            node->prototype.arity);
+    for (i = 0; i < node->prototype.arity; ++i) {
+      printf("%*c\b %d: (%s) %s\n", offset, '-', i, "Int32",
+             node->prototype.args[i]);
+    }
     break;
   }
 
@@ -240,6 +308,47 @@ void print_ast(ASTnode *node, int offset) {
       printf("%*c\b Else Body\n", offset + 2, ' ');
       print_statements_block(node->if_expr.else_body, offset + 4);
     }
+    break;
+  }
+  case AST_TYPE_VARIABLE: {
+    printf("%*c\b Variable\n", offset, ' ');
+    if (node->variable.name) {
+      printf("%*c\b Name: %s\n", offset + 2, ' ', node->variable.name);
+    }
+    break;
+  }
+  case AST_TYPE_LET_STMT: {
+    printf("%*c\b Let Statement\n", offset, ' ');
+    if (node->let_stmt.var) {
+      print_ast(node->let_stmt.var, offset + 2);
+    }
+
+    if (node->let_stmt.expr) {
+      printf("%*c\b Expression\n", offset + 2, ' ');
+      print_ast(node->let_stmt.expr, offset + 4);
+    }
+    break;
+  }
+
+  case AST_TYPE_CALL_EXPR: {
+    printf("%*c\b Call Expression\n", offset, ' ');
+    if (node->call_expr.name) {
+      printf("%*c\b Name - %s\n", offset + 2, ' ', node->call_expr.name);
+    }
+
+    if (node->call_expr.args) {
+      printf("%*c\b Arguments\n", offset + 2, ' ');
+      printf("%*c\b Count - %d\n", offset + 4, ' ', node->call_expr.args->size);
+      VECTOR_FOR_EACH(node->call_expr.args, args) {
+        arg = ITERATOR_GET_AS(ast_node_ptr_t, &args);
+        print_ast(arg, offset + 4);
+      }
+    }
+
+    break;
+  }
+  default: {
+    printf("I don't know how to print type - %d\n", node->type);
     break;
   }
   }

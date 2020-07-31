@@ -3,9 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../include/lexer.h"
+#include "lexer.h"
 
-const char *keywords[NUMBER_OF_KEYWORDS] = {"fn", "return", "if", "else"};
+const char *keywords[NUMBER_OF_KEYWORDS] = {"fn", "return", "if", "else",
+                                            "let"};
 
 int is_keyword(const char *identifier) {
   for (int i = 0; i < NUMBER_OF_KEYWORDS; ++i) {

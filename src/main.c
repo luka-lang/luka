@@ -112,8 +112,12 @@ int main(int argc, char **argv) {
     codegen(function, module, builder);
   }
 
+  codegen_reset();
+
   LLVMVerifyModule(module, LLVMAbortProcessAction, &error);
   LLVMDisposeMessage(error);
+
+  LLVMDumpModule(module);
 
   pass_manager = LLVMCreatePassManager();
   LLVMAddConstantPropagationPass(pass_manager);
@@ -123,7 +127,7 @@ int main(int argc, char **argv) {
   LLVMAddGVNPass(pass_manager);
   LLVMAddCFGSimplificationPass(pass_manager);
 
-  LLVMRunPassManager(pass_manager, module);
+  // LLVMRunPassManager(pass_manager, module);
 
   LLVMDumpModule(module);
 

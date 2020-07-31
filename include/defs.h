@@ -3,7 +3,7 @@
 
 #include "vector.h"
 
-#define NUMBER_OF_KEYWORDS 4
+#define NUMBER_OF_KEYWORDS 5
 extern const char *keywords[NUMBER_OF_KEYWORDS];
 
 typedef enum {
@@ -12,6 +12,7 @@ typedef enum {
   T_RETURN,
   T_IF,
   T_ELSE,
+  T_LET,
   T_IDENTIFIER = NUMBER_OF_KEYWORDS,
   T_OPEN_PAREN,
   T_CLOSE_PAREN,
@@ -54,7 +55,10 @@ typedef enum {
   AST_TYPE_PROTOTYPE,
   AST_TYPE_FUNCTION,
   AST_TYPE_RETURN_STMT,
-  AST_TYPE_IF_EXPR
+  AST_TYPE_IF_EXPR,
+  AST_TYPE_VARIABLE,
+  AST_TYPE_LET_STMT,
+  AST_TYPE_CALL_EXPR
 } AST_node_type;
 
 typedef enum {
@@ -104,6 +108,20 @@ typedef struct {
   Vector *else_body;
 } AST_if_expr;
 
+typedef struct {
+  ASTnode *var;
+  ASTnode *expr;
+} AST_let_stmt;
+
+typedef struct {
+  char *name;
+} AST_variable;
+
+typedef struct {
+  char *name;
+  Vector *args;
+} AST_call_expr;
+
 typedef struct ASTnode_s {
   AST_node_type type;
   union {
@@ -113,6 +131,9 @@ typedef struct ASTnode_s {
     AST_function function;
     AST_return_stmt return_stmt;
     AST_if_expr if_expr;
+    AST_variable variable;
+    AST_let_stmt let_stmt;
+    AST_call_expr call_expr;
   };
 } ASTnode;
 

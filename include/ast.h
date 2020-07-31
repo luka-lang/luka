@@ -13,8 +13,13 @@ ASTnode *new_ast_prototype(char *name, char **args, int arity);
 ASTnode *new_ast_function(ASTnode *prototype, Vector *body);
 
 ASTnode *new_ast_return_stmt(ASTnode *expr);
+ASTnode *new_ast_let_stmt(ASTnode *var, ASTnode *expr);
 
 ASTnode *new_ast_if_expr(ASTnode *cond, Vector *then_body, Vector *else_body);
+
+ASTnode *new_ast_variable(char *name);
+
+ASTnode *new_ast_call_expr(char *name, Vector *args);
 
 void free_ast_node(ASTnode *node);
 

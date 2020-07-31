@@ -1,14 +1,9 @@
+fn add(a, b) {
+    a + b
+}
+
 fn main() {
-    if 0 == 1
-    {
-        30
-    }
-    else if 2 < 1
-    {
-        29
-    }
-    else if 3 >= 0
-    {
-        42
-    }
+   let first = 30;
+   let second = 12;
+   add(first, second)
 }

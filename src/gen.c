@@ -1,7 +1,9 @@
-#include "../include/gen.h"
+#include "gen.h"
 
 #include <stdio.h>
 #include <stdlib.h>
+
+named_value_t *named_values = NULL;
 
 LLVMValueRef codegen_binexpr(ASTnode *n, LLVMModuleRef module,
                              LLVMBuilderRef builder) {
@@ -51,16 +53,30 @@ LLVMValueRef codegen_binexpr(ASTnode *n, LLVMModuleRef module,
 
 LLVMValueRef codegen_prototype(ASTnode *n, LLVMModuleRef module,
                                LLVMBuilderRef builder) {
+  LLVMValueRef func = NULL;
   LLVMTypeRef func_type = NULL;
-  int arity = n->prototype.arity;
-  LLVMTypeRef params[arity];
-  for (int i = 0; i < arity; ++i) {
+  size_t i = 0, arity = n->prototype.arity;
+  LLVMTypeRef *params = calloc(arity, sizeof(LLVMTypeRef));
+  for (i = 0; i < arity; ++i) {
     // int32_t by default
     params[i] = LLVMInt32Type();
   }
   func_type = LLVMFunctionType(LLVMInt32Type(), params, arity, 0);
 
-  return LLVMAddFunction(module, n->prototype.name, func_type);
+  func = LLVMAddFunction(module, n->prototype.name, func_type);
+  LLVMSetLinkage(func, LLVMExternalLinkage);
+
+  for (i = 0; i < arity; ++i) {
+    LLVMValueRef param = LLVMGetParam(func, i);
+    LLVMSetValueName(param, n->prototype.args[i]);
+
+    named_value_t *val = malloc(sizeof(named_value_t));
+    val->name = strdup(n->prototype.args[i]);
+    val->value = param;
+    HASH_ADD_KEYPTR(hh, named_values, val->name, strlen(val->name), val);
+  }
+
+  return func;
 }
 
 LLVMValueRef codegen_stmts(Vector *statements, LLVMModuleRef module,
@@ -110,6 +126,8 @@ LLVMValueRef codegen_function(ASTnode *n, LLVMModuleRef module,
     LLVMDeleteFunction(func);
     return NULL;
   }
+
+  LLVMDumpModule(module);
 
   return func;
 }
@@ -192,6 +210,68 @@ LLVMValueRef codegen_if_expr(ASTnode *n, LLVMModuleRef module,
   return phi;
 }
 
+LLVMValueRef codegen_variable(ASTnode *node, LLVMModuleRef module,
+                              LLVMBuilderRef builder) {
+  named_value_t *val = NULL;
+
+  HASH_FIND_STR(named_values, node->variable.name, val);
+
+  if (NULL != val) {
+    return val->value;
+  }
+  return NULL;
+}
+
+LLVMValueRef codegen_let_stmt(ASTnode *node, LLVMModuleRef module,
+                              LLVMBuilderRef builder) {
+  LLVMValueRef expr;
+  AST_variable variable;
+  named_value_t *val = NULL;
+
+  variable = node->let_stmt.var->variable;
+  expr = codegen(node->let_stmt.expr, module, builder);
+
+  val = malloc(sizeof(named_value_t));
+  val->name = strdup(variable.name);
+  val->value = expr;
+  HASH_ADD_KEYPTR(hh, named_values, val->name, strlen(val->name), val);
+
+  return NULL;
+}
+
+LLVMValueRef codegen_call(ASTnode *node, LLVMModuleRef module,
+                          LLVMBuilderRef builder) {
+  LLVMValueRef func = NULL;
+  LLVMValueRef *args = NULL;
+  ASTnode *arg = NULL;
+  size_t i = 0;
+
+  func = LLVMGetNamedFunction(module, node->call_expr.name);
+  if (NULL == func) {
+    return NULL;
+  }
+
+  if (node->call_expr.args->size != LLVMCountParams(func)) {
+    return NULL;
+  }
+
+  args = calloc(node->call_expr.args->size, sizeof(LLVMValueRef));
+  VECTOR_FOR_EACH(node->call_expr.args, args_iter) {
+    arg = ITERATOR_GET_AS(ast_node_ptr_t, &args_iter);
+    args[i] = codegen(arg, module, builder);
+
+    if (NULL == args[i]) {
+      free(args);
+      return NULL;
+    }
+
+    ++i;
+  }
+
+  return LLVMBuildCall(builder, func, args, node->call_expr.args->size,
+                       "calltmp");
+}
+
 LLVMValueRef codegen(ASTnode *node, LLVMModuleRef module,
                      LLVMBuilderRef builder) {
   switch (node->type) {
@@ -207,7 +287,17 @@ LLVMValueRef codegen(ASTnode *node, LLVMModuleRef module,
     return codegen_return_stmt(node, module, builder);
   case AST_TYPE_IF_EXPR:
     return codegen_if_expr(node, module, builder);
+  case AST_TYPE_VARIABLE:
+    return codegen_variable(node, module, builder);
+  case AST_TYPE_LET_STMT:
+    return codegen_let_stmt(node, module, builder);
+  case AST_TYPE_CALL_EXPR:
+    return codegen_call(node, module, builder);
+  default: {
+    printf("No codegen function was found for type - %d\n", node->type);
+    return NULL;
   }
-
-  return NULL;
+  }
 }
+
+void codegen_reset() { HASH_CLEAR(hh, named_values); }
