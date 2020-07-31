@@ -112,12 +112,18 @@ LLVMValueRef codegen_function(ASTnode *n, LLVMModuleRef module,
     return NULL;
   }
 
+  if (NULL == n->function.body) {
+    /* Extern definition */
+    return func;
+  }
+
   block = LLVMAppendBasicBlock(func, "entry");
   LLVMPositionBuilderAtEnd(builder, block);
 
   ret_val = codegen_stmts(n->function.body, module, builder, &has_return_stmt);
 
   if (false == has_return_stmt) {
+    ret_val = LLVMConstInt(LLVMInt32Type(), 0, false);
     LLVMBuildRet(builder, ret_val);
   }
 

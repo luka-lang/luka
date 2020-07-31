@@ -3,7 +3,7 @@
 
 #include "vector.h"
 
-#define NUMBER_OF_KEYWORDS 5
+#define NUMBER_OF_KEYWORDS 6
 extern const char *keywords[NUMBER_OF_KEYWORDS];
 
 typedef enum {
@@ -13,6 +13,8 @@ typedef enum {
   T_IF,
   T_ELSE,
   T_LET,
+  T_EXTERN,
+
   T_IDENTIFIER = NUMBER_OF_KEYWORDS,
   T_OPEN_PAREN,
   T_CLOSE_PAREN,

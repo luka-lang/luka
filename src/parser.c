@@ -8,46 +8,7 @@ ASTnode *parse_expression(parser_t *parser);
 
 Vector *parse_statements(parser_t *parser);
 
-void initialize_parser(parser_t *parser, Vector *tokens,
-                       const char *file_path) {
-  assert(parser != NULL);
-
-  parser->tokens = tokens;
-  parser->index = 0;
-  parser->file_path = file_path;
-}
-
-Vector *parse_top_level(parser_t *parser) {
-  Vector *functions = NULL;
-  token_t *token = NULL;
-  ASTnode *function;
-
-  functions = calloc(1, sizeof(Vector));
-
-  vector_setup(functions, 5, sizeof(ast_node_ptr_t));
-
-  while (parser->index < parser->tokens->size) {
-    token = *(token_ptr_t *)vector_get(parser->tokens, parser->index);
-
-    switch (token->type) {
-    case T_FN: {
-      function = parse_function(parser);
-      vector_push_back(functions, &function);
-      break;
-    }
-    case T_EOF:
-      break;
-    default: {
-      fprintf(stderr, "Syntax error at %s %ld:%ld - %s\n", parser->file_path,
-              token->line, token->offset, token->content);
-    }
-    }
-    parser->index += 1;
-  }
-
-  vector_shrink_to_fit(functions);
-  return functions;
-}
+ASTnode *parse_prototype(parser_t *parser);
 
 void ERR(parser_t *parser, const char *message) {
   token_t *token = NULL;
@@ -99,6 +60,55 @@ void MATCH_ADVANCE(parser_t *parser, toktype_t type, const char *message) {
   }
 
   ADVANCE(parser);
+}
+
+void initialize_parser(parser_t *parser, Vector *tokens,
+                       const char *file_path) {
+  assert(parser != NULL);
+
+  parser->tokens = tokens;
+  parser->index = 0;
+  parser->file_path = file_path;
+}
+
+Vector *parse_top_level(parser_t *parser) {
+  Vector *functions = NULL;
+  token_t *token = NULL;
+  ASTnode *function, *prototype;
+
+  functions = calloc(1, sizeof(Vector));
+
+  vector_setup(functions, 5, sizeof(ast_node_ptr_t));
+
+  while (parser->index < parser->tokens->size) {
+    token = *(token_ptr_t *)vector_get(parser->tokens, parser->index);
+
+    switch (token->type) {
+    case T_FN: {
+      function = parse_function(parser);
+      vector_push_back(functions, &function);
+      break;
+    }
+    case T_EXTERN: {
+      prototype = parse_prototype(parser);
+      function = new_ast_function(prototype, NULL);
+      vector_push_back(functions, &function);
+      EXPECT_ADVANCE(parser, T_SEMI_COLON,
+                     "Expected a `;` at the end of an extern statement.");
+      break;
+    }
+    case T_EOF:
+      break;
+    default: {
+      fprintf(stderr, "Syntax error at %s %ld:%ld - %s\n", parser->file_path,
+              token->line, token->offset, token->content);
+    }
+    }
+    parser->index += 1;
+  }
+
+  vector_shrink_to_fit(functions);
+  return functions;
 }
 
 int parse_op(token_t *token) {

@@ -5,8 +5,8 @@
 
 #include "lexer.h"
 
-const char *keywords[NUMBER_OF_KEYWORDS] = {"fn", "return", "if", "else",
-                                            "let"};
+const char *keywords[NUMBER_OF_KEYWORDS] = {"fn",   "return", "if",
+                                            "else", "let",    "extern"};
 
 int is_keyword(const char *identifier) {
   for (int i = 0; i < NUMBER_OF_KEYWORDS; ++i) {
