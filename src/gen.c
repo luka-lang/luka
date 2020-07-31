@@ -278,6 +278,16 @@ LLVMValueRef codegen_call(ASTnode *node, LLVMModuleRef module,
                        "calltmp");
 }
 
+LLVMValueRef codegen_expression_stmt(ASTnode *n, LLVMModuleRef module,
+                                     LLVMBuilderRef builder) {
+  LLVMValueRef expr;
+  if (n->expression_stmt.expr) {
+    codegen(n->expression_stmt.expr, module, builder);
+  }
+
+  return NULL;
+}
+
 LLVMValueRef codegen(ASTnode *node, LLVMModuleRef module,
                      LLVMBuilderRef builder) {
   switch (node->type) {
@@ -299,6 +309,8 @@ LLVMValueRef codegen(ASTnode *node, LLVMModuleRef module,
     return codegen_let_stmt(node, module, builder);
   case AST_TYPE_CALL_EXPR:
     return codegen_call(node, module, builder);
+  case AST_TYPE_EXPRESSION_STMT:
+    return codegen_expression_stmt(node, module, builder);
   default: {
     printf("No codegen function was found for type - %d\n", node->type);
     return NULL;

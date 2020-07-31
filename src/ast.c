@@ -79,6 +79,13 @@ ASTnode *new_ast_call_expr(char *name, Vector *args) {
   return node;
 }
 
+ASTnode *new_ast_expression_stmt(ASTnode *expr) {
+  ASTnode *node = calloc(1, sizeof(ASTnode));
+  node->type = AST_TYPE_EXPRESSION_STMT;
+  node->expression_stmt.expr = expr;
+  return node;
+}
+
 void free_ast_node(ASTnode *node) {
   if (!node)
     return;
@@ -182,6 +189,12 @@ void free_ast_node(ASTnode *node) {
       vector_destroy(node->call_expr.args);
       free(node->call_expr.args);
     }
+    break;
+  }
+
+  case AST_TYPE_EXPRESSION_STMT: {
+    if (node->expression_stmt.expr)
+      free_ast_node(node->expression_stmt.expr);
     break;
   }
 
@@ -345,6 +358,13 @@ void print_ast(ASTnode *node, int offset) {
       }
     }
 
+    break;
+  }
+
+  case AST_TYPE_EXPRESSION_STMT: {
+    printf("%*c\b Expression statement\n", offset, ' ');
+    if (node->expression_stmt.expr)
+      print_ast(node->expression_stmt.expr, offset + 2);
     break;
   }
   default: {

@@ -331,6 +331,13 @@ ASTnode *parse_statement(parser_t *parser) {
     expr = parse_expression(parser);
     token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
 
+    if (T_SEMI_COLON == token->type) {
+      /* Expression Statement */
+      ADVANCE(parser);
+      node = new_ast_expression_stmt(expr);
+      return node;
+    }
+
     if (should_finish_expression(token)) {
       return expr;
     }

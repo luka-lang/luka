@@ -21,6 +21,8 @@ ASTnode *new_ast_variable(char *name);
 
 ASTnode *new_ast_call_expr(char *name, Vector *args);
 
+ASTnode *new_ast_expression_stmt(ASTnode *expr);
+
 void free_ast_node(ASTnode *node);
 
 void print_statements_block(Vector *statements, int offset);

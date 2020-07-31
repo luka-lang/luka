@@ -60,7 +60,8 @@ typedef enum {
   AST_TYPE_IF_EXPR,
   AST_TYPE_VARIABLE,
   AST_TYPE_LET_STMT,
-  AST_TYPE_CALL_EXPR
+  AST_TYPE_CALL_EXPR,
+  AST_TYPE_EXPRESSION_STMT
 } AST_node_type;
 
 typedef enum {
@@ -124,6 +125,10 @@ typedef struct {
   Vector *args;
 } AST_call_expr;
 
+typedef struct {
+  ASTnode *expr;
+} AST_expr_stmt;
+
 typedef struct ASTnode_s {
   AST_node_type type;
   union {
@@ -136,6 +141,7 @@ typedef struct ASTnode_s {
     AST_variable variable;
     AST_let_stmt let_stmt;
     AST_call_expr call_expr;
+    AST_expr_stmt expression_stmt;
   };
 } ASTnode;
 
