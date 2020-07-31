@@ -172,9 +172,9 @@ ASTnode *parse_ident_expr(parser_t *parser) {
 
       MATCH_ADVANCE(parser, T_COMMA, "Expected ')' or ',' in argument list.");
     }
-    ADVANCE(parser);
   }
 
+  ADVANCE(parser);
   vector_shrink_to_fit(args);
   return new_ast_call_expr(ident_name, args);
 }
