@@ -1,4 +1,4 @@
-#include "../include/expr.h"
+#include "expr.h"
 #include <stdio.h>
 #include <stdlib.h>
 

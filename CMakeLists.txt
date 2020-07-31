@@ -15,7 +15,7 @@ execute_process(
 	OUTPUT_VARIABLE LLVM_LIBS
 	OUTPUT_STRIP_TRAILING_WHITESPACE
 )
-include_directories(${PROJECT_SOURCE_DIR/include})
+include_directories(${PROJECT_SOURCE_DIR}/include)
 add_definitions(${LLVM_DEFINITIONS})
 
 file(GLOB_RECURSE SOURCES src/*.c)

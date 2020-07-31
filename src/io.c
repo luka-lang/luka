@@ -1,4 +1,4 @@
-#include "../include/io.h"
+#include "io.h"
 
 char *get_file_contents(const char *file_path) {
   FILE *fp = NULL;

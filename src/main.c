@@ -11,11 +11,11 @@
 #include <llvm-c/Transforms/Scalar.h>
 #include <llvm-c/Transforms/Utils.h>
 
-#include "../include/ast.h"
-#include "../include/gen.h"
-#include "../include/io.h"
-#include "../include/lexer.h"
-#include "../include/parser.h"
+#include "ast.h"
+#include "gen.h"
+#include "io.h"
+#include "lexer.h"
+#include "parser.h"
 
 typedef enum {
   LUKA_UNINITIALIZED = -1,
