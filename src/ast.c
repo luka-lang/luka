@@ -3,10 +3,47 @@
 #include <stdio.h>
 #include <string.h>
 
+const char *type_to_string(type_t type) {
+  switch (type) {
+  case TYPE_INT32:
+    return "int32";
+  case TYPE_STRING:
+    return "str";
+  case TYPE_VOID:
+    return "void";
+  case TYPE_DOUBLE:
+    return "double";
+  case TYPE_FLOAT:
+    return "float";
+  case TYPE_INT1:
+    return "int1";
+  case TYPE_INT8:
+    return "int8";
+  case TYPE_INT16:
+    return "int16";
+  case TYPE_INT64:
+    return "int64";
+  case TYPE_INT128:
+    return "int128";
+  default:
+    fprintf(stderr, "I don't know how to translate type %d to LLVM types.\n",
+            type);
+    return "int32";
+  }
+}
+
 ASTnode *new_ast_number(int value) {
   ASTnode *node = calloc(1, sizeof(ASTnode));
   node->type = AST_TYPE_NUMBER;
   node->number.value = value;
+  return node;
+}
+
+ASTnode *new_ast_string(char *value) {
+  ASTnode *node = calloc(1, sizeof(ASTnode));
+  node->type = AST_TYPE_STRING;
+  node->string.value = value;
+  node->string.length = strlen(value);
   return node;
 }
 
@@ -20,11 +57,14 @@ ASTnode *new_ast_binary_expr(AST_binop_type operator, ASTnode * lhs,
   return node;
 }
 
-ASTnode *new_ast_prototype(char *name, char **args, int arity) {
+ASTnode *new_ast_prototype(char *name, char **args, type_t *types, int arity,
+                           type_t return_type) {
   ASTnode *node = calloc(1, sizeof(ASTnode));
   node->type = AST_TYPE_PROTOTYPE;
   node->prototype.name = strdup(name);
   node->prototype.args = calloc(arity, sizeof(char *));
+  node->prototype.types = types;
+  node->prototype.return_type = return_type;
   for (int i = 0; i < arity; ++i) {
     node->prototype.args[i] = strdup(args[i]);
   }
@@ -56,10 +96,11 @@ ASTnode *new_ast_if_expr(ASTnode *cond, Vector *then_body, Vector *else_body) {
   return node;
 }
 
-ASTnode *new_ast_variable(char *name) {
+ASTnode *new_ast_variable(char *name, type_t type) {
   ASTnode *node = calloc(1, sizeof(ASTnode));
   node->type = AST_TYPE_VARIABLE;
   node->variable.name = name;
+  node->variable.type = type;
   return node;
 }
 
@@ -93,6 +134,12 @@ void free_ast_node(ASTnode *node) {
   switch (node->type) {
   case AST_TYPE_NUMBER:
     break;
+  case AST_TYPE_STRING: {
+    if (node->string.value) {
+      free(node->string.value);
+    }
+    break;
+  }
   case AST_TYPE_BINARY_EXPR: {
     if (node->binary_expr.lhs)
       free_ast_node(node->binary_expr.lhs);
@@ -269,6 +316,9 @@ void print_ast(ASTnode *node, int offset) {
   case AST_TYPE_NUMBER:
     printf("%*c\b AST number %d\n", offset, ' ', node->number.value);
     break;
+  case AST_TYPE_STRING:
+    printf("%*c\b AST string \"%s\"\n", offset, ' ', node->string.value);
+    break;
   case AST_TYPE_BINARY_EXPR: {
     printf("%*c\b Binary Expression\n", offset, ' ');
     printf("%*c\b Operator: %s\n", offset + 2, ' ',
@@ -283,9 +333,11 @@ void print_ast(ASTnode *node, int offset) {
     printf("%*c\b %s - %d args\n", offset, '-', node->prototype.name,
            node->prototype.arity);
     for (i = 0; i < node->prototype.arity; ++i) {
-      printf("%*c\b %d: (%s) %s\n", offset, '-', i, "Int32",
-             node->prototype.args[i]);
+      printf("%*c\b %zu: (%s) %s\n", offset, '-', i,
+             type_to_string(node->prototype.types[i]), node->prototype.args[i]);
     }
+    printf("%*c\b Return Type -> %s\n", offset, '-',
+           type_to_string(node->prototype.return_type));
     break;
   }
 

@@ -8,9 +8,10 @@
 #include "uthash.h"
 
 typedef struct {
-    const char *name;
-    LLVMValueRef value;
-    UT_hash_handle hh;
+  const char *name;
+  LLVMValueRef value;
+  LLVMTypeRef type;
+  UT_hash_handle hh;
 } named_value_t;
 
 LLVMValueRef codegen(ASTnode *n, LLVMModuleRef module, LLVMBuilderRef builder);

@@ -5,6 +5,36 @@
 
 named_value_t *named_values = NULL;
 
+LLVMTypeRef type_to_llvm_type(type_t type) {
+  switch (type) {
+  case TYPE_INT32:
+    return LLVMInt32Type();
+  case TYPE_STRING:
+    return LLVMPointerType(LLVMInt8Type(), 0);
+  case TYPE_VOID:
+    return LLVMVoidType();
+  case TYPE_DOUBLE:
+    return LLVMDoubleType();
+  case TYPE_FLOAT:
+    return LLVMFloatType();
+  case TYPE_INT1:
+    return LLVMInt1Type();
+  case TYPE_INT8:
+    return LLVMInt8Type();
+  case TYPE_INT16:
+    return LLVMInt16Type();
+  case TYPE_INT64:
+    return LLVMInt64Type();
+  case TYPE_INT128:
+    return LLVMInt128Type();
+
+  default:
+    fprintf(stderr, "I don't know how to translate type %d to LLVM types.\n",
+            type);
+    return LLVMInt32Type();
+  }
+}
+
 LLVMValueRef codegen_binexpr(ASTnode *n, LLVMModuleRef module,
                              LLVMBuilderRef builder) {
   LLVMValueRef lhs = NULL, rhs = NULL;
@@ -58,10 +88,10 @@ LLVMValueRef codegen_prototype(ASTnode *n, LLVMModuleRef module,
   size_t i = 0, arity = n->prototype.arity;
   LLVMTypeRef *params = calloc(arity, sizeof(LLVMTypeRef));
   for (i = 0; i < arity; ++i) {
-    // int32_t by default
-    params[i] = LLVMInt32Type();
+    params[i] = type_to_llvm_type(n->prototype.types[i]);
   }
-  func_type = LLVMFunctionType(LLVMInt32Type(), params, arity, 0);
+  func_type = LLVMFunctionType(type_to_llvm_type(n->prototype.return_type),
+                               params, arity, 0);
 
   func = LLVMAddFunction(module, n->prototype.name, func_type);
   LLVMSetLinkage(func, LLVMExternalLinkage);
@@ -106,6 +136,7 @@ LLVMValueRef codegen_function(ASTnode *n, LLVMModuleRef module,
   LLVMBasicBlockRef block = NULL;
   ASTnode *stmt = NULL;
   bool has_return_stmt = false;
+  type_t return_type;
 
   func = codegen(n->function.prototype, module, builder);
   if (NULL == func) {
@@ -121,9 +152,21 @@ LLVMValueRef codegen_function(ASTnode *n, LLVMModuleRef module,
   LLVMPositionBuilderAtEnd(builder, block);
 
   ret_val = codegen_stmts(n->function.body, module, builder, &has_return_stmt);
+  return_type = n->function.prototype->prototype.return_type;
 
   if (false == has_return_stmt) {
-    ret_val = LLVMConstInt(LLVMInt32Type(), 0, false);
+    switch (return_type) {
+    case TYPE_VOID:
+      ret_val = NULL;
+      break;
+    case TYPE_FLOAT:
+    case TYPE_DOUBLE:
+      ret_val = LLVMConstReal(type_to_llvm_type(return_type), 0.0);
+      break;
+    default:
+      ret_val = LLVMConstInt(type_to_llvm_type(return_type), 0, false);
+      break;
+    }
     LLVMBuildRet(builder, ret_val);
   }
 
@@ -132,8 +175,6 @@ LLVMValueRef codegen_function(ASTnode *n, LLVMModuleRef module,
     LLVMDeleteFunction(func);
     return NULL;
   }
-
-  LLVMDumpModule(module);
 
   return func;
 }
@@ -240,6 +281,7 @@ LLVMValueRef codegen_let_stmt(ASTnode *node, LLVMModuleRef module,
   val = malloc(sizeof(named_value_t));
   val->name = strdup(variable.name);
   val->value = expr;
+  val->type = type_to_llvm_type(variable.type);
   HASH_ADD_KEYPTR(hh, named_values, val->name, strlen(val->name), val);
 
   return NULL;
@@ -293,6 +335,8 @@ LLVMValueRef codegen(ASTnode *node, LLVMModuleRef module,
   switch (node->type) {
   case AST_TYPE_NUMBER:
     return LLVMConstInt(LLVMInt32Type(), node->number.value, 0);
+  case AST_TYPE_STRING:
+    return LLVMBuildGlobalStringPtr(builder, node->string.value, "str");
   case AST_TYPE_BINARY_EXPR:
     return codegen_binexpr(node, module, builder);
   case AST_TYPE_PROTOTYPE:

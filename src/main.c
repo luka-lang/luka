@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
 
   print_parser_tokens(parser);
 
-  functions = parse_top_level(parser); // parse_binexpr(parser, 0);
+  functions = parse_top_level(parser);
 
   print_functions(functions, 0);
 
@@ -117,8 +117,6 @@ int main(int argc, char **argv) {
   LLVMVerifyModule(module, LLVMAbortProcessAction, &error);
   LLVMDisposeMessage(error);
 
-  LLVMDumpModule(module);
-
   pass_manager = LLVMCreatePassManager();
   LLVMAddConstantPropagationPass(pass_manager);
   LLVMAddInstructionCombiningPass(pass_manager);
@@ -127,7 +125,7 @@ int main(int argc, char **argv) {
   LLVMAddGVNPass(pass_manager);
   LLVMAddCFGSimplificationPass(pass_manager);
 
-  // LLVMRunPassManager(pass_manager, module);
+  LLVMRunPassManager(pass_manager, module);
 
   LLVMDumpModule(module);
 

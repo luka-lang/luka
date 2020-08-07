@@ -3,7 +3,7 @@
 
 #include "vector.h"
 
-#define NUMBER_OF_KEYWORDS 6
+#define NUMBER_OF_KEYWORDS 11
 extern const char *keywords[NUMBER_OF_KEYWORDS];
 
 typedef enum {
@@ -14,6 +14,12 @@ typedef enum {
   T_ELSE,
   T_LET,
   T_EXTERN,
+
+  T_INT_TYPE,
+  T_STR_TYPE,
+  T_VOID_TYPE,
+  T_FLOAT_TYPE,
+  T_DOUBLE_TYPE,
 
   T_IDENTIFIER = NUMBER_OF_KEYWORDS,
   T_OPEN_PAREN,
@@ -39,6 +45,8 @@ typedef enum {
   T_LEQ,
   T_GEQ,
 
+  T_COLON,
+
   T_EOF,
 } toktype_t;
 
@@ -53,6 +61,7 @@ typedef token_t *token_ptr_t;
 
 typedef enum {
   AST_TYPE_NUMBER,
+  AST_TYPE_STRING,
   AST_TYPE_BINARY_EXPR,
   AST_TYPE_PROTOTYPE,
   AST_TYPE_FUNCTION,
@@ -78,11 +87,29 @@ typedef enum {
   BINOP_GEQ,
 } AST_binop_type;
 
+typedef enum {
+  TYPE_INT1,
+  TYPE_INT8,
+  TYPE_INT16,
+  TYPE_INT32,
+  TYPE_INT64,
+  TYPE_INT128,
+  TYPE_FLOAT,
+  TYPE_DOUBLE,
+  TYPE_STRING,
+  TYPE_VOID
+} type_t;
+
 typedef struct ASTnode_s ASTnode;
 
 typedef struct {
   int value;
 } AST_number;
+
+typedef struct {
+  char *value;
+  size_t length;
+} AST_string;
 
 typedef struct {
   AST_binop_type operator;
@@ -93,6 +120,8 @@ typedef struct {
 typedef struct {
   char *name;
   char **args;
+  type_t *types;
+  type_t return_type;
   unsigned int arity;
 } AST_prototype;
 
@@ -118,6 +147,7 @@ typedef struct {
 
 typedef struct {
   char *name;
+  type_t type;
 } AST_variable;
 
 typedef struct {
@@ -133,6 +163,7 @@ typedef struct ASTnode_s {
   AST_node_type type;
   union {
     AST_number number;
+    AST_string string;
     AST_binary_expr binary_expr;
     AST_prototype prototype;
     AST_function function;

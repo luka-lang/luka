@@ -62,6 +62,38 @@ void MATCH_ADVANCE(parser_t *parser, toktype_t type, const char *message) {
   ADVANCE(parser);
 }
 
+type_t parse_type(parser_t *parser) {
+  token_t *token = NULL;
+
+  token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index + 1);
+  if (T_COLON != token->type) {
+    return TYPE_INT32;
+  }
+
+  EXPECT_ADVANCE(parser, T_COLON, "Expected a `:` before type.");
+
+  token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index + 1);
+
+  ADVANCE(parser);
+
+  switch (token->type) {
+  case T_INT_TYPE:
+    return TYPE_INT32;
+  case T_STR_TYPE:
+    return TYPE_STRING;
+  case T_VOID_TYPE:
+    return TYPE_VOID;
+  case T_FLOAT_TYPE:
+    return TYPE_FLOAT;
+  case T_DOUBLE_TYPE:
+    return TYPE_DOUBLE;
+  default:
+    fprintf(stderr, "Unknown type %d %s. Fallbacking to int32.\n", token->type,
+            token->content);
+    return TYPE_INT32;
+  }
+}
+
 void initialize_parser(parser_t *parser, Vector *tokens,
                        const char *file_path) {
   assert(parser != NULL);
@@ -163,7 +195,7 @@ ASTnode *parse_ident_expr(parser_t *parser) {
   ADVANCE(parser);
   token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
   if (T_OPEN_PAREN != token->type) {
-    return new_ast_variable(ident_name);
+    return new_ast_variable(ident_name, parse_type(parser));
   }
 
   ADVANCE(parser);
@@ -204,6 +236,11 @@ ASTnode *parse_primary(parser_t *parser) {
   }
   case T_OPEN_PAREN: {
     return parse_paren_expr(parser);
+  }
+  case T_STRING: {
+    n = new_ast_string(token->content);
+    ADVANCE(parser);
+    return n;
   }
 
   default:
@@ -318,7 +355,7 @@ ASTnode *parse_statement(parser_t *parser) {
     EXPECT_ADVANCE(parser, T_IDENTIFIER,
                    "Expected an identifier after a 'let'");
     token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
-    var = new_ast_variable(token->content);
+    var = new_ast_variable(token->content, TYPE_INT32);
     EXPECT_ADVANCE(parser, T_EQUALS,
                    "Expected a '=' after ident in variable declaration");
     ADVANCE(parser);
@@ -388,6 +425,7 @@ Vector *parse_statements(parser_t *parser) {
 ASTnode *parse_prototype(parser_t *parser) {
   char *name = NULL;
   char **args = NULL;
+  type_t *types = NULL, return_type;
   int arity = 0;
 
   token_t *token = NULL;
@@ -402,14 +440,17 @@ ASTnode *parse_prototype(parser_t *parser) {
       (VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index + 1))->type) {
     // No args
     ADVANCE(parser);
-    return new_ast_prototype(name, args, arity);
+    return_type = parse_type(parser);
+    return new_ast_prototype(name, args, NULL, arity, return_type);
   }
 
   ADVANCE(parser);
 
   token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
   args = calloc(1, sizeof(char *));
+  types = calloc(1, sizeof(type_t));
   args[0] = strdup(token->content);
+  types[0] = parse_type(parser);
   arity = 1;
 
   while (T_CLOSE_PAREN !=
@@ -420,11 +461,15 @@ ASTnode *parse_prototype(parser_t *parser) {
     token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
     ++arity;
     args = realloc(args, sizeof(char *) * arity);
+    types = realloc(types, sizeof(type_t) * arity);
     args[arity - 1] = strdup(token->content);
+    types[arity - 1] = parse_type(parser);
   }
   EXPECT_ADVANCE(parser, T_CLOSE_PAREN, "Expected a ')'");
 
-  return new_ast_prototype(name, args, arity);
+  return_type = parse_type(parser);
+
+  return new_ast_prototype(name, args, types, arity, return_type);
 }
 
 ASTnode *parse_function(parser_t *parser) {

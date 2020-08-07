@@ -5,8 +5,9 @@
 
 #include "lexer.h"
 
-const char *keywords[NUMBER_OF_KEYWORDS] = {"fn",   "return", "if",
-                                            "else", "let",    "extern"};
+const char *keywords[NUMBER_OF_KEYWORDS] = {"fn",   "return", "if",    "else",
+                                            "let",  "extern", "int",   "str",
+                                            "void", "float",  "double"};
 
 int is_keyword(const char *identifier) {
   for (int i = 0; i < NUMBER_OF_KEYWORDS; ++i) {
@@ -53,20 +54,62 @@ char *parse_identifier(const char *source, int *index) {
 }
 
 char *parse_string(const char *source, int *index) {
-  int i = (*index) + 1;
+  int i = *index;
+  size_t char_count = 0, off = 0, ind = 0;
   while ('"' != source[i]) {
+    if ('\\' == source[i]) {
+      switch (source[i + 1]) {
+        case 'n':
+        case 't':
+        case '\\':
+        case '"':
+          ++i;
+          break;
+        default:
+          fprintf(stderr, "\\%c is not a valid esacpe sequence.\n", source[i + 1]);
+          exit(1);
+      }
+    }
+
+
+    ++char_count;
     ++i;
   }
 
   ++i;
 
-  char *str = calloc(sizeof(char), (i - *index) + 1);
+  char *str = calloc(sizeof(char), char_count);
   if (NULL == str) {
     return NULL;
   }
 
-  strncpy(str, source + *index, i - *index);
-  str[i - *index] = '\0';
+  for (ind = 0, off = 0; ind < char_count; ++ind) {
+    if ('\\' == source[*index + ind + off]) {
+      switch (source[*index + ind + off + 1]) {
+        case 'n':
+          str[ind] = '\n';
+          break;
+        case 't':
+          str[ind] = '\t';
+          break;
+        case '\\':
+          str[ind] = '\\';
+          break;
+        case '"':
+          str[ind] = '"';
+          break;
+        default:
+          fprintf(stderr, "\\%c is not a valid esacpe sequence.\n", source[*index + ind + off + 1]);
+          exit(1);
+      }
+
+      ++off;
+    } else {
+      str[ind] = source[*index + ind + off];
+    }
+  }
+
+  str[char_count] = '\0';
 
   *index = i - 1;
   return str;
@@ -148,6 +191,11 @@ void tokenize_source(Vector *tokens, const char *source) {
       token->content = "*";
       break;
     }
+    case ':': {
+      token->type = T_COLON;
+      token->content = ":";
+      break;
+    }
     case '/': {
       if ('/' == source[i + 1]) {
         // Found a comment
@@ -196,6 +244,7 @@ void tokenize_source(Vector *tokens, const char *source) {
     }
     case '"': {
       token->type = T_STRING;
+      ++i;
       identifier = parse_string(source, &i);
       if (NULL == identifier) {
         error = true;
