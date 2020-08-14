@@ -64,7 +64,7 @@ LLVMValueRef codegen_binexpr(ASTnode *n, LLVMModuleRef module,
     case BINOP_MULTIPLY:
         return LLVMBuildMul(builder, lhs, rhs, "multmp");
     case BINOP_DIVIDE:
-        return LLVMBuildFDiv(builder, lhs, rhs, "divtmp");
+        return LLVMBuildExactSDiv(builder, lhs, rhs, "divtmp");
     case BINOP_NOT:
         return LLVMBuildNot(builder, lhs, "nottmp");
     case BINOP_LESSER:
@@ -114,6 +114,7 @@ LLVMValueRef codegen_prototype(ASTnode *n, LLVMModuleRef module,
         named_value_t *val = malloc(sizeof(named_value_t));
         val->name = strdup(n->prototype.args[i]);
         val->value = param;
+        val->type = params[i];
         HASH_ADD_KEYPTR(hh, named_values, val->name, strlen(val->name), val);
     }
 
