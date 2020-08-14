@@ -4,6 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-char *get_file_contents(const char *file_path);
+char *IO_get_file_contents(const char *file_path);
 
 #endif // __IO_H__

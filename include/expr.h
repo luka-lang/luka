@@ -5,6 +5,6 @@
 
 extern int g_operator_precedence[];
 
-int op_precedence(t_token *token);
+int EXPR_get_op_precedence(t_token *token);
 
 #endif // __EXPR_H__

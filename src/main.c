@@ -15,53 +15,8 @@
 #include "gen.h"
 #include "io.h"
 #include "lexer.h"
+#include "lib.h"
 #include "parser.h"
-
-typedef enum
-{
-    LUKA_UNINITIALIZED = -1,
-    LUKA_SUCCESS = 0,
-    LUKA_WRONG_PARAMETERS,
-    LUKA_CANT_OPEN_FILE,
-    LUKA_CANT_ALLOC_MEMORY,
-} t_return_code;
-
-void free_tokens_vector(t_vector *tokens)
-{
-    t_token *token = NULL;
-    Iterator iterator = vector_begin(tokens);
-    Iterator last = vector_end(tokens);
-    for (; !iterator_equals(&iterator, &last); iterator_increment(&iterator))
-    {
-        token = *(t_token_ptr *)iterator_get(&iterator);
-        if ((token->type == T_NUMBER) || (token->type == T_STRING) ||
-            ((token->type <= T_IDENTIFIER) && (token->type > T_UNKNOWN)))
-        {
-            free(token->content);
-            token->content = NULL;
-        }
-        free(token);
-        token = NULL;
-    }
-    vector_clear(tokens);
-    vector_destroy(tokens);
-}
-
-void free_functions_vector(t_vector *functions)
-{
-    t_ast_node *function = NULL;
-    Iterator iterator = vector_begin(functions);
-    Iterator last = vector_end(functions);
-    for (; !iterator_equals(&iterator, &last); iterator_increment(&iterator))
-    {
-        function = *(t_ast_node_ptr *)iterator_get(&iterator);
-        free_ast_node(function);
-    }
-
-    vector_clear(functions);
-    vector_destroy(functions);
-    free(functions);
-}
 
 int main(int argc, char **argv)
 {
@@ -92,10 +47,10 @@ int main(int argc, char **argv)
     }
 
     file_path = argv[1];
-    file_contents = get_file_contents(file_path);
+    file_contents = IO_get_file_contents(file_path);
 
     vector_setup(&tokens, 1, sizeof(t_token_ptr));
-    tokenize_source(&tokens, file_contents);
+    LEXER_tokenize_source(&tokens, file_contents);
     if (NULL != file_contents)
     {
         free(file_contents);
@@ -103,13 +58,13 @@ int main(int argc, char **argv)
 
     parser = calloc(1, sizeof(t_parser));
 
-    initialize_parser(parser, &tokens, file_path);
+    PARSER_initialize_parser(parser, &tokens, file_path);
 
-    print_parser_tokens(parser);
+    PARSER_print_parser_tokens(parser);
 
-    functions = parse_top_level(parser);
+    functions = PARSER_parse_top_level(parser);
 
-    print_functions(functions, 0);
+    AST_print_functions(functions, 0);
 
     LLVMInitializeCore(LLVMGetGlobalPassRegistry());
 
@@ -119,10 +74,10 @@ int main(int argc, char **argv)
     VECTOR_FOR_EACH(functions, iterator)
     {
         function = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
-        codegen(function, module, builder);
+        GEN_codegen(function, module, builder);
     }
 
-    codegen_reset();
+    GEN_codegen_reset();
 
     LLVMVerifyModule(module, LLVMAbortProcessAction, &error);
     LLVMDisposeMessage(error);
@@ -139,7 +94,7 @@ int main(int argc, char **argv)
 
     LLVMDumpModule(module);
 
-    LLVMWriteBitcodeToFile(module, "life.bc");
+    LLVMWriteBitcodeToFile(module, "out.bc");
 
     status_code = LUKA_SUCCESS;
 
@@ -150,8 +105,8 @@ exit:
         free(parser);
     }
 
-    free_tokens_vector(&tokens);
-    free_functions_vector(functions);
+    LIB_free_tokens_vector(&tokens);
+    LIB_free_functions_vector(functions);
 
     // LLVM STUFF
 

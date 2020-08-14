@@ -4,6 +4,7 @@
 #include "vector.h"
 
 typedef Vector t_vector;
+typedef Iterator t_iterator;
 
 #define NUMBER_OF_KEYWORDS 11
 extern const char *keywords[NUMBER_OF_KEYWORDS];

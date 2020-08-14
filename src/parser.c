@@ -105,7 +105,7 @@ t_type parse_type(t_parser *parser)
     }
 }
 
-void initialize_parser(t_parser *parser, t_vector *tokens,
+void PARSER_initialize_parser(t_parser *parser, t_vector *tokens,
                        const char *file_path)
 {
     assert(parser != NULL);
@@ -115,7 +115,7 @@ void initialize_parser(t_parser *parser, t_vector *tokens,
     parser->file_path = file_path;
 }
 
-t_vector *parse_top_level(t_parser *parser)
+t_vector *PARSER_parse_top_level(t_parser *parser)
 {
     t_vector *functions = NULL;
     t_token *token = NULL;
@@ -133,14 +133,14 @@ t_vector *parse_top_level(t_parser *parser)
         {
         case T_FN:
         {
-            function = parse_function(parser);
+            function = PARSER_parse_function(parser);
             vector_push_back(functions, &function);
             break;
         }
         case T_EXTERN:
         {
             prototype = parse_prototype(parser);
-            function = new_ast_function(prototype, NULL);
+            function = AST_new_function(prototype, NULL);
             vector_push_back(functions, &function);
             EXPECT_ADVANCE(parser, T_SEMI_COLON,
                            "Expected a `;` at the end of an extern statement.");
@@ -218,7 +218,7 @@ t_ast_node *parse_ident_expr(t_parser *parser)
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     if (T_OPEN_PAREN != token->type)
     {
-        return new_ast_variable(ident_name, parse_type(parser));
+        return AST_new_variable(ident_name, parse_type(parser));
     }
 
     ADVANCE(parser);
@@ -244,7 +244,7 @@ t_ast_node *parse_ident_expr(t_parser *parser)
 
     ADVANCE(parser);
     vector_shrink_to_fit(args);
-    return new_ast_call_expr(ident_name, args);
+    return AST_new_call_expr(ident_name, args);
 }
 
 t_ast_node *parse_primary(t_parser *parser)
@@ -260,7 +260,7 @@ t_ast_node *parse_primary(t_parser *parser)
     }
     case T_NUMBER:
     {
-        n = new_ast_number(atoi(token->content));
+        n = AST_new_number(atoi(token->content));
         ADVANCE(parser);
         return n;
     }
@@ -270,7 +270,7 @@ t_ast_node *parse_primary(t_parser *parser)
     }
     case T_STRING:
     {
-        n = new_ast_string(token->content);
+        n = AST_new_string(token->content);
         ADVANCE(parser);
         return n;
     }
@@ -317,7 +317,7 @@ bool should_finish_expression(t_token *token)
     return false;
 }
 
-t_ast_node *parse_binexpr(t_parser *parser, int ptp)
+t_ast_node *PARSER_parse_binexpr(t_parser *parser, int ptp)
 {
     t_ast_node *left, *right;
     int nodetype;
@@ -332,12 +332,12 @@ t_ast_node *parse_binexpr(t_parser *parser, int ptp)
         return left;
     }
 
-    while (op_precedence(token) > ptp)
+    while (EXPR_get_op_precedence(token) > ptp)
     {
         ADVANCE(parser);
 
-        right = parse_binexpr(parser, g_operator_precedence[token->type - T_PLUS]);
-        left = new_ast_binary_expr(parse_op(token), left, right);
+        right = PARSER_parse_binexpr(parser, g_operator_precedence[token->type - T_PLUS]);
+        left = AST_new_binary_expr(parse_op(token), left, right);
 
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
 
@@ -377,12 +377,12 @@ t_ast_node *parse_expression(t_parser *parser)
         }
         ADVANCE(parser);
 
-        node = new_ast_if_expr(cond, then_body, else_body);
+        node = AST_new_if_expr(cond, then_body, else_body);
         return node;
     };
     default:
     {
-        return parse_binexpr(parser, 0);
+        return PARSER_parse_binexpr(parser, 0);
     }
     }
 }
@@ -401,7 +401,7 @@ t_ast_node *parse_statement(t_parser *parser)
         expr = parse_expression(parser);
         MATCH_ADVANCE(parser, T_SEMI_COLON,
                       "Expected a ';' at the end of a return statement");
-        node = new_ast_return_stmt(expr);
+        node = AST_new_return_stmt(expr);
         return node;
     }
     case T_LET:
@@ -409,12 +409,12 @@ t_ast_node *parse_statement(t_parser *parser)
         EXPECT_ADVANCE(parser, T_IDENTIFIER,
                        "Expected an identifier after a 'let'");
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-        var = new_ast_variable(token->content, TYPE_INT32);
+        var = AST_new_variable(token->content, TYPE_INT32);
         EXPECT_ADVANCE(parser, T_EQUALS,
                        "Expected a '=' after ident in variable declaration");
         ADVANCE(parser);
         expr = parse_expression(parser);
-        node = new_ast_let_stmt(var, expr);
+        node = AST_new_let_stmt(var, expr);
         MATCH_ADVANCE(parser, T_SEMI_COLON, "Expected a ';' after let statement");
         return node;
     }
@@ -427,7 +427,7 @@ t_ast_node *parse_statement(t_parser *parser)
         {
             /* Expression Statement */
             ADVANCE(parser);
-            node = new_ast_expression_stmt(expr);
+            node = AST_new_expression_stmt(expr);
             return node;
         }
 
@@ -505,7 +505,7 @@ t_ast_node *parse_prototype(t_parser *parser)
         // No args
         ADVANCE(parser);
         return_type = parse_type(parser);
-        return new_ast_prototype(name, args, NULL, arity, return_type);
+        return AST_new_prototype(name, args, NULL, arity, return_type);
     }
 
     ADVANCE(parser);
@@ -534,25 +534,25 @@ t_ast_node *parse_prototype(t_parser *parser)
 
     return_type = parse_type(parser);
 
-    return new_ast_prototype(name, args, types, arity, return_type);
+    return AST_new_prototype(name, args, types, arity, return_type);
 }
 
-t_ast_node *parse_function(t_parser *parser)
+t_ast_node *PARSER_parse_function(t_parser *parser)
 {
     int number = 0;
     t_ast_node *prototype = NULL;
     t_vector *body = NULL;
     prototype = parse_prototype(parser);
     body = parse_statements(parser);
-    return new_ast_function(prototype, body);
+    return AST_new_function(prototype, body);
 }
 
-void print_parser_tokens(t_parser *parser)
+void PARSER_print_parser_tokens(t_parser *parser)
 {
 
     t_token *token = NULL;
-    Iterator iterator = vector_begin(parser->tokens);
-    Iterator last = vector_end(parser->tokens);
+    t_iterator iterator = vector_begin(parser->tokens);
+    t_iterator last = vector_end(parser->tokens);
     for (; !iterator_equals(&iterator, &last); iterator_increment(&iterator))
     {
         token = *(t_token_ptr *)iterator_get(&iterator);

@@ -9,7 +9,7 @@ const char *keywords[NUMBER_OF_KEYWORDS] = {"fn", "return", "if", "else",
                                             "let", "extern", "int", "str",
                                             "void", "float", "double"};
 
-int is_keyword(const char *identifier)
+int lexer_is_keyword(const char *identifier)
 {
     for (int i = 0; i < NUMBER_OF_KEYWORDS; ++i)
     {
@@ -26,7 +26,7 @@ int is_keyword(const char *identifier)
     return -1;
 }
 
-int parse_number(const char *source, int *index)
+int lexer_lex_number(const char *source, int *index)
 {
     int number = 0;
 
@@ -41,7 +41,7 @@ int parse_number(const char *source, int *index)
     return number;
 }
 
-char *parse_identifier(const char *source, int *index)
+char *lexer_lex_identifier(const char *source, int *index)
 {
     int i = (*index) + 1;
     while ((0 != isalnum(source[i]) || ('_' == source[i])))
@@ -62,7 +62,7 @@ char *parse_identifier(const char *source, int *index)
     return ident;
 }
 
-char *parse_string(const char *source, int *index)
+char *lexer_lex_string(const char *source, int *index)
 {
     int i = *index;
     size_t char_count = 0, off = 0, ind = 0;
@@ -133,7 +133,7 @@ char *parse_string(const char *source, int *index)
     return str;
 }
 
-void tokenize_source(t_vector *tokens, const char *source)
+void LEXER_tokenize_source(t_vector *tokens, const char *source)
 {
     bool error = false;
     long line = 1, offset = 0;
@@ -295,7 +295,7 @@ void tokenize_source(t_vector *tokens, const char *source)
         {
             token->type = T_STRING;
             ++i;
-            identifier = parse_string(source, &i);
+            identifier = lexer_lex_string(source, &i);
             if (NULL == identifier)
             {
                 error = true;
@@ -315,7 +315,7 @@ void tokenize_source(t_vector *tokens, const char *source)
             if (isdigit(character))
             {
                 token->type = T_NUMBER;
-                number = parse_number(source, &i);
+                number = lexer_lex_number(source, &i);
                 token->content = calloc(sizeof(char), 11);
                 if (NULL == token->content)
                 {
@@ -329,13 +329,13 @@ void tokenize_source(t_vector *tokens, const char *source)
             if (isalpha(character))
             {
                 token->type = T_IDENTIFIER;
-                identifier = parse_identifier(source, &i);
+                identifier = lexer_lex_identifier(source, &i);
                 if (NULL == identifier)
                 {
                     error = true;
                     goto tokenize_exit;
                 }
-                number = is_keyword(identifier);
+                number = lexer_is_keyword(identifier);
                 if (-1 != number)
                 {
                     token->type = number;

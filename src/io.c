@@ -1,6 +1,6 @@
 #include "io.h"
 
-char *get_file_contents(const char *file_path)
+char *IO_get_file_contents(const char *file_path)
 {
     FILE *fp = NULL;
     char *file_contents = NULL;

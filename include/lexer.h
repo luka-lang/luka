@@ -4,6 +4,6 @@
 #include "defs.h"
 #include "vector.h"
 
-void tokenize_source(t_vector *tokens, const char *source);
+void LEXER_tokenize_source(t_vector *tokens, const char *source);
 
 #endif // __LEXER_H__

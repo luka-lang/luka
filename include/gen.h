@@ -15,8 +15,8 @@ typedef struct
     UT_hash_handle hh;
 } t_named_value;
 
-LLVMValueRef codegen(t_ast_node *n, LLVMModuleRef module, LLVMBuilderRef builder);
+LLVMValueRef GEN_codegen(t_ast_node *n, LLVMModuleRef module, LLVMBuilderRef builder);
 
-void codegen_reset();
+void GEN_codegen_reset();
 
 #endif // __GEN_H__

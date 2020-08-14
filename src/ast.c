@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
-const char *type_to_string(t_type type)
+const char *ast_type_to_string(t_type type)
 {
     switch (type)
     {
@@ -34,7 +34,7 @@ const char *type_to_string(t_type type)
     }
 }
 
-t_ast_node *new_ast_number(int value)
+t_ast_node *AST_new_number(int value)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_NUMBER;
@@ -42,7 +42,7 @@ t_ast_node *new_ast_number(int value)
     return node;
 }
 
-t_ast_node *new_ast_string(char *value)
+t_ast_node *AST_new_string(char *value)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_STRING;
@@ -51,8 +51,8 @@ t_ast_node *new_ast_string(char *value)
     return node;
 }
 
-t_ast_node *new_ast_binary_expr(t_ast_binop_type operator, t_ast_node * lhs,
-                             t_ast_node * rhs)
+t_ast_node *AST_new_binary_expr(t_ast_binop_type operator, t_ast_node * lhs,
+                                t_ast_node * rhs)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_BINARY_EXPR;
@@ -62,8 +62,8 @@ t_ast_node *new_ast_binary_expr(t_ast_binop_type operator, t_ast_node * lhs,
     return node;
 }
 
-t_ast_node *new_ast_prototype(char *name, char **args, t_type *types, int arity,
-                           t_type return_type)
+t_ast_node *AST_new_prototype(char *name, char **args, t_type *types, int arity,
+                              t_type return_type)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_PROTOTYPE;
@@ -79,7 +79,7 @@ t_ast_node *new_ast_prototype(char *name, char **args, t_type *types, int arity,
     return node;
 }
 
-t_ast_node *new_ast_function(t_ast_node *prototype, t_vector *body)
+t_ast_node *AST_new_function(t_ast_node *prototype, t_vector *body)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_FUNCTION;
@@ -88,7 +88,7 @@ t_ast_node *new_ast_function(t_ast_node *prototype, t_vector *body)
     return node;
 }
 
-t_ast_node *new_ast_return_stmt(t_ast_node *expr)
+t_ast_node *AST_new_return_stmt(t_ast_node *expr)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_RETURN_STMT;
@@ -96,7 +96,7 @@ t_ast_node *new_ast_return_stmt(t_ast_node *expr)
     return node;
 }
 
-t_ast_node *new_ast_if_expr(t_ast_node *cond, t_vector *then_body, t_vector *else_body)
+t_ast_node *AST_new_if_expr(t_ast_node *cond, t_vector *then_body, t_vector *else_body)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_IF_EXPR;
@@ -106,7 +106,7 @@ t_ast_node *new_ast_if_expr(t_ast_node *cond, t_vector *then_body, t_vector *els
     return node;
 }
 
-t_ast_node *new_ast_variable(char *name, t_type type)
+t_ast_node *AST_new_variable(char *name, t_type type)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_VARIABLE;
@@ -115,7 +115,7 @@ t_ast_node *new_ast_variable(char *name, t_type type)
     return node;
 }
 
-t_ast_node *new_ast_let_stmt(t_ast_node *var, t_ast_node *expr)
+t_ast_node *AST_new_let_stmt(t_ast_node *var, t_ast_node *expr)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_LET_STMT;
@@ -124,7 +124,7 @@ t_ast_node *new_ast_let_stmt(t_ast_node *var, t_ast_node *expr)
     return node;
 }
 
-t_ast_node *new_ast_call_expr(char *name, t_vector *args)
+t_ast_node *AST_new_call_expr(char *name, t_vector *args)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_CALL_EXPR;
@@ -133,7 +133,7 @@ t_ast_node *new_ast_call_expr(char *name, t_vector *args)
     return node;
 }
 
-t_ast_node *new_ast_expression_stmt(t_ast_node *expr)
+t_ast_node *AST_new_expression_stmt(t_ast_node *expr)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_EXPRESSION_STMT;
@@ -141,7 +141,7 @@ t_ast_node *new_ast_expression_stmt(t_ast_node *expr)
     return node;
 }
 
-void free_ast_node(t_ast_node *node)
+void AST_free_node(t_ast_node *node)
 {
     if (!node)
         return;
@@ -161,9 +161,9 @@ void free_ast_node(t_ast_node *node)
     case AST_TYPE_BINARY_EXPR:
     {
         if (node->binary_expr.lhs)
-            free_ast_node(node->binary_expr.lhs);
+            AST_free_node(node->binary_expr.lhs);
         if (node->binary_expr.rhs)
-            free_ast_node(node->binary_expr.rhs);
+            AST_free_node(node->binary_expr.rhs);
         break;
     }
     case AST_TYPE_PROTOTYPE:
@@ -181,14 +181,14 @@ void free_ast_node(t_ast_node *node)
     case AST_TYPE_FUNCTION:
     {
         if (node->function.prototype)
-            free_ast_node(node->function.prototype);
+            AST_free_node(node->function.prototype);
         if (node->function.body)
         {
             t_ast_node *stmt = NULL;
             VECTOR_FOR_EACH(node->function.body, stmts)
             {
                 stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
-                free_ast_node(stmt);
+                AST_free_node(stmt);
             }
 
             vector_clear(node->function.body);
@@ -200,20 +200,20 @@ void free_ast_node(t_ast_node *node)
     case AST_TYPE_RETURN_STMT:
     {
         if (node->return_stmt.expr)
-            free_ast_node(node->return_stmt.expr);
+            AST_free_node(node->return_stmt.expr);
         break;
     }
     case AST_TYPE_IF_EXPR:
     {
         if (node->if_expr.cond)
-            free_ast_node(node->if_expr.cond);
+            AST_free_node(node->if_expr.cond);
         if (node->if_expr.then_body)
         {
             t_ast_node *stmt = NULL;
             VECTOR_FOR_EACH(node->if_expr.then_body, stmts)
             {
                 stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
-                free_ast_node(stmt);
+                AST_free_node(stmt);
             }
 
             vector_clear(node->if_expr.then_body);
@@ -226,7 +226,7 @@ void free_ast_node(t_ast_node *node)
             VECTOR_FOR_EACH(node->if_expr.else_body, stmts)
             {
                 stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
-                free_ast_node(stmt);
+                AST_free_node(stmt);
             }
 
             vector_clear(node->if_expr.else_body);
@@ -249,12 +249,12 @@ void free_ast_node(t_ast_node *node)
     {
         if (node->let_stmt.var)
         {
-            free_ast_node(node->let_stmt.var);
+            AST_free_node(node->let_stmt.var);
         }
 
         if (node->let_stmt.expr)
         {
-            free_ast_node(node->let_stmt.expr);
+            AST_free_node(node->let_stmt.expr);
         }
         break;
     }
@@ -267,7 +267,7 @@ void free_ast_node(t_ast_node *node)
             VECTOR_FOR_EACH(node->call_expr.args, args)
             {
                 arg = ITERATOR_GET_AS(t_ast_node_ptr, &args);
-                free_ast_node(arg);
+                AST_free_node(arg);
             }
 
             vector_clear(node->call_expr.args);
@@ -280,7 +280,7 @@ void free_ast_node(t_ast_node *node)
     case AST_TYPE_EXPRESSION_STMT:
     {
         if (node->expression_stmt.expr)
-            free_ast_node(node->expression_stmt.expr);
+            AST_free_node(node->expression_stmt.expr);
         break;
     }
 
@@ -294,7 +294,7 @@ void free_ast_node(t_ast_node *node)
     free(node);
 }
 
-void print_statements_block(t_vector *statements, int offset)
+void ast_print_statements_block(t_vector *statements, int offset)
 {
     t_ast_node *stmt = NULL;
 
@@ -302,17 +302,17 @@ void print_statements_block(t_vector *statements, int offset)
     VECTOR_FOR_EACH(statements, stmts)
     {
         stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
-        print_ast(stmt, offset + 2);
+        AST_print_ast(stmt, offset + 2);
     }
 }
 
-void print_functions(t_vector *functions, int offset)
+void AST_print_functions(t_vector *functions, int offset)
 {
     t_ast_node *func = NULL;
     VECTOR_FOR_EACH(functions, funcs)
     {
         func = ITERATOR_GET_AS(t_ast_node_ptr, &funcs);
-        print_ast(func, offset);
+        AST_print_ast(func, offset);
     }
 }
 
@@ -348,7 +348,7 @@ char *op_to_str(t_ast_binop_type op)
     }
 }
 
-void print_ast(t_ast_node *node, int offset)
+void AST_print_ast(t_ast_node *node, int offset)
 {
     t_ast_node *arg = NULL;
     size_t i = 0;
@@ -374,9 +374,9 @@ void print_ast(t_ast_node *node, int offset)
         printf("%*c\b Operator: %s\n", offset + 2, ' ',
                op_to_str(node->binary_expr.operator));
         if (node->binary_expr.lhs)
-            print_ast(node->binary_expr.lhs, offset + 4);
+            AST_print_ast(node->binary_expr.lhs, offset + 4);
         if (node->binary_expr.rhs)
-            print_ast(node->binary_expr.rhs, offset + 4);
+            AST_print_ast(node->binary_expr.rhs, offset + 4);
         break;
     }
     case AST_TYPE_PROTOTYPE:
@@ -386,10 +386,10 @@ void print_ast(t_ast_node *node, int offset)
         for (i = 0; i < node->prototype.arity; ++i)
         {
             printf("%*c\b %zu: (%s) %s\n", offset, '-', i,
-                   type_to_string(node->prototype.types[i]), node->prototype.args[i]);
+                   ast_type_to_string(node->prototype.types[i]), node->prototype.args[i]);
         }
         printf("%*c\b Return Type -> %s\n", offset, '-',
-               type_to_string(node->prototype.return_type));
+               ast_type_to_string(node->prototype.return_type));
         break;
     }
 
@@ -397,12 +397,15 @@ void print_ast(t_ast_node *node, int offset)
     {
         printf("%*c\b Function definition\n", offset, ' ');
         if (node->function.prototype)
+        {
             printf("%*c\b Prototype\n", offset + 2, ' ');
-        print_ast(node->function.prototype, offset + 4);
+            AST_print_ast(node->function.prototype, offset + 4);
+        }
+
         if (node->function.body)
         {
             printf("%*c\b Body\n", offset + 2, ' ');
-            print_statements_block(node->function.body, offset + 4);
+            ast_print_statements_block(node->function.body, offset + 4);
         }
         break;
     }
@@ -410,7 +413,7 @@ void print_ast(t_ast_node *node, int offset)
     {
         printf("%*c\b Return statement\n", offset, ' ');
         if (node->return_stmt.expr)
-            print_ast(node->return_stmt.expr, offset + 2);
+            AST_print_ast(node->return_stmt.expr, offset + 2);
         break;
     }
     case AST_TYPE_IF_EXPR:
@@ -420,17 +423,17 @@ void print_ast(t_ast_node *node, int offset)
         {
             printf("%*c\b Condition\n", offset + 2, ' ');
 
-            print_ast(node->if_expr.cond, offset + 4);
+            AST_print_ast(node->if_expr.cond, offset + 4);
         }
         if (node->if_expr.then_body)
         {
             printf("%*c\b Then Body\n", offset + 2, ' ');
-            print_statements_block(node->if_expr.then_body, offset + 4);
+            ast_print_statements_block(node->if_expr.then_body, offset + 4);
         }
         if (node->if_expr.else_body)
         {
             printf("%*c\b Else Body\n", offset + 2, ' ');
-            print_statements_block(node->if_expr.else_body, offset + 4);
+            ast_print_statements_block(node->if_expr.else_body, offset + 4);
         }
         break;
     }
@@ -448,13 +451,13 @@ void print_ast(t_ast_node *node, int offset)
         printf("%*c\b Let Statement\n", offset, ' ');
         if (node->let_stmt.var)
         {
-            print_ast(node->let_stmt.var, offset + 2);
+            AST_print_ast(node->let_stmt.var, offset + 2);
         }
 
         if (node->let_stmt.expr)
         {
             printf("%*c\b Expression\n", offset + 2, ' ');
-            print_ast(node->let_stmt.expr, offset + 4);
+            AST_print_ast(node->let_stmt.expr, offset + 4);
         }
         break;
     }
@@ -474,7 +477,7 @@ void print_ast(t_ast_node *node, int offset)
             VECTOR_FOR_EACH(node->call_expr.args, args)
             {
                 arg = ITERATOR_GET_AS(t_ast_node_ptr, &args);
-                print_ast(arg, offset + 4);
+                AST_print_ast(arg, offset + 4);
             }
         }
 
@@ -485,7 +488,7 @@ void print_ast(t_ast_node *node, int offset)
     {
         printf("%*c\b Expression statement\n", offset, ' ');
         if (node->expression_stmt.expr)
-            print_ast(node->expression_stmt.expr, offset + 2);
+            AST_print_ast(node->expression_stmt.expr, offset + 2);
         break;
     }
     default:
