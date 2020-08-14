@@ -1,5 +1,5 @@
-#ifndef __AST_H_
-#define __AST_H_
+#ifndef __AST_H__
+#define __AST_H__
 
 #include "defs.h"
 #include <stdlib.h>
@@ -31,4 +31,4 @@ void print_statements_block(Vector *statements, int offset);
 void print_functions(Vector *functions, int offset);
 void print_ast(ASTnode *node, int offset);
 
-#endif // __AST_H_
+#endif // __AST_H__
