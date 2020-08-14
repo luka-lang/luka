@@ -3,8 +3,8 @@
 
 #include "defs.h"
 
-extern int OpPrec[];
+extern int g_operator_precedence[];
 
-int op_precedence(token_t *token);
+int op_precedence(t_token *token);
 
 #endif // __EXPR_H__

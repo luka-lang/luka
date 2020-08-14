@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
-const char *type_to_string(type_t type)
+const char *type_to_string(t_type type)
 {
     switch (type)
     {
@@ -34,27 +34,27 @@ const char *type_to_string(type_t type)
     }
 }
 
-ASTnode *new_ast_number(int value)
+t_ast_node *new_ast_number(int value)
 {
-    ASTnode *node = calloc(1, sizeof(ASTnode));
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_NUMBER;
     node->number.value = value;
     return node;
 }
 
-ASTnode *new_ast_string(char *value)
+t_ast_node *new_ast_string(char *value)
 {
-    ASTnode *node = calloc(1, sizeof(ASTnode));
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_STRING;
     node->string.value = value;
     node->string.length = strlen(value);
     return node;
 }
 
-ASTnode *new_ast_binary_expr(AST_binop_type operator, ASTnode * lhs,
-                             ASTnode * rhs)
+t_ast_node *new_ast_binary_expr(t_ast_binop_type operator, t_ast_node * lhs,
+                             t_ast_node * rhs)
 {
-    ASTnode *node = calloc(1, sizeof(ASTnode));
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_BINARY_EXPR;
     node->binary_expr.operator= operator;
     node->binary_expr.lhs = lhs;
@@ -62,10 +62,10 @@ ASTnode *new_ast_binary_expr(AST_binop_type operator, ASTnode * lhs,
     return node;
 }
 
-ASTnode *new_ast_prototype(char *name, char **args, type_t *types, int arity,
-                           type_t return_type)
+t_ast_node *new_ast_prototype(char *name, char **args, t_type *types, int arity,
+                           t_type return_type)
 {
-    ASTnode *node = calloc(1, sizeof(ASTnode));
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_PROTOTYPE;
     node->prototype.name = strdup(name);
     node->prototype.args = calloc(arity, sizeof(char *));
@@ -79,26 +79,26 @@ ASTnode *new_ast_prototype(char *name, char **args, type_t *types, int arity,
     return node;
 }
 
-ASTnode *new_ast_function(ASTnode *prototype, Vector *body)
+t_ast_node *new_ast_function(t_ast_node *prototype, t_vector *body)
 {
-    ASTnode *node = calloc(1, sizeof(ASTnode));
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_FUNCTION;
     node->function.prototype = prototype;
     node->function.body = body;
     return node;
 }
 
-ASTnode *new_ast_return_stmt(ASTnode *expr)
+t_ast_node *new_ast_return_stmt(t_ast_node *expr)
 {
-    ASTnode *node = calloc(1, sizeof(ASTnode));
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_RETURN_STMT;
     node->return_stmt.expr = expr;
     return node;
 }
 
-ASTnode *new_ast_if_expr(ASTnode *cond, Vector *then_body, Vector *else_body)
+t_ast_node *new_ast_if_expr(t_ast_node *cond, t_vector *then_body, t_vector *else_body)
 {
-    ASTnode *node = calloc(1, sizeof(ASTnode));
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_IF_EXPR;
     node->if_expr.cond = cond;
     node->if_expr.then_body = then_body;
@@ -106,42 +106,42 @@ ASTnode *new_ast_if_expr(ASTnode *cond, Vector *then_body, Vector *else_body)
     return node;
 }
 
-ASTnode *new_ast_variable(char *name, type_t type)
+t_ast_node *new_ast_variable(char *name, t_type type)
 {
-    ASTnode *node = calloc(1, sizeof(ASTnode));
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_VARIABLE;
     node->variable.name = name;
     node->variable.type = type;
     return node;
 }
 
-ASTnode *new_ast_let_stmt(ASTnode *var, ASTnode *expr)
+t_ast_node *new_ast_let_stmt(t_ast_node *var, t_ast_node *expr)
 {
-    ASTnode *node = calloc(1, sizeof(ASTnode));
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_LET_STMT;
     node->let_stmt.var = var;
     node->let_stmt.expr = expr;
     return node;
 }
 
-ASTnode *new_ast_call_expr(char *name, Vector *args)
+t_ast_node *new_ast_call_expr(char *name, t_vector *args)
 {
-    ASTnode *node = calloc(1, sizeof(ASTnode));
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_CALL_EXPR;
     node->call_expr.name = name;
     node->call_expr.args = args;
     return node;
 }
 
-ASTnode *new_ast_expression_stmt(ASTnode *expr)
+t_ast_node *new_ast_expression_stmt(t_ast_node *expr)
 {
-    ASTnode *node = calloc(1, sizeof(ASTnode));
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_EXPRESSION_STMT;
     node->expression_stmt.expr = expr;
     return node;
 }
 
-void free_ast_node(ASTnode *node)
+void free_ast_node(t_ast_node *node)
 {
     if (!node)
         return;
@@ -184,10 +184,10 @@ void free_ast_node(ASTnode *node)
             free_ast_node(node->function.prototype);
         if (node->function.body)
         {
-            ASTnode *stmt = NULL;
+            t_ast_node *stmt = NULL;
             VECTOR_FOR_EACH(node->function.body, stmts)
             {
-                stmt = ITERATOR_GET_AS(ast_node_ptr_t, &stmts);
+                stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
                 free_ast_node(stmt);
             }
 
@@ -209,10 +209,10 @@ void free_ast_node(ASTnode *node)
             free_ast_node(node->if_expr.cond);
         if (node->if_expr.then_body)
         {
-            ASTnode *stmt = NULL;
+            t_ast_node *stmt = NULL;
             VECTOR_FOR_EACH(node->if_expr.then_body, stmts)
             {
-                stmt = ITERATOR_GET_AS(ast_node_ptr_t, &stmts);
+                stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
                 free_ast_node(stmt);
             }
 
@@ -222,10 +222,10 @@ void free_ast_node(ASTnode *node)
         }
         if (node->if_expr.else_body)
         {
-            ASTnode *stmt = NULL;
+            t_ast_node *stmt = NULL;
             VECTOR_FOR_EACH(node->if_expr.else_body, stmts)
             {
-                stmt = ITERATOR_GET_AS(ast_node_ptr_t, &stmts);
+                stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
                 free_ast_node(stmt);
             }
 
@@ -263,10 +263,10 @@ void free_ast_node(ASTnode *node)
     {
         if (node->call_expr.args)
         {
-            ASTnode *arg = NULL;
+            t_ast_node *arg = NULL;
             VECTOR_FOR_EACH(node->call_expr.args, args)
             {
-                arg = ITERATOR_GET_AS(ast_node_ptr_t, &args);
+                arg = ITERATOR_GET_AS(t_ast_node_ptr, &args);
                 free_ast_node(arg);
             }
 
@@ -294,29 +294,29 @@ void free_ast_node(ASTnode *node)
     free(node);
 }
 
-void print_statements_block(Vector *statements, int offset)
+void print_statements_block(t_vector *statements, int offset)
 {
-    ASTnode *stmt = NULL;
+    t_ast_node *stmt = NULL;
 
     printf("%*c\b Statements block\n", offset, ' ');
     VECTOR_FOR_EACH(statements, stmts)
     {
-        stmt = ITERATOR_GET_AS(ast_node_ptr_t, &stmts);
+        stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
         print_ast(stmt, offset + 2);
     }
 }
 
-void print_functions(Vector *functions, int offset)
+void print_functions(t_vector *functions, int offset)
 {
-    ASTnode *func = NULL;
+    t_ast_node *func = NULL;
     VECTOR_FOR_EACH(functions, funcs)
     {
-        func = ITERATOR_GET_AS(ast_node_ptr_t, &funcs);
+        func = ITERATOR_GET_AS(t_ast_node_ptr, &funcs);
         print_ast(func, offset);
     }
 }
 
-char *op_to_str(AST_binop_type op)
+char *op_to_str(t_ast_binop_type op)
 {
     switch (op)
     {
@@ -348,9 +348,9 @@ char *op_to_str(AST_binop_type op)
     }
 }
 
-void print_ast(ASTnode *node, int offset)
+void print_ast(t_ast_node *node, int offset)
 {
-    ASTnode *arg = NULL;
+    t_ast_node *arg = NULL;
     size_t i = 0;
     if (!node)
         return;
@@ -473,7 +473,7 @@ void print_ast(ASTnode *node, int offset)
             printf("%*c\b Count - %d\n", offset + 4, ' ', node->call_expr.args->size);
             VECTOR_FOR_EACH(node->call_expr.args, args)
             {
-                arg = ITERATOR_GET_AS(ast_node_ptr_t, &args);
+                arg = ITERATOR_GET_AS(t_ast_node_ptr, &args);
                 print_ast(arg, offset + 4);
             }
         }

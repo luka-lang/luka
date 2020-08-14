@@ -11,18 +11,18 @@
 
 typedef struct
 {
-    Vector *tokens;
-    size_t index; // tokens index
+    t_vector *tokens;
+    size_t index;
     const char *file_path;
-} parser_t;
+} t_parser;
 
-void initialize_parser(parser_t *parser, Vector *tokens, const char *file_path);
+void initialize_parser(t_parser *parser, t_vector *tokens, const char *file_path);
 
-Vector *parse_top_level(parser_t *parser);
+t_vector *parse_top_level(t_parser *parser);
 
-ASTnode *parse_function(parser_t *parser);
-ASTnode *parse_binexpr(parser_t *parser, int ptp);
+t_ast_node *parse_function(t_parser *parser);
+t_ast_node *parse_binexpr(t_parser *parser, int ptp);
 
-void print_parser_tokens(parser_t *parser);
+void print_parser_tokens(t_parser *parser);
 
 #endif // __PARSER_H__

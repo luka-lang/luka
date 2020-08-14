@@ -3,6 +3,8 @@
 
 #include "vector.h"
 
+typedef Vector t_vector;
+
 #define NUMBER_OF_KEYWORDS 11
 extern const char *keywords[NUMBER_OF_KEYWORDS];
 
@@ -49,17 +51,17 @@ typedef enum
     T_COLON,
 
     T_EOF,
-} toktype_t;
+} t_toktype;
 
 typedef struct
 {
     long line;
     long offset;
-    toktype_t type;
+    t_toktype type;
     char *content;
-} token_t;
+} t_token;
 
-typedef token_t *token_ptr_t;
+typedef t_token *t_token_ptr;
 
 typedef enum
 {
@@ -74,7 +76,7 @@ typedef enum
     AST_TYPE_LET_STMT,
     AST_TYPE_CALL_EXPR,
     AST_TYPE_EXPRESSION_STMT
-} AST_node_type;
+} t_ast_node_type;
 
 typedef enum
 {
@@ -89,7 +91,7 @@ typedef enum
     BINOP_NEQ,
     BINOP_LEQ,
     BINOP_GEQ,
-} AST_binop_type;
+} t_ast_binop_type;
 
 typedef enum
 {
@@ -103,97 +105,97 @@ typedef enum
     TYPE_DOUBLE,
     TYPE_STRING,
     TYPE_VOID
-} type_t;
+} t_type;
 
-typedef struct ASTnode_s ASTnode;
+typedef struct s_ast_node t_ast_node;
 
 typedef struct
 {
     int value;
-} AST_number;
+} t_ast_number;
 
 typedef struct
 {
     char *value;
     size_t length;
-} AST_string;
+} t_ast_string;
 
 typedef struct
 {
-    AST_binop_type operator;
-    ASTnode *lhs;
-    ASTnode *rhs;
-} AST_binary_expr;
+    t_ast_binop_type operator;
+    t_ast_node *lhs;
+    t_ast_node *rhs;
+} t_ast_binary_expr;
 
 typedef struct
 {
     char *name;
     char **args;
-    type_t *types;
-    type_t return_type;
+    t_type *types;
+    t_type return_type;
     unsigned int arity;
-} AST_prototype;
+} t_ast_prototype;
 
 typedef struct
 {
-    ASTnode *prototype;
-    Vector *body;
-} AST_function;
+    t_ast_node *prototype;
+    t_vector *body;
+} t_ast_function;
 
 typedef struct
 {
-    ASTnode *expr;
-} AST_return_stmt;
+    t_ast_node *expr;
+} t_ast_return_stmt;
 
 typedef struct
 {
-    ASTnode *cond;
-    Vector *then_body;
-    Vector *else_body;
-} AST_if_expr;
+    t_ast_node *cond;
+    t_vector *then_body;
+    t_vector *else_body;
+} t_ast_if_expr;
 
 typedef struct
 {
-    ASTnode *var;
-    ASTnode *expr;
-} AST_let_stmt;
-
-typedef struct
-{
-    char *name;
-    type_t type;
-} AST_variable;
+    t_ast_node *var;
+    t_ast_node *expr;
+} t_ast_let_stmt;
 
 typedef struct
 {
     char *name;
-    Vector *args;
-} AST_call_expr;
+    t_type type;
+} t_ast_variable;
 
 typedef struct
 {
-    ASTnode *expr;
-} AST_expr_stmt;
+    char *name;
+    t_vector *args;
+} t_ast_call_expr;
 
-typedef struct ASTnode_s
+typedef struct
 {
-    AST_node_type type;
+    t_ast_node *expr;
+} t_ast_expr_stmt;
+
+typedef struct s_ast_node
+{
+    t_ast_node_type type;
     union
     {
-        AST_number number;
-        AST_string string;
-        AST_binary_expr binary_expr;
-        AST_prototype prototype;
-        AST_function function;
-        AST_return_stmt return_stmt;
-        AST_if_expr if_expr;
-        AST_variable variable;
-        AST_let_stmt let_stmt;
-        AST_call_expr call_expr;
-        AST_expr_stmt expression_stmt;
+        t_ast_number number;
+        t_ast_string string;
+        t_ast_binary_expr binary_expr;
+        t_ast_prototype prototype;
+        t_ast_function function;
+        t_ast_return_stmt return_stmt;
+        t_ast_if_expr if_expr;
+        t_ast_variable variable;
+        t_ast_let_stmt let_stmt;
+        t_ast_call_expr call_expr;
+        t_ast_expr_stmt expression_stmt;
     };
-} ASTnode;
+} t_ast_node;
 
-typedef ASTnode *ast_node_ptr_t;
+typedef t_ast_node *t_ast_node_ptr;
 
 #endif // __DEFS_H__

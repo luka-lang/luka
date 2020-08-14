@@ -24,16 +24,16 @@ typedef enum
     LUKA_WRONG_PARAMETERS,
     LUKA_CANT_OPEN_FILE,
     LUKA_CANT_ALLOC_MEMORY,
-} return_code_t;
+} t_return_code;
 
-void free_tokens_vector(Vector *tokens)
+void free_tokens_vector(t_vector *tokens)
 {
-    token_t *token = NULL;
+    t_token *token = NULL;
     Iterator iterator = vector_begin(tokens);
     Iterator last = vector_end(tokens);
     for (; !iterator_equals(&iterator, &last); iterator_increment(&iterator))
     {
-        token = *(token_ptr_t *)iterator_get(&iterator);
+        token = *(t_token_ptr *)iterator_get(&iterator);
         if ((token->type == T_NUMBER) || (token->type == T_STRING) ||
             ((token->type <= T_IDENTIFIER) && (token->type > T_UNKNOWN)))
         {
@@ -47,14 +47,14 @@ void free_tokens_vector(Vector *tokens)
     vector_destroy(tokens);
 }
 
-void free_functions_vector(Vector *functions)
+void free_functions_vector(t_vector *functions)
 {
-    ASTnode *function = NULL;
+    t_ast_node *function = NULL;
     Iterator iterator = vector_begin(functions);
     Iterator last = vector_end(functions);
     for (; !iterator_equals(&iterator, &last); iterator_increment(&iterator))
     {
-        function = *(ast_node_ptr_t *)iterator_get(&iterator);
+        function = *(t_ast_node_ptr *)iterator_get(&iterator);
         free_ast_node(function);
     }
 
@@ -65,19 +65,19 @@ void free_functions_vector(Vector *functions)
 
 int main(int argc, char **argv)
 {
-    return_code_t status_code = LUKA_UNINITIALIZED;
+    t_return_code status_code = LUKA_UNINITIALIZED;
     char *file_path = NULL;
 
     int file_size = 0;
     char *file_contents = NULL;
 
-    Vector tokens;
-    Vector *functions = NULL;
-    token_t *token = NULL;
+    t_vector tokens;
+    t_vector *functions = NULL;
+    t_token *token = NULL;
 
-    parser_t *parser = NULL;
+    t_parser *parser = NULL;
 
-    ASTnode *function = NULL;
+    t_ast_node *function = NULL;
 
     LLVMModuleRef module = NULL;
     LLVMBuilderRef builder = NULL;
@@ -94,14 +94,14 @@ int main(int argc, char **argv)
     file_path = argv[1];
     file_contents = get_file_contents(file_path);
 
-    vector_setup(&tokens, 1, sizeof(token_ptr_t));
+    vector_setup(&tokens, 1, sizeof(t_token_ptr));
     tokenize_source(&tokens, file_contents);
     if (NULL != file_contents)
     {
         free(file_contents);
     }
 
-    parser = calloc(1, sizeof(parser_t));
+    parser = calloc(1, sizeof(t_parser));
 
     initialize_parser(parser, &tokens, file_path);
 
@@ -118,7 +118,7 @@ int main(int argc, char **argv)
 
     VECTOR_FOR_EACH(functions, iterator)
     {
-        function = ITERATOR_GET_AS(ast_node_ptr_t, &iterator);
+        function = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
         codegen(function, module, builder);
     }
 

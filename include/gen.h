@@ -13,9 +13,9 @@ typedef struct
     LLVMValueRef value;
     LLVMTypeRef type;
     UT_hash_handle hh;
-} named_value_t;
+} t_named_value;
 
-LLVMValueRef codegen(ASTnode *n, LLVMModuleRef module, LLVMBuilderRef builder);
+LLVMValueRef codegen(t_ast_node *n, LLVMModuleRef module, LLVMBuilderRef builder);
 
 void codegen_reset();
 

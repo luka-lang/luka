@@ -3,9 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-named_value_t *named_values = NULL;
+t_named_value *named_values = NULL;
 
-LLVMTypeRef type_to_llvm_type(type_t type)
+LLVMTypeRef type_to_llvm_type(t_type type)
 {
     switch (type)
     {
@@ -37,7 +37,7 @@ LLVMTypeRef type_to_llvm_type(type_t type)
     }
 }
 
-LLVMValueRef codegen_binexpr(ASTnode *n, LLVMModuleRef module,
+LLVMValueRef codegen_binexpr(t_ast_node *n, LLVMModuleRef module,
                              LLVMBuilderRef builder)
 {
     LLVMValueRef lhs = NULL, rhs = NULL;
@@ -89,7 +89,7 @@ LLVMValueRef codegen_binexpr(ASTnode *n, LLVMModuleRef module,
     return NULL;
 }
 
-LLVMValueRef codegen_prototype(ASTnode *n, LLVMModuleRef module,
+LLVMValueRef codegen_prototype(t_ast_node *n, LLVMModuleRef module,
                                LLVMBuilderRef builder)
 {
     LLVMValueRef func = NULL;
@@ -111,7 +111,7 @@ LLVMValueRef codegen_prototype(ASTnode *n, LLVMModuleRef module,
         LLVMValueRef param = LLVMGetParam(func, i);
         LLVMSetValueName(param, n->prototype.args[i]);
 
-        named_value_t *val = malloc(sizeof(named_value_t));
+        t_named_value *val = malloc(sizeof(t_named_value));
         val->name = strdup(n->prototype.args[i]);
         val->value = param;
         val->type = params[i];
@@ -121,16 +121,16 @@ LLVMValueRef codegen_prototype(ASTnode *n, LLVMModuleRef module,
     return func;
 }
 
-LLVMValueRef codegen_stmts(Vector *statements, LLVMModuleRef module,
+LLVMValueRef codegen_stmts(t_vector *statements, LLVMModuleRef module,
                            LLVMBuilderRef builder, bool *has_return_stmt)
 {
-    ASTnode *stmt = NULL;
+    t_ast_node *stmt = NULL;
     LLVMValueRef ret_val = NULL;
     int i = 0;
 
     VECTOR_FOR_EACH(statements, stmts)
     {
-        stmt = ITERATOR_GET_AS(ast_node_ptr_t, &stmts);
+        stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
         if (AST_TYPE_RETURN_STMT == stmt->type)
         {
             ret_val = codegen(stmt, module, builder);
@@ -146,14 +146,14 @@ LLVMValueRef codegen_stmts(Vector *statements, LLVMModuleRef module,
     return ret_val;
 }
 
-LLVMValueRef codegen_function(ASTnode *n, LLVMModuleRef module,
+LLVMValueRef codegen_function(t_ast_node *n, LLVMModuleRef module,
                               LLVMBuilderRef builder)
 {
     LLVMValueRef func = NULL, tmp = NULL, ret_val = NULL;
     LLVMBasicBlockRef block = NULL;
-    ASTnode *stmt = NULL;
+    t_ast_node *stmt = NULL;
     bool has_return_stmt = false;
-    type_t return_type;
+    t_type return_type;
 
     func = codegen(n->function.prototype, module, builder);
     if (NULL == func)
@@ -201,7 +201,7 @@ LLVMValueRef codegen_function(ASTnode *n, LLVMModuleRef module,
     return func;
 }
 
-LLVMValueRef codegen_return_stmt(ASTnode *n, LLVMModuleRef module,
+LLVMValueRef codegen_return_stmt(t_ast_node *n, LLVMModuleRef module,
                                  LLVMBuilderRef builder)
 {
     LLVMValueRef expr;
@@ -214,7 +214,7 @@ LLVMValueRef codegen_return_stmt(ASTnode *n, LLVMModuleRef module,
     return NULL;
 }
 
-LLVMValueRef codegen_if_expr(ASTnode *n, LLVMModuleRef module,
+LLVMValueRef codegen_if_expr(t_ast_node *n, LLVMModuleRef module,
                              LLVMBuilderRef builder)
 {
     LLVMValueRef cond = NULL, then_value = NULL, else_value = NULL, phi = NULL,
@@ -293,10 +293,10 @@ LLVMValueRef codegen_if_expr(ASTnode *n, LLVMModuleRef module,
     return phi;
 }
 
-LLVMValueRef codegen_variable(ASTnode *node, LLVMModuleRef module,
+LLVMValueRef codegen_variable(t_ast_node *node, LLVMModuleRef module,
                               LLVMBuilderRef builder)
 {
-    named_value_t *val = NULL;
+    t_named_value *val = NULL;
 
     HASH_FIND_STR(named_values, node->variable.name, val);
 
@@ -307,17 +307,17 @@ LLVMValueRef codegen_variable(ASTnode *node, LLVMModuleRef module,
     return NULL;
 }
 
-LLVMValueRef codegen_let_stmt(ASTnode *node, LLVMModuleRef module,
+LLVMValueRef codegen_let_stmt(t_ast_node *node, LLVMModuleRef module,
                               LLVMBuilderRef builder)
 {
     LLVMValueRef expr;
-    AST_variable variable;
-    named_value_t *val = NULL;
+    t_ast_variable variable;
+    t_named_value *val = NULL;
 
     variable = node->let_stmt.var->variable;
     expr = codegen(node->let_stmt.expr, module, builder);
 
-    val = malloc(sizeof(named_value_t));
+    val = malloc(sizeof(t_named_value));
     val->name = strdup(variable.name);
     val->value = expr;
     val->type = type_to_llvm_type(variable.type);
@@ -326,12 +326,12 @@ LLVMValueRef codegen_let_stmt(ASTnode *node, LLVMModuleRef module,
     return NULL;
 }
 
-LLVMValueRef codegen_call(ASTnode *node, LLVMModuleRef module,
+LLVMValueRef codegen_call(t_ast_node *node, LLVMModuleRef module,
                           LLVMBuilderRef builder)
 {
     LLVMValueRef func = NULL;
     LLVMValueRef *args = NULL;
-    ASTnode *arg = NULL;
+    t_ast_node *arg = NULL;
     size_t i = 0;
 
     func = LLVMGetNamedFunction(module, node->call_expr.name);
@@ -348,7 +348,7 @@ LLVMValueRef codegen_call(ASTnode *node, LLVMModuleRef module,
     args = calloc(node->call_expr.args->size, sizeof(LLVMValueRef));
     VECTOR_FOR_EACH(node->call_expr.args, args_iter)
     {
-        arg = ITERATOR_GET_AS(ast_node_ptr_t, &args_iter);
+        arg = ITERATOR_GET_AS(t_ast_node_ptr, &args_iter);
         args[i] = codegen(arg, module, builder);
 
         if (NULL == args[i])
@@ -364,7 +364,7 @@ LLVMValueRef codegen_call(ASTnode *node, LLVMModuleRef module,
                          "calltmp");
 }
 
-LLVMValueRef codegen_expression_stmt(ASTnode *n, LLVMModuleRef module,
+LLVMValueRef codegen_expression_stmt(t_ast_node *n, LLVMModuleRef module,
                                      LLVMBuilderRef builder)
 {
     LLVMValueRef expr;
@@ -376,7 +376,7 @@ LLVMValueRef codegen_expression_stmt(ASTnode *n, LLVMModuleRef module,
     return NULL;
 }
 
-LLVMValueRef codegen(ASTnode *node, LLVMModuleRef module,
+LLVMValueRef codegen(t_ast_node *node, LLVMModuleRef module,
                      LLVMBuilderRef builder)
 {
     switch (node->type)

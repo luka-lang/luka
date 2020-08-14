@@ -133,16 +133,16 @@ char *parse_string(const char *source, int *index)
     return str;
 }
 
-void tokenize_source(Vector *tokens, const char *source)
+void tokenize_source(t_vector *tokens, const char *source)
 {
     bool error = false;
     long line = 1, offset = 0;
     size_t length = strlen(source);
     char character = '\0';
-    token_t *token = NULL;
+    t_token *token = NULL;
     int number = 0;
     char *identifier;
-    token = calloc(1, sizeof(token_t));
+    token = calloc(1, sizeof(t_token));
     if (NULL == token)
     {
         error = true;
@@ -354,7 +354,7 @@ void tokenize_source(Vector *tokens, const char *source)
             error = true;
             goto tokenize_exit;
         }
-        token = calloc(1, sizeof(token_t));
+        token = calloc(1, sizeof(t_token));
         if (NULL == token)
         {
             error = true;

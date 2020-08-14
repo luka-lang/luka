@@ -4,31 +4,31 @@
 #include "defs.h"
 #include <stdlib.h>
 
-ASTnode *new_ast_number(int value);
-ASTnode *new_ast_string(char *content);
+t_ast_node *new_ast_number(int value);
+t_ast_node *new_ast_string(char *content);
 
-ASTnode *new_ast_binary_expr(AST_binop_type operator, ASTnode * lhs,
-                             ASTnode * rhs);
+t_ast_node *new_ast_binary_expr(t_ast_binop_type operator, t_ast_node * lhs,
+                             t_ast_node * rhs);
 
-ASTnode *new_ast_prototype(char *name, char **args, type_t *types, int arity,
-                           type_t return_type);
-ASTnode *new_ast_function(ASTnode *prototype, Vector *body);
+t_ast_node *new_ast_prototype(char *name, char **args, t_type *types, int arity,
+                           t_type return_type);
+t_ast_node *new_ast_function(t_ast_node *prototype, t_vector *body);
 
-ASTnode *new_ast_return_stmt(ASTnode *expr);
-ASTnode *new_ast_let_stmt(ASTnode *var, ASTnode *expr);
+t_ast_node *new_ast_return_stmt(t_ast_node *expr);
+t_ast_node *new_ast_let_stmt(t_ast_node *var, t_ast_node *expr);
 
-ASTnode *new_ast_if_expr(ASTnode *cond, Vector *then_body, Vector *else_body);
+t_ast_node *new_ast_if_expr(t_ast_node *cond, t_vector *then_body, t_vector *else_body);
 
-ASTnode *new_ast_variable(char *name, type_t type);
+t_ast_node *new_ast_variable(char *name, t_type type);
 
-ASTnode *new_ast_call_expr(char *name, Vector *args);
+t_ast_node *new_ast_call_expr(char *name, t_vector *args);
 
-ASTnode *new_ast_expression_stmt(ASTnode *expr);
+t_ast_node *new_ast_expression_stmt(t_ast_node *expr);
 
-void free_ast_node(ASTnode *node);
+void free_ast_node(t_ast_node *node);
 
-void print_statements_block(Vector *statements, int offset);
-void print_functions(Vector *functions, int offset);
-void print_ast(ASTnode *node, int offset);
+void print_statements_block(t_vector *statements, int offset);
+void print_functions(t_vector *functions, int offset);
+void print_ast(t_ast_node *node, int offset);
 
 #endif // __AST_H__

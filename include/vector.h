@@ -45,7 +45,7 @@ typedef struct Vector
 {
     size_t size;
     size_t capacity;
-    size_t element_size;
+    size_t elemensize_t;
 
     void *data;
 } Vector;
@@ -53,13 +53,13 @@ typedef struct Vector
 typedef struct Iterator
 {
     void *pointer;
-    size_t element_size;
+    size_t elemensize_t;
 } Iterator;
 
 /***** METHODS *****/
 
 /* Constructor */
-int vector_setup(Vector *vector, size_t capacity, size_t element_size);
+int vector_setup(Vector *vector, size_t capacity, size_t elemensize_t);
 
 /* Copy Constructor */
 int vector_copy(Vector *destination, Vector *source);

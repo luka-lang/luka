@@ -4,16 +4,16 @@
 
 #include <string.h>
 
-ASTnode *parse_expression(parser_t *parser);
+t_ast_node *parse_expression(t_parser *parser);
 
-Vector *parse_statements(parser_t *parser);
+t_vector *parse_statements(t_parser *parser);
 
-ASTnode *parse_prototype(parser_t *parser);
+t_ast_node *parse_prototype(t_parser *parser);
 
-void ERR(parser_t *parser, const char *message)
+void ERR(t_parser *parser, const char *message)
 {
-    token_t *token = NULL;
-    token = *(token_ptr_t *)vector_get(parser->tokens, parser->index + 1);
+    t_token *token = NULL;
+    token = *(t_token_ptr *)vector_get(parser->tokens, parser->index + 1);
 
     fprintf(stderr, "%s\n", message);
 
@@ -22,35 +22,35 @@ void ERR(parser_t *parser, const char *message)
     exit(1);
 }
 
-bool EXPECT(parser_t *parser, toktype_t type)
+bool EXPECT(t_parser *parser, t_toktype type)
 {
-    token_t *token = NULL;
+    t_token *token = NULL;
 
     assert(parser->index + 1 < parser->tokens->size);
 
-    token = *(token_ptr_t *)vector_get(parser->tokens, parser->index + 1);
+    token = *(t_token_ptr *)vector_get(parser->tokens, parser->index + 1);
 
     return token->type == type;
 }
 
-bool MATCH(parser_t *parser, toktype_t type)
+bool MATCH(t_parser *parser, t_toktype type)
 {
-    token_t *token = NULL;
+    t_token *token = NULL;
 
     assert(parser->index < parser->tokens->size);
 
-    token = *(token_ptr_t *)vector_get(parser->tokens, parser->index);
+    token = *(t_token_ptr *)vector_get(parser->tokens, parser->index);
 
     return token->type == type;
 }
 
-void ADVANCE(parser_t *parser)
+void ADVANCE(t_parser *parser)
 {
     ++parser->index;
     assert(parser->index < parser->tokens->size);
 }
 
-void EXPECT_ADVANCE(parser_t *parser, toktype_t type, const char *message)
+void EXPECT_ADVANCE(t_parser *parser, t_toktype type, const char *message)
 {
     if (!EXPECT(parser, type))
     {
@@ -60,7 +60,7 @@ void EXPECT_ADVANCE(parser_t *parser, toktype_t type, const char *message)
     ADVANCE(parser);
 }
 
-void MATCH_ADVANCE(parser_t *parser, toktype_t type, const char *message)
+void MATCH_ADVANCE(t_parser *parser, t_toktype type, const char *message)
 {
     if (!MATCH(parser, type))
     {
@@ -70,11 +70,11 @@ void MATCH_ADVANCE(parser_t *parser, toktype_t type, const char *message)
     ADVANCE(parser);
 }
 
-type_t parse_type(parser_t *parser)
+t_type parse_type(t_parser *parser)
 {
-    token_t *token = NULL;
+    t_token *token = NULL;
 
-    token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index + 1);
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
     if (T_COLON != token->type)
     {
         return TYPE_INT32;
@@ -82,7 +82,7 @@ type_t parse_type(parser_t *parser)
 
     EXPECT_ADVANCE(parser, T_COLON, "Expected a `:` before type.");
 
-    token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index + 1);
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
 
     ADVANCE(parser);
 
@@ -105,7 +105,7 @@ type_t parse_type(parser_t *parser)
     }
 }
 
-void initialize_parser(parser_t *parser, Vector *tokens,
+void initialize_parser(t_parser *parser, t_vector *tokens,
                        const char *file_path)
 {
     assert(parser != NULL);
@@ -115,19 +115,19 @@ void initialize_parser(parser_t *parser, Vector *tokens,
     parser->file_path = file_path;
 }
 
-Vector *parse_top_level(parser_t *parser)
+t_vector *parse_top_level(t_parser *parser)
 {
-    Vector *functions = NULL;
-    token_t *token = NULL;
-    ASTnode *function, *prototype;
+    t_vector *functions = NULL;
+    t_token *token = NULL;
+    t_ast_node *function, *prototype;
 
-    functions = calloc(1, sizeof(Vector));
+    functions = calloc(1, sizeof(t_vector));
 
-    vector_setup(functions, 5, sizeof(ast_node_ptr_t));
+    vector_setup(functions, 5, sizeof(t_ast_node_ptr));
 
     while (parser->index < parser->tokens->size)
     {
-        token = *(token_ptr_t *)vector_get(parser->tokens, parser->index);
+        token = *(t_token_ptr *)vector_get(parser->tokens, parser->index);
 
         switch (token->type)
         {
@@ -161,7 +161,7 @@ Vector *parse_top_level(parser_t *parser)
     return functions;
 }
 
-int parse_op(token_t *token)
+int parse_op(t_token *token)
 {
     switch (token->type)
     {
@@ -194,9 +194,9 @@ int parse_op(token_t *token)
     }
 }
 
-ASTnode *parse_paren_expr(parser_t *parser)
+t_ast_node *parse_paren_expr(t_parser *parser)
 {
-    ASTnode *expr;
+    t_ast_node *expr;
     ADVANCE(parser);
     expr = parse_expression(parser);
     EXPECT_ADVANCE(parser, T_CLOSE_PAREN, "Expected ')'");
@@ -204,27 +204,27 @@ ASTnode *parse_paren_expr(parser_t *parser)
     return expr;
 }
 
-ASTnode *parse_ident_expr(parser_t *parser)
+t_ast_node *parse_ident_expr(t_parser *parser)
 {
-    token_t *token;
-    ASTnode *node, *expr;
+    t_token *token;
+    t_ast_node *node, *expr;
     char *ident_name;
-    Vector *args;
+    t_vector *args;
 
-    token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     ident_name = token->content;
 
     ADVANCE(parser);
-    token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     if (T_OPEN_PAREN != token->type)
     {
         return new_ast_variable(ident_name, parse_type(parser));
     }
 
     ADVANCE(parser);
-    args = calloc(1, sizeof(Vector));
-    vector_setup(args, 10, sizeof(ASTnode));
-    token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+    args = calloc(1, sizeof(t_vector));
+    vector_setup(args, 10, sizeof(t_ast_node));
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     if (T_CLOSE_PAREN != token->type)
     {
         while (true)
@@ -232,7 +232,7 @@ ASTnode *parse_ident_expr(parser_t *parser)
             expr = parse_expression(parser);
             vector_push_back(args, &expr);
 
-            token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+            token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
             if (T_CLOSE_PAREN == token->type)
             {
                 break;
@@ -247,10 +247,10 @@ ASTnode *parse_ident_expr(parser_t *parser)
     return new_ast_call_expr(ident_name, args);
 }
 
-ASTnode *parse_primary(parser_t *parser)
+t_ast_node *parse_primary(t_parser *parser)
 {
-    ASTnode *n;
-    token_t *token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+    t_ast_node *n;
+    t_token *token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
 
     switch (token->type)
     {
@@ -282,7 +282,7 @@ ASTnode *parse_primary(parser_t *parser)
     }
 }
 
-bool should_finish_expression(token_t *token)
+bool should_finish_expression(t_token *token)
 {
     if (T_OPEN_BRACKET == token->type)
     {
@@ -317,15 +317,15 @@ bool should_finish_expression(token_t *token)
     return false;
 }
 
-ASTnode *parse_binexpr(parser_t *parser, int ptp)
+t_ast_node *parse_binexpr(t_parser *parser, int ptp)
 {
-    ASTnode *left, *right;
+    t_ast_node *left, *right;
     int nodetype;
-    token_t *token = NULL;
+    t_token *token = NULL;
 
     left = parse_primary(parser);
 
-    token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
 
     if (should_finish_expression(token))
     {
@@ -336,10 +336,10 @@ ASTnode *parse_binexpr(parser_t *parser, int ptp)
     {
         ADVANCE(parser);
 
-        right = parse_binexpr(parser, OpPrec[token->type - T_PLUS]);
+        right = parse_binexpr(parser, g_operator_precedence[token->type - T_PLUS]);
         left = new_ast_binary_expr(parse_op(token), left, right);
 
-        token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+        token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
 
         if (should_finish_expression(token))
         {
@@ -350,13 +350,13 @@ ASTnode *parse_binexpr(parser_t *parser, int ptp)
     return left;
 }
 
-ASTnode *parse_expression(parser_t *parser)
+t_ast_node *parse_expression(t_parser *parser)
 {
-    ASTnode *node = NULL, *expr = NULL, *cond = false;
-    Vector *then_body = NULL, *else_body = NULL;
-    token_t *token = NULL;
+    t_ast_node *node = NULL, *expr = NULL, *cond = false;
+    t_vector *then_body = NULL, *else_body = NULL;
+    t_token *token = NULL;
 
-    token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
 
     switch (token->type)
     {
@@ -387,12 +387,12 @@ ASTnode *parse_expression(parser_t *parser)
     }
 }
 
-ASTnode *parse_statement(parser_t *parser)
+t_ast_node *parse_statement(t_parser *parser)
 {
-    ASTnode *node = NULL, *expr = NULL, *var = NULL;
-    token_t *token = NULL;
+    t_ast_node *node = NULL, *expr = NULL, *var = NULL;
+    t_token *token = NULL;
 
-    token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     switch (token->type)
     {
     case T_RETURN:
@@ -408,7 +408,7 @@ ASTnode *parse_statement(parser_t *parser)
     {
         EXPECT_ADVANCE(parser, T_IDENTIFIER,
                        "Expected an identifier after a 'let'");
-        token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+        token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
         var = new_ast_variable(token->content, TYPE_INT32);
         EXPECT_ADVANCE(parser, T_EQUALS,
                        "Expected a '=' after ident in variable declaration");
@@ -421,7 +421,7 @@ ASTnode *parse_statement(parser_t *parser)
     default:
     {
         expr = parse_expression(parser);
-        token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+        token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
 
         if (T_SEMI_COLON == token->type)
         {
@@ -444,16 +444,16 @@ ASTnode *parse_statement(parser_t *parser)
     return NULL;
 }
 
-Vector *parse_statements(parser_t *parser)
+t_vector *parse_statements(t_parser *parser)
 {
-    Vector *stmts = NULL;
-    ASTnode *stmt = NULL;
-    token_t *token = NULL;
-    stmts = calloc(1, sizeof(Vector));
+    t_vector *stmts = NULL;
+    t_ast_node *stmt = NULL;
+    t_token *token = NULL;
+    stmts = calloc(1, sizeof(t_vector));
 
-    vector_setup(stmts, 10, sizeof(ast_node_ptr_t));
+    vector_setup(stmts, 10, sizeof(t_ast_node_ptr));
 
-    token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index + 1);
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
 
     if (T_OPEN_BRACKET != token->type)
     {
@@ -469,7 +469,7 @@ Vector *parse_statements(parser_t *parser)
 
         while (
             T_CLOSE_BRACKET !=
-            (token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index + 1))
+            (token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1))
                 ->type)
         {
             ADVANCE(parser);
@@ -484,23 +484,23 @@ Vector *parse_statements(parser_t *parser)
     return stmts;
 }
 
-ASTnode *parse_prototype(parser_t *parser)
+t_ast_node *parse_prototype(t_parser *parser)
 {
     char *name = NULL;
     char **args = NULL;
-    type_t *types = NULL, return_type;
+    t_type *types = NULL, return_type;
     int arity = 0;
 
-    token_t *token = NULL;
+    t_token *token = NULL;
 
     EXPECT_ADVANCE(parser, T_IDENTIFIER,
                    "Expected an identifier after 'fn' keyword");
-    name = (VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index))->content;
+    name = (VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index))->content;
 
     EXPECT_ADVANCE(parser, T_OPEN_PAREN, "Expected a '('");
 
     if (T_CLOSE_PAREN ==
-        (VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index + 1))->type)
+        (VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1))->type)
     {
         // No args
         ADVANCE(parser);
@@ -510,23 +510,23 @@ ASTnode *parse_prototype(parser_t *parser)
 
     ADVANCE(parser);
 
-    token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     args = calloc(1, sizeof(char *));
-    types = calloc(1, sizeof(type_t));
+    types = calloc(1, sizeof(t_type));
     args[0] = strdup(token->content);
     types[0] = parse_type(parser);
     arity = 1;
 
     while (T_CLOSE_PAREN !=
-           (token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index + 1))
+           (token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1))
                ->type)
     {
         EXPECT_ADVANCE(parser, T_COMMA, "Expected ',' after arg");
         EXPECT_ADVANCE(parser, T_IDENTIFIER, "Expected another arg after ','");
-        token = VECTOR_GET_AS(token_ptr_t, parser->tokens, parser->index);
+        token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
         ++arity;
         args = realloc(args, sizeof(char *) * arity);
-        types = realloc(types, sizeof(type_t) * arity);
+        types = realloc(types, sizeof(t_type) * arity);
         args[arity - 1] = strdup(token->content);
         types[arity - 1] = parse_type(parser);
     }
@@ -537,25 +537,25 @@ ASTnode *parse_prototype(parser_t *parser)
     return new_ast_prototype(name, args, types, arity, return_type);
 }
 
-ASTnode *parse_function(parser_t *parser)
+t_ast_node *parse_function(t_parser *parser)
 {
     int number = 0;
-    ASTnode *prototype = NULL;
-    Vector *body = NULL;
+    t_ast_node *prototype = NULL;
+    t_vector *body = NULL;
     prototype = parse_prototype(parser);
     body = parse_statements(parser);
     return new_ast_function(prototype, body);
 }
 
-void print_parser_tokens(parser_t *parser)
+void print_parser_tokens(t_parser *parser)
 {
 
-    token_t *token = NULL;
+    t_token *token = NULL;
     Iterator iterator = vector_begin(parser->tokens);
     Iterator last = vector_end(parser->tokens);
     for (; !iterator_equals(&iterator, &last); iterator_increment(&iterator))
     {
-        token = *(token_ptr_t *)iterator_get(&iterator);
+        token = *(t_token_ptr *)iterator_get(&iterator);
 
         printf("%ld:%ld - %d - %s\n", token->line, token->offset, token->type,
                token->content);
