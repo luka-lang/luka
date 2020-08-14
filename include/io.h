@@ -1,9 +1,9 @@
-#ifndef __IO_H_
-#define __IO_H_
+#ifndef __IO_H__
+#define __IO_H__
 
 #include <stdio.h>
 #include <stdlib.h>
 
 char *get_file_contents(const char *file_path);
 
-#endif // __IO_H_
+#endif // __IO_H__

@@ -1,5 +1,5 @@
-#ifndef __PARSER_H_
-#define __PARSER_H_
+#ifndef __PARSER_H__
+#define __PARSER_H__
 
 #include <assert.h>
 #include <stdint.h>
@@ -9,10 +9,11 @@
 #include "defs.h"
 #include "vector.h"
 
-typedef struct {
-  Vector *tokens;
-  size_t index; // tokens index
-  const char *file_path;
+typedef struct
+{
+    Vector *tokens;
+    size_t index; // tokens index
+    const char *file_path;
 } parser_t;
 
 void initialize_parser(parser_t *parser, Vector *tokens, const char *file_path);
@@ -24,4 +25,4 @@ ASTnode *parse_binexpr(parser_t *parser, int ptp);
 
 void print_parser_tokens(parser_t *parser);
 
-#endif // __PARSER_H_
+#endif // __PARSER_H__
