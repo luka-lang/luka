@@ -16,6 +16,7 @@
 #include "io.h"
 #include "lexer.h"
 #include "lib.h"
+#include "logger.h"
 #include "parser.h"
 
 int main(int argc, char **argv)
@@ -41,9 +42,13 @@ int main(int argc, char **argv)
 
     char *error = NULL;
 
+    t_logger *logger = NULL;
+
+    logger = LOGGER_initialize("/tmp/luka.log");
+
     if (2 != argc)
     {
-        (void) fprintf(stderr, "USAGE: luka [luka source file]\n");
+        (void) LOGGER_log(logger, L_INFO, "USAGE: luka [luka source file]\n");
         status_code = LUKA_WRONG_PARAMETERS;
         goto cleanup;
     }
@@ -52,7 +57,7 @@ int main(int argc, char **argv)
     file_contents = IO_get_file_contents(file_path);
 
     (void) vector_setup(&tokens, 1, sizeof(t_token_ptr));
-    status_code = LEXER_tokenize_source(&tokens, file_contents);
+    status_code = LEXER_tokenize_source(&tokens, file_contents, logger);
     if (LUKA_SUCCESS != status_code)
     {
         goto cleanup;
@@ -67,18 +72,18 @@ int main(int argc, char **argv)
     parser = calloc(1, sizeof(t_parser));
     if (NULL == parser)
     {
-       (void) fprintf(stderr, "Failed allocating memory for parser.\n");
+       (void) LOGGER_log(logger, L_ERROR, "Failed allocating memory for parser.\n");
        status_code = LUKA_CANT_ALLOC_MEMORY;
        goto cleanup;
     }
 
-    (void) PARSER_initialize_parser(parser, &tokens, file_path);
+    (void) PARSER_initialize(parser, &tokens, file_path, logger);
 
     (void) PARSER_print_parser_tokens(parser);
 
     functions = PARSER_parse_top_level(parser);
 
-    (void) AST_print_functions(functions, 0);
+    (void) AST_print_functions(functions, 0, logger);
 
     (void) LLVMInitializeCore(LLVMGetGlobalPassRegistry());
 
@@ -88,14 +93,17 @@ int main(int argc, char **argv)
     VECTOR_FOR_EACH(functions, iterator)
     {
         function = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
-        value = GEN_codegen(function, module, builder);
+        value = GEN_codegen(function, module, builder, logger);
         if (NULL == value)
         {
-            (void) fprintf(stderr, "Failed generating code for function %s.\n", function->function.prototype->prototype.name);
+            (void) LOGGER_log(logger,
+                              L_ERROR,
+                              "Failed generating code for function %s.\n",
+                              function->function.prototype->prototype.name);
             value = LLVMGetNamedFunction(module, function->function.prototype->prototype.name);
             if (NULL == value)
             {
-                (void) fprintf(stderr, "Failed finding the function inside the module.\n");
+                (void) LOGGER_log(logger, L_ERROR, "Failed finding the function inside the module.\n");
             }
             else
             {
@@ -126,6 +134,15 @@ int main(int argc, char **argv)
     status_code = LUKA_SUCCESS;
 
 cleanup:
+    (void) LIB_free_tokens_vector(&tokens);
+    (void) LIB_free_functions_vector(functions, logger);
+
+    if (NULL != logger)
+    {
+        (void) LOGGER_free(logger);
+        logger = NULL;
+    }
+   
     if (NULL != file_contents)
     {
         (void) free(file_contents);
@@ -137,9 +154,6 @@ cleanup:
         (void) free(parser);
         parser = NULL;
     }
-
-    (void) LIB_free_tokens_vector(&tokens);
-    (void) LIB_free_functions_vector(functions);
 
     if (NULL != pass_manager)
     {

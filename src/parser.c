@@ -15,10 +15,10 @@ void ERR(t_parser *parser, const char *message)
     t_token *token = NULL;
     token = *(t_token_ptr *)vector_get(parser->tokens, parser->index + 1);
 
-    (void) fprintf(stderr, "%s\n", message);
+    (void) LOGGER_log(parser->logger, L_ERROR, "%s\n", message);
 
-    (void) fprintf(stderr, "Error at %s %ld:%ld - %s\n", parser->file_path, token->line,
-                   token->offset, token->content);
+    (void) LOGGER_log(parser->logger, L_ERROR, "Error at %s %ld:%ld - %s\n", parser->file_path, token->line,
+                      token->offset, token->content);
     (void) exit(1);
 }
 
@@ -99,20 +99,23 @@ t_type parse_type(t_parser *parser)
     case T_DOUBLE_TYPE:
         return TYPE_DOUBLE;
     default:
-        (void) fprintf(stderr, "Unknown type %d %s. Fallbacking to int32.\n", token->type,
-                token->content);
+        (void) LOGGER_log(parser->logger, L_ERROR, "Unknown type %d %s. Fallbacking to int32.\n", token->type,
+                          token->content);
         return TYPE_INT32;
     }
 }
 
-void PARSER_initialize_parser(t_parser *parser, t_vector *tokens,
-                       const char *file_path)
+void PARSER_initialize(t_parser *parser,
+                       t_vector *tokens,
+                       const char *file_path,
+                       t_logger* logger)
 {
     (void) assert(parser != NULL);
 
     parser->tokens = tokens;
     parser->index = 0;
     parser->file_path = file_path;
+    parser->logger = logger;
 }
 
 t_vector *PARSER_parse_top_level(t_parser *parser)
@@ -124,7 +127,7 @@ t_vector *PARSER_parse_top_level(t_parser *parser)
     functions = calloc(1, sizeof(t_vector));
     if (NULL == functions)
     {
-        (void) fprintf(stderr, "Couldn't allocate memory for functions");
+        (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for functions");
         goto cleanup;
     }
 
@@ -155,8 +158,8 @@ t_vector *PARSER_parse_top_level(t_parser *parser)
             break;
         default:
         {
-            (void) fprintf(stderr, "Syntax error at %s %ld:%ld - %s\n", parser->file_path,
-                           token->line, token->offset, token->content);
+            (void) LOGGER_log(parser->logger, L_ERROR, "Syntax error at %s %ld:%ld - %s\n", parser->file_path,
+                              token->line, token->offset, token->content);
         }
         }
         parser->index += 1;
@@ -168,7 +171,7 @@ cleanup:
     return functions;
 }
 
-int parse_op(t_token *token)
+int parse_op(t_token *token, t_logger *logger)
 {
     switch (token->type)
     {
@@ -195,8 +198,8 @@ int parse_op(t_token *token)
     case T_GEQ:
         return BINOP_GEQ;
     default:
-        (void) fprintf(stderr, "unknown token in parse_op at %ld:%ld\n", token->line,
-                       token->offset);
+        (void) LOGGER_log(logger, L_ERROR, "Unknown token in parse_op at %ld:%ld\n", token->line,
+                          token->offset);
         (void) exit(1);
     }
 }
@@ -232,7 +235,7 @@ t_ast_node *parse_ident_expr(t_parser *parser)
     args = calloc(1, sizeof(t_vector));
     if (NULL == args)
     {
-        (void) fprintf(stderr, "Couldn't allocate memory for args.\n");
+        (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for args.\n");
     }
     vector_setup(args, 10, sizeof(t_ast_node));
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
@@ -298,8 +301,8 @@ t_ast_node *parse_primary(t_parser *parser)
     }
 
     default:
-        (void) fprintf(stderr, "parse_primary: Syntax error at %ld:%ld - %s\n",
-                       token->line, token->offset, token->content);
+        (void) LOGGER_log(parser->logger, L_ERROR, "parse_primary: Syntax error at %ld:%ld - %s\n",
+                          token->line, token->offset, token->content);
         (void) exit(1);
     }
 }
@@ -354,12 +357,12 @@ t_ast_node *PARSER_parse_binexpr(t_parser *parser, int ptp)
         return left;
     }
 
-    while (EXPR_get_op_precedence(token) > ptp)
+    while (EXPR_get_op_precedence(token, parser->logger) > ptp)
     {
         ADVANCE(parser);
 
         right = PARSER_parse_binexpr(parser, g_operator_precedence[token->type - T_PLUS]);
-        left = AST_new_binary_expr(parse_op(token), left, right);
+        left = AST_new_binary_expr(parse_op(token, parser->logger), left, right);
 
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
 
@@ -457,8 +460,8 @@ t_ast_node *parse_statement(t_parser *parser)
         {
             return expr;
         }
-        (void) fprintf(stderr, "Not a statement: %ld:%ld - %s\n", token->line,
-                       token->offset, token->content);
+        (void) LOGGER_log(parser->logger, L_ERROR, "Not a statement: %ld:%ld - %s\n", token->line,
+                          token->offset, token->content);
         (void) exit(1);
     }
     }
@@ -474,7 +477,7 @@ t_vector *parse_statements(t_parser *parser)
     stmts = calloc(1, sizeof(t_vector));
     if (NULL == stmts)
     {
-        (void) fprintf(stderr, "Couldn't allocate memory for statments.\n");
+        (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for statments.\n");
         goto cleanup;
     }
 
@@ -544,13 +547,13 @@ t_ast_node *parse_prototype(t_parser *parser)
     args = calloc(allocated, sizeof(char *));
     if (NULL == args)
     {
-        (void) fprintf(stderr, "Couldn't allocate memory for args.\n");
+        (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for args.\n");
         goto cleanup;
     }
     types = calloc(allocated, sizeof(t_type));
     if (NULL == types)
     {
-        (void) fprintf(stderr, "Couldn't allocate memory for types.\n");
+        (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for types.\n");
         goto cleanup;
     }
     args[0] = strdup(token->content);
@@ -572,7 +575,7 @@ t_ast_node *parse_prototype(t_parser *parser)
             new_args = realloc(args, sizeof(char *) * allocated);
             if (NULL == new_args)
             {
-                (void) fprintf(stderr, "Couldn't allocate memory for arguments.\n");
+                (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for arguments.\n");
                 goto cleanup;
             }
             args = new_args;
@@ -580,7 +583,7 @@ t_ast_node *parse_prototype(t_parser *parser)
             new_types = realloc(types, sizeof(t_type) * allocated);
             if (NULL == new_types)
             {
-                (void) fprintf(stderr, "Couldn't allocate memory for types.\n");
+                (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for types.\n");
                 goto cleanup;
             }
             types = new_types;
@@ -598,7 +601,7 @@ t_ast_node *parse_prototype(t_parser *parser)
         new_args = realloc(args, sizeof(char *) * arity);
         if (NULL == new_args)
         {
-            (void) fprintf(stderr, "Couldn't allocate memory for arguments.\n");
+            (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for arguments.\n");
             goto cleanup;
         }
         args = new_args;
@@ -606,7 +609,7 @@ t_ast_node *parse_prototype(t_parser *parser)
         new_types = realloc(types, sizeof(t_type) * arity);
         if (NULL == new_types)
         {
-            (void) fprintf(stderr, "Couldn't allocate memory for types.\n");
+            (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for types.\n");
             goto cleanup;
         }
         types = new_types;
@@ -650,7 +653,12 @@ void PARSER_print_parser_tokens(t_parser *parser)
     {
         token = *(t_token_ptr *)iterator_get(&iterator);
 
-        (void) printf("%ld:%ld - %d - %s\n", token->line, token->offset, token->type,
-                      token->content);
+        (void) LOGGER_log(parser->logger,
+                          L_DEBUG,
+                          "%ld:%ld - %d - %s\n",
+                          token->line,
+                          token->offset,
+                          token->type,
+                          token->content);
     }
 }

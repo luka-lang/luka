@@ -62,7 +62,7 @@ char *lexer_lex_identifier(const char *source, int *index)
     return ident;
 }
 
-char *lexer_lex_string(const char *source, int *index)
+char *lexer_lex_string(const char *source, int *index, t_logger *logger)
 {
     int i = *index;
     size_t char_count = 0, off = 0, ind = 0;
@@ -79,7 +79,7 @@ char *lexer_lex_string(const char *source, int *index)
                 ++i;
                 break;
             default:
-                (void) fprintf(stderr, "\\%c is not a valid esacpe sequence.\n", source[i + 1]);
+                (void) LOGGER_log(logger, L_ERROR, "\\%c is not a valid esacpe sequence.\n", source[i + 1]);
                 (void) exit(1);
             }
         }
@@ -115,7 +115,7 @@ char *lexer_lex_string(const char *source, int *index)
                 str[ind] = '"';
                 break;
             default:
-                (void) fprintf(stderr, "\\%c is not a valid esacpe sequence.\n", source[*index + ind + off + 1]);
+                (void) LOGGER_log(logger, L_ERROR, "\\%c is not a valid esacpe sequence.\n", source[*index + ind + off + 1]);
                 (void) exit(1);
             }
 
@@ -133,7 +133,7 @@ char *lexer_lex_string(const char *source, int *index)
     return str;
 }
 
-t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source)
+t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source, t_logger *logger)
 {
     long line = 1, offset = 0;
     size_t length = strlen(source);
@@ -146,6 +146,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source)
     token = calloc(1, sizeof(t_token));
     if (NULL == token)
     {
+        (void) LOGGER_log(logger, L_ERROR, "Couldn't allocate memory for token.\n");
         return_code = LUKA_CANT_ALLOC_MEMORY;
         goto cleanup;
     }
@@ -296,9 +297,10 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source)
         {
             token->type = T_STRING;
             ++i;
-            identifier = lexer_lex_string(source, &i);
+            identifier = lexer_lex_string(source, &i, logger);
             if (NULL == identifier)
             {
+                (void) LOGGER_log(logger, L_ERROR, "Couldn't lex string.\n");
                 return_code = LUKA_LEXER_FAILED;
                 goto cleanup;
             }
@@ -320,6 +322,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source)
                 token->content = calloc(sizeof(char), 11);
                 if (NULL == token->content)
                 {
+                    (void) LOGGER_log(logger, L_ERROR, "Couldn't allocate memory for token->content.\n");
                     return_code = LUKA_CANT_ALLOC_MEMORY;
                     goto cleanup;
                 }
@@ -332,6 +335,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source)
                 identifier = lexer_lex_identifier(source, &i);
                 if (NULL == identifier)
                 {
+                    (void) LOGGER_log(logger, L_ERROR, "Couldn't lex identifier.\n");
                     return_code = LUKA_LEXER_FAILED;
                     goto cleanup;
                 }
@@ -344,19 +348,21 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source)
                 break;
             }
 
-            (void) printf("Unrecognized character %c at %ld:%ld\n", character, line, offset);
+            (void) LOGGER_log(logger, L_ERROR, "Unrecognized character %c at %ld:%ld.\n", character, line, offset);
             (void) exit(1);
         }
         }
 
         if (VECTOR_SUCCESS != vector_push_back(tokens, &token))
         {
+            (void) LOGGER_log(logger, L_ERROR, "Couldn't add token to tokens vector.\n");
             return_code = LUKA_VECTOR_FAILURE;
             goto cleanup;
         }
         token = calloc(1, sizeof(t_token));
         if (NULL == token)
         {
+            (void) LOGGER_log(logger, L_ERROR, "Couldn't allocate memory for token.\n");
             return_code = LUKA_CANT_ALLOC_MEMORY;
             goto cleanup;
         }
