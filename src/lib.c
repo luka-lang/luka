@@ -15,14 +15,17 @@ void LIB_free_tokens_vector(t_vector *tokens)
         if ((token->type == T_NUMBER) || (token->type == T_STRING) ||
             ((token->type <= T_IDENTIFIER) && (token->type > T_UNKNOWN)))
         {
-            free(token->content);
-            token->content = NULL;
+            if (NULL != token->content)
+            {
+                (void) free(token->content);
+                token->content = NULL;
+            }
         }
-        free(token);
+        (void) free(token);
         token = NULL;
     }
-    vector_clear(tokens);
-    vector_destroy(tokens);
+    (void) vector_clear(tokens);
+    (void) vector_destroy(tokens);
 }
 
 void LIB_free_functions_vector(t_vector *functions)
@@ -36,7 +39,7 @@ void LIB_free_functions_vector(t_vector *functions)
         AST_free_node(function);
     }
 
-    vector_clear(functions);
-    vector_destroy(functions);
-    free(functions);
+    (void) vector_clear(functions);
+    (void) vector_destroy(functions);
+    (void) free(functions);
 }

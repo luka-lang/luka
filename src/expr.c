@@ -11,9 +11,9 @@ int EXPR_get_op_precedence(t_token *token)
     int prec = g_operator_precedence[token->type - T_PLUS];
     if (prec == 0)
     {
-        fprintf(stderr, "expr_get_op_precedence: Syntax error at %ld:%ld, token %d\n",
-                token->line, token->offset, token->type);
-        exit(1);
+        (void) fprintf(stderr, "expr_get_op_precedence: Syntax error at %ld:%ld, token %d\n",
+                       token->line, token->offset, token->type);
+        (void) exit(1);
     }
     return prec;
 }

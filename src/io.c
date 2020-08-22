@@ -10,29 +10,29 @@ char *IO_get_file_contents(const char *file_path)
 
     if (NULL == fp)
     {
-        perror("Couldn't open file");
-        goto get_file_contents_exit;
+        (void) perror("Couldn't open file");
+        goto cleanup;
     }
 
-    fseek(fp, 0L, SEEK_END);
+    (void) fseek(fp, 0L, SEEK_END);
     size = ftell(fp);
-    fseek(fp, 0L, SEEK_SET);
+    (void) fseek(fp, 0L, SEEK_SET);
 
     file_contents = (char *)calloc(sizeof(char), size + 2);
     if (NULL == file_contents)
     {
-        perror("Couldn't allocate memory for file contents");
-        goto get_file_contents_exit;
+        (void) perror("Couldn't allocate memory for file contents");
+        goto cleanup;
     }
 
-    fread(file_contents, size, 1, fp);
+    (void) fread(file_contents, size, 1, fp);
     file_contents[size] = EOF;
     file_contents[size + 1] = '\0';
 
-get_file_contents_exit:
+cleanup:
     if (NULL != fp)
     {
-        fclose(fp);
+        (void) fclose(fp);
     }
 
     return file_contents;

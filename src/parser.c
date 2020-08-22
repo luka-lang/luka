@@ -15,18 +15,18 @@ void ERR(t_parser *parser, const char *message)
     t_token *token = NULL;
     token = *(t_token_ptr *)vector_get(parser->tokens, parser->index + 1);
 
-    fprintf(stderr, "%s\n", message);
+    (void) fprintf(stderr, "%s\n", message);
 
-    fprintf(stderr, "Error at %s %ld:%ld - %s\n", parser->file_path, token->line,
-            token->offset, token->content);
-    exit(1);
+    (void) fprintf(stderr, "Error at %s %ld:%ld - %s\n", parser->file_path, token->line,
+                   token->offset, token->content);
+    (void) exit(1);
 }
 
 bool EXPECT(t_parser *parser, t_toktype type)
 {
     t_token *token = NULL;
 
-    assert(parser->index + 1 < parser->tokens->size);
+    (void) assert(parser->index + 1 < parser->tokens->size);
 
     token = *(t_token_ptr *)vector_get(parser->tokens, parser->index + 1);
 
@@ -37,7 +37,7 @@ bool MATCH(t_parser *parser, t_toktype type)
 {
     t_token *token = NULL;
 
-    assert(parser->index < parser->tokens->size);
+    (void) assert(parser->index < parser->tokens->size);
 
     token = *(t_token_ptr *)vector_get(parser->tokens, parser->index);
 
@@ -47,7 +47,7 @@ bool MATCH(t_parser *parser, t_toktype type)
 void ADVANCE(t_parser *parser)
 {
     ++parser->index;
-    assert(parser->index < parser->tokens->size);
+    (void) assert(parser->index < parser->tokens->size);
 }
 
 void EXPECT_ADVANCE(t_parser *parser, t_toktype type, const char *message)
@@ -99,7 +99,7 @@ t_type parse_type(t_parser *parser)
     case T_DOUBLE_TYPE:
         return TYPE_DOUBLE;
     default:
-        fprintf(stderr, "Unknown type %d %s. Fallbacking to int32.\n", token->type,
+        (void) fprintf(stderr, "Unknown type %d %s. Fallbacking to int32.\n", token->type,
                 token->content);
         return TYPE_INT32;
     }
@@ -108,7 +108,7 @@ t_type parse_type(t_parser *parser)
 void PARSER_initialize_parser(t_parser *parser, t_vector *tokens,
                        const char *file_path)
 {
-    assert(parser != NULL);
+    (void) assert(parser != NULL);
 
     parser->tokens = tokens;
     parser->index = 0;
@@ -122,8 +122,13 @@ t_vector *PARSER_parse_top_level(t_parser *parser)
     t_ast_node *function, *prototype;
 
     functions = calloc(1, sizeof(t_vector));
+    if (NULL == functions)
+    {
+        (void) fprintf(stderr, "Couldn't allocate memory for functions");
+        goto cleanup;
+    }
 
-    vector_setup(functions, 5, sizeof(t_ast_node_ptr));
+    (void) vector_setup(functions, 5, sizeof(t_ast_node_ptr));
 
     while (parser->index < parser->tokens->size)
     {
@@ -134,14 +139,14 @@ t_vector *PARSER_parse_top_level(t_parser *parser)
         case T_FN:
         {
             function = PARSER_parse_function(parser);
-            vector_push_back(functions, &function);
+            (void) vector_push_back(functions, &function);
             break;
         }
         case T_EXTERN:
         {
             prototype = parse_prototype(parser);
             function = AST_new_function(prototype, NULL);
-            vector_push_back(functions, &function);
+            (void) vector_push_back(functions, &function);
             EXPECT_ADVANCE(parser, T_SEMI_COLON,
                            "Expected a `;` at the end of an extern statement.");
             break;
@@ -150,14 +155,16 @@ t_vector *PARSER_parse_top_level(t_parser *parser)
             break;
         default:
         {
-            fprintf(stderr, "Syntax error at %s %ld:%ld - %s\n", parser->file_path,
-                    token->line, token->offset, token->content);
+            (void) fprintf(stderr, "Syntax error at %s %ld:%ld - %s\n", parser->file_path,
+                           token->line, token->offset, token->content);
         }
         }
         parser->index += 1;
     }
 
-    vector_shrink_to_fit(functions);
+    (void) vector_shrink_to_fit(functions);
+
+cleanup:
     return functions;
 }
 
@@ -188,9 +195,9 @@ int parse_op(t_token *token)
     case T_GEQ:
         return BINOP_GEQ;
     default:
-        fprintf(stderr, "unknown token in parse_op at %ld:%ld\n", token->line,
-                token->offset);
-        exit(1);
+        (void) fprintf(stderr, "unknown token in parse_op at %ld:%ld\n", token->line,
+                       token->offset);
+        (void) exit(1);
     }
 }
 
@@ -223,6 +230,10 @@ t_ast_node *parse_ident_expr(t_parser *parser)
 
     ADVANCE(parser);
     args = calloc(1, sizeof(t_vector));
+    if (NULL == args)
+    {
+        (void) fprintf(stderr, "Couldn't allocate memory for args.\n");
+    }
     vector_setup(args, 10, sizeof(t_ast_node));
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     if (T_CLOSE_PAREN != token->type)
@@ -243,8 +254,19 @@ t_ast_node *parse_ident_expr(t_parser *parser)
     }
 
     ADVANCE(parser);
-    vector_shrink_to_fit(args);
+    (void) vector_shrink_to_fit(args);
+
     return AST_new_call_expr(ident_name, args);
+
+cleanup:
+    if (NULL != args)
+    {
+        (void) free(args);
+        args = NULL;
+    }
+
+    return NULL;
+
 }
 
 t_ast_node *parse_primary(t_parser *parser)
@@ -276,9 +298,9 @@ t_ast_node *parse_primary(t_parser *parser)
     }
 
     default:
-        fprintf(stderr, "parse_primary: Syntax error at %ld:%ld - %s\n",
-                token->line, token->offset, token->content);
-        exit(1);
+        (void) fprintf(stderr, "parse_primary: Syntax error at %ld:%ld - %s\n",
+                       token->line, token->offset, token->content);
+        (void) exit(1);
     }
 }
 
@@ -435,9 +457,9 @@ t_ast_node *parse_statement(t_parser *parser)
         {
             return expr;
         }
-        fprintf(stderr, "Not a statement: %ld:%ld - %s\n", token->line,
-                token->offset, token->content);
-        exit(1);
+        (void) fprintf(stderr, "Not a statement: %ld:%ld - %s\n", token->line,
+                       token->offset, token->content);
+        (void) exit(1);
     }
     }
 
@@ -450,8 +472,13 @@ t_vector *parse_statements(t_parser *parser)
     t_ast_node *stmt = NULL;
     t_token *token = NULL;
     stmts = calloc(1, sizeof(t_vector));
+    if (NULL == stmts)
+    {
+        (void) fprintf(stderr, "Couldn't allocate memory for statments.\n");
+        goto cleanup;
+    }
 
-    vector_setup(stmts, 10, sizeof(t_ast_node_ptr));
+    (void) vector_setup(stmts, 10, sizeof(t_ast_node_ptr));
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
 
@@ -474,22 +501,25 @@ t_vector *parse_statements(t_parser *parser)
         {
             ADVANCE(parser);
             stmt = parse_statement(parser);
-            vector_push_back(stmts, &stmt);
+            (void) vector_push_back(stmts, &stmt);
             --parser->index;
         }
 
         ADVANCE(parser);
     }
-    vector_shrink_to_fit(stmts);
+    (void) vector_shrink_to_fit(stmts);
+
+cleanup:
     return stmts;
 }
 
 t_ast_node *parse_prototype(t_parser *parser)
 {
     char *name = NULL;
-    char **args = NULL;
-    t_type *types = NULL, return_type;
+    char **args = NULL, **new_args = NULL;
+    t_type *types = NULL, *new_types = NULL, return_type;
     int arity = 0;
+    size_t allocated = 6;
 
     t_token *token = NULL;
 
@@ -505,14 +535,24 @@ t_ast_node *parse_prototype(t_parser *parser)
         // No args
         ADVANCE(parser);
         return_type = parse_type(parser);
-        return AST_new_prototype(name, args, NULL, arity, return_type);
+        return AST_new_prototype(name, NULL, NULL, 0, return_type);
     }
 
     ADVANCE(parser);
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-    args = calloc(1, sizeof(char *));
-    types = calloc(1, sizeof(t_type));
+    args = calloc(allocated, sizeof(char *));
+    if (NULL == args)
+    {
+        (void) fprintf(stderr, "Couldn't allocate memory for args.\n");
+        goto cleanup;
+    }
+    types = calloc(allocated, sizeof(t_type));
+    if (NULL == types)
+    {
+        (void) fprintf(stderr, "Couldn't allocate memory for types.\n");
+        goto cleanup;
+    }
     args[0] = strdup(token->content);
     types[0] = parse_type(parser);
     arity = 1;
@@ -525,8 +565,27 @@ t_ast_node *parse_prototype(t_parser *parser)
         EXPECT_ADVANCE(parser, T_IDENTIFIER, "Expected another arg after ','");
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
         ++arity;
-        args = realloc(args, sizeof(char *) * arity);
-        types = realloc(types, sizeof(t_type) * arity);
+
+        if (arity > allocated)
+        {
+            allocated *= 2;
+            new_args = realloc(args, sizeof(char *) * allocated);
+            if (NULL == new_args)
+            {
+                (void) fprintf(stderr, "Couldn't allocate memory for arguments.\n");
+                goto cleanup;
+            }
+            args = new_args;
+
+            new_types = realloc(types, sizeof(t_type) * allocated);
+            if (NULL == new_types)
+            {
+                (void) fprintf(stderr, "Couldn't allocate memory for types.\n");
+                goto cleanup;
+            }
+            types = new_types;
+        }
+
         args[arity - 1] = strdup(token->content);
         types[arity - 1] = parse_type(parser);
     }
@@ -534,7 +593,41 @@ t_ast_node *parse_prototype(t_parser *parser)
 
     return_type = parse_type(parser);
 
+    if (arity != allocated)
+    {
+        new_args = realloc(args, sizeof(char *) * arity);
+        if (NULL == new_args)
+        {
+            (void) fprintf(stderr, "Couldn't allocate memory for arguments.\n");
+            goto cleanup;
+        }
+        args = new_args;
+
+        new_types = realloc(types, sizeof(t_type) * arity);
+        if (NULL == new_types)
+        {
+            (void) fprintf(stderr, "Couldn't allocate memory for types.\n");
+            goto cleanup;
+        }
+        types = new_types;
+    }
+
     return AST_new_prototype(name, args, types, arity, return_type);
+
+cleanup:
+    if (NULL != args)
+    {
+        (void) free(args);
+        args = NULL;
+    }
+
+    if (NULL != types)
+    {
+        (void) free(types);
+        types = NULL;
+    }
+
+    (void) exit(1);
 }
 
 t_ast_node *PARSER_parse_function(t_parser *parser)
@@ -557,7 +650,7 @@ void PARSER_print_parser_tokens(t_parser *parser)
     {
         token = *(t_token_ptr *)iterator_get(&iterator);
 
-        printf("%ld:%ld - %d - %s\n", token->line, token->offset, token->type,
-               token->content);
+        (void) printf("%ld:%ld - %d - %s\n", token->line, token->offset, token->type,
+                      token->content);
     }
 }

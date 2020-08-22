@@ -31,8 +31,8 @@ LLVMTypeRef gen_type_to_llvm_type(t_type type)
         return LLVMInt128Type();
 
     default:
-        fprintf(stderr, "I don't know how to translate type %d to LLVM types.\n",
-                type);
+        (void) fprintf(stderr, "I don't know how to translate type %d to LLVM types.\n",
+                       type);
         return LLVMInt32Type();
     }
 }
@@ -41,11 +41,13 @@ LLVMValueRef gen_codegen_binexpr(t_ast_node *n, LLVMModuleRef module,
                                  LLVMBuilderRef builder)
 {
     LLVMValueRef lhs = NULL, rhs = NULL;
-    if (n->binary_expr.lhs)
+
+    if(NULL != n->binary_expr.lhs)
     {
         lhs = GEN_codegen(n->binary_expr.lhs, module, builder);
     }
-    if (n->binary_expr.rhs)
+
+    if(NULL != n->binary_expr.rhs)
     {
         rhs = GEN_codegen(n->binary_expr.rhs, module, builder);
     }
@@ -81,8 +83,8 @@ LLVMValueRef gen_codegen_binexpr(t_ast_node *n, LLVMModuleRef module,
         return LLVMBuildICmp(builder, LLVMIntSGE, lhs, rhs, "geqtmp");
     default:
     {
-        fprintf(stderr, "No handler found for op: %d\n", n->binary_expr.operator);
-        exit(1);
+        (void) fprintf(stderr, "No handler found for op: %d\n", n->binary_expr.operator);
+        (void) exit(1);
     }
     }
 
@@ -96,6 +98,11 @@ LLVMValueRef gen_codegen_prototype(t_ast_node *n, LLVMModuleRef module,
     LLVMTypeRef func_type = NULL;
     size_t i = 0, arity = n->prototype.arity;
     LLVMTypeRef *params = calloc(arity, sizeof(LLVMTypeRef));
+    if (NULL == params)
+    {
+        goto cleanup;
+    }
+
     for (i = 0; i < arity; ++i)
     {
         params[i] = gen_type_to_llvm_type(n->prototype.types[i]);
@@ -104,12 +111,12 @@ LLVMValueRef gen_codegen_prototype(t_ast_node *n, LLVMModuleRef module,
                                  params, arity, 0);
 
     func = LLVMAddFunction(module, n->prototype.name, func_type);
-    LLVMSetLinkage(func, LLVMExternalLinkage);
+    (void) LLVMSetLinkage(func, LLVMExternalLinkage);
 
     for (i = 0; i < arity; ++i)
     {
         LLVMValueRef param = LLVMGetParam(func, i);
-        LLVMSetValueName(param, n->prototype.args[i]);
+        (void) LLVMSetValueName(param, n->prototype.args[i]);
 
         t_named_value *val = malloc(sizeof(t_named_value));
         val->name = strdup(n->prototype.args[i]);
@@ -118,6 +125,11 @@ LLVMValueRef gen_codegen_prototype(t_ast_node *n, LLVMModuleRef module,
         HASH_ADD_KEYPTR(hh, named_values, val->name, strlen(val->name), val);
     }
 
+cleanup:
+    if (NULL != params)
+    {
+        (void) free(params);
+    }
     return func;
 }
 
@@ -134,6 +146,11 @@ LLVMValueRef gen_codegen_stmts(t_vector *statements, LLVMModuleRef module,
         if (AST_TYPE_RETURN_STMT == stmt->type)
         {
             ret_val = GEN_codegen(stmt, module, builder);
+            if (NULL == ret_val)
+            {
+                return NULL;
+            }
+
             if (NULL != has_return_stmt)
             {
                 *has_return_stmt = true;
@@ -141,7 +158,12 @@ LLVMValueRef gen_codegen_stmts(t_vector *statements, LLVMModuleRef module,
             break;
         }
         ret_val = GEN_codegen(stmt, module, builder);
+        if (NULL == ret_val)
+        {
+            return NULL;
+        }
     }
+
 
     return ret_val;
 }
@@ -168,7 +190,7 @@ LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
     }
 
     block = LLVMAppendBasicBlock(func, "entry");
-    LLVMPositionBuilderAtEnd(builder, block);
+    (void) LLVMPositionBuilderAtEnd(builder, block);
 
     ret_val = gen_codegen_stmts(n->function.body, module, builder, &has_return_stmt);
     return_type = n->function.prototype->prototype.return_type;
@@ -188,13 +210,13 @@ LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
             ret_val = LLVMConstInt(gen_type_to_llvm_type(return_type), 0, false);
             break;
         }
-        LLVMBuildRet(builder, ret_val);
+        (void) LLVMBuildRet(builder, ret_val);
     }
 
     if (1 == LLVMVerifyFunction(func, LLVMPrintMessageAction))
     {
-        fprintf(stderr, "Invalid function");
-        LLVMDeleteFunction(func);
+        (void) fprintf(stderr, "Invalid function");
+        (void) LLVMDeleteFunction(func);
         return NULL;
     }
 
@@ -205,12 +227,16 @@ LLVMValueRef gen_codegen_return_stmt(t_ast_node *n, LLVMModuleRef module,
                                      LLVMBuilderRef builder)
 {
     LLVMValueRef expr;
-    if (n->return_stmt.expr)
+    if(NULL != n->return_stmt.expr)
     {
         expr = GEN_codegen(n->return_stmt.expr, module, builder);
+        if (NULL == expr)
+        {
+            return NULL;
+        }
     }
 
-    LLVMBuildRet(builder, expr);
+    (void) LLVMBuildRet(builder, expr);
     return NULL;
 }
 
@@ -226,14 +252,14 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n, LLVMModuleRef module,
 
     cond_block = LLVMAppendBasicBlock(func, "if_cond");
     then_block = LLVMAppendBasicBlock(func, "then");
-    if (n->if_expr.else_body)
+    if(NULL != n->if_expr.else_body)
     {
         else_block = LLVMAppendBasicBlock(func, "else");
     }
     merge_block = LLVMAppendBasicBlock(func, "if_merge");
 
-    LLVMBuildBr(builder, cond_block);
-    LLVMPositionBuilderAtEnd(builder, cond_block);
+    (void) LLVMBuildBr(builder, cond_block);
+    (void) LLVMPositionBuilderAtEnd(builder, cond_block);
 
     cond = GEN_codegen(n->if_expr.cond, module, builder);
     if (NULL == cond)
@@ -243,14 +269,14 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n, LLVMModuleRef module,
 
     if (NULL != n->if_expr.else_body)
     {
-        LLVMBuildCondBr(builder, cond, then_block, else_block);
+        (void) LLVMBuildCondBr(builder, cond, then_block, else_block);
     }
     else
     {
-        LLVMBuildCondBr(builder, cond, then_block, merge_block);
+        (void) LLVMBuildCondBr(builder, cond, then_block, merge_block);
     }
 
-    LLVMPositionBuilderAtEnd(builder, then_block);
+    (void) LLVMPositionBuilderAtEnd(builder, then_block);
 
     then_value = gen_codegen_stmts(n->if_expr.then_body, module, builder, NULL);
     if (NULL == then_value)
@@ -258,36 +284,36 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n, LLVMModuleRef module,
         return NULL;
     }
 
-    LLVMBuildBr(builder, merge_block);
+    (void) LLVMBuildBr(builder, merge_block);
 
     then_block = LLVMGetInsertBlock(builder);
 
     if (NULL != n->if_expr.else_body)
     {
-        LLVMPositionBuilderAtEnd(builder, else_block);
+        (void) LLVMPositionBuilderAtEnd(builder, else_block);
         else_value = gen_codegen_stmts(n->if_expr.else_body, module, builder, NULL);
         if (NULL == else_value)
         {
             return NULL;
         }
-        LLVMBuildBr(builder, merge_block);
+        (void) LLVMBuildBr(builder, merge_block);
     }
 
     else_block = LLVMGetInsertBlock(builder);
 
-    LLVMPositionBuilderAtEnd(builder, merge_block);
+    (void) LLVMPositionBuilderAtEnd(builder, merge_block);
     phi = LLVMBuildPhi(builder, LLVMInt32Type(), "phi");
 
-    LLVMAddIncoming(phi, &then_value, &then_block, 1);
+    (void) LLVMAddIncoming(phi, &then_value, &then_block, 1);
 
     if (NULL != n->if_expr.else_body)
     {
-        LLVMAddIncoming(phi, &else_value, &else_block, 1);
+        (void) LLVMAddIncoming(phi, &else_value, &else_block, 1);
     }
     else
     {
         incoming_values[0] = LLVMConstInt(LLVMInt32Type(), 0, 0);
-        LLVMAddIncoming(phi, incoming_values, &cond_block, 1);
+        (void) LLVMAddIncoming(phi, incoming_values, &cond_block, 1);
     }
 
     return phi;
@@ -316,6 +342,10 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node, LLVMModuleRef module,
 
     variable = node->let_stmt.var->variable;
     expr = GEN_codegen(node->let_stmt.expr, module, builder);
+    if (NULL == expr)
+    {
+        return NULL;
+    }
 
     val = malloc(sizeof(t_named_value));
     val->name = strdup(variable.name);
@@ -329,6 +359,7 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node, LLVMModuleRef module,
 LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
                               LLVMBuilderRef builder)
 {
+    LLVMValueRef call = NULL;
     LLVMValueRef func = NULL;
     LLVMValueRef *args = NULL;
     t_ast_node *arg = NULL;
@@ -337,15 +368,20 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
     func = LLVMGetNamedFunction(module, node->call_expr.name);
     if (NULL == func)
     {
-        return NULL;
+        goto cleanup;
     }
 
     if (node->call_expr.args->size != LLVMCountParams(func))
     {
-        return NULL;
+        goto cleanup;
     }
 
     args = calloc(node->call_expr.args->size, sizeof(LLVMValueRef));
+    if (NULL == args)
+    {
+        goto cleanup;
+    }
+
     VECTOR_FOR_EACH(node->call_expr.args, args_iter)
     {
         arg = ITERATOR_GET_AS(t_ast_node_ptr, &args_iter);
@@ -353,24 +389,33 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
 
         if (NULL == args[i])
         {
-            free(args);
-            return NULL;
+            goto cleanup;
         }
 
         ++i;
     }
 
-    return LLVMBuildCall(builder, func, args, node->call_expr.args->size,
+    call = LLVMBuildCall(builder, func, args, node->call_expr.args->size,
                          "calltmp");
+
+cleanup:
+    if (NULL != args)
+    {
+        (void) free(args);
+        args = NULL;
+    }
+
+    return call;
 }
 
 LLVMValueRef gen_codegen_expression_stmt(t_ast_node *n, LLVMModuleRef module,
                                          LLVMBuilderRef builder)
 {
     LLVMValueRef expr;
-    if (n->expression_stmt.expr)
+    if (NULL != n->expression_stmt.expr)
     {
-        GEN_codegen(n->expression_stmt.expr, module, builder);
+        (void) GEN_codegen(n->expression_stmt.expr, module, builder);
+
     }
 
     return NULL;
@@ -405,10 +450,27 @@ LLVMValueRef GEN_codegen(t_ast_node *node, LLVMModuleRef module,
         return gen_codegen_expression_stmt(node, module, builder);
     default:
     {
-        printf("No codegen function was found for type - %d\n", node->type);
+        (void) printf("No codegen function was found for type - %d\n", node->type);
         return NULL;
     }
     }
 }
 
-void GEN_codegen_reset() { HASH_CLEAR(hh, named_values); }
+void GEN_codegen_reset()
+{
+    t_named_value *named_value, *tmp;
+
+    HASH_ITER(hh, named_values, named_value, tmp) {
+        HASH_DEL(named_values, named_value);
+        if (NULL != named_value)
+        {
+            if (NULL != named_value->name)
+            {
+                (void) free((char *) named_value->name);
+                named_value->name = NULL;
+            }
+            (void) free(named_value);
+            named_value = NULL;
+        }
+    }
+}

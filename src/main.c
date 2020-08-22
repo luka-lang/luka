@@ -37,36 +37,50 @@ int main(int argc, char **argv)
     LLVMModuleRef module = NULL;
     LLVMBuilderRef builder = NULL;
     LLVMPassManagerRef pass_manager = NULL;
+    LLVMValueRef value = NULL;
 
     char *error = NULL;
 
-    if (argc != 2)
+    if (2 != argc)
     {
-        fprintf(stderr, "USAGE: luka [luka source file]\n");
-        exit(LUKA_WRONG_PARAMETERS);
+        (void) fprintf(stderr, "USAGE: luka [luka source file]\n");
+        status_code = LUKA_WRONG_PARAMETERS;
+        goto cleanup;
     }
 
     file_path = argv[1];
     file_contents = IO_get_file_contents(file_path);
 
-    vector_setup(&tokens, 1, sizeof(t_token_ptr));
-    LEXER_tokenize_source(&tokens, file_contents);
+    (void) vector_setup(&tokens, 1, sizeof(t_token_ptr));
+    status_code = LEXER_tokenize_source(&tokens, file_contents);
+    if (LUKA_SUCCESS != status_code)
+    {
+        goto cleanup;
+    }
+
     if (NULL != file_contents)
     {
-        free(file_contents);
+        (void) free(file_contents);
+        file_contents = NULL;
     }
 
     parser = calloc(1, sizeof(t_parser));
+    if (NULL == parser)
+    {
+       (void) fprintf(stderr, "Failed allocating memory for parser.\n");
+       status_code = LUKA_CANT_ALLOC_MEMORY;
+       goto cleanup;
+    }
 
-    PARSER_initialize_parser(parser, &tokens, file_path);
+    (void) PARSER_initialize_parser(parser, &tokens, file_path);
 
-    PARSER_print_parser_tokens(parser);
+    (void) PARSER_print_parser_tokens(parser);
 
     functions = PARSER_parse_top_level(parser);
 
-    AST_print_functions(functions, 0);
+    (void) AST_print_functions(functions, 0);
 
-    LLVMInitializeCore(LLVMGetGlobalPassRegistry());
+    (void) LLVMInitializeCore(LLVMGetGlobalPassRegistry());
 
     module = LLVMModuleCreateWithName("luka_main_module");
     builder = LLVMCreateBuilder();
@@ -74,59 +88,75 @@ int main(int argc, char **argv)
     VECTOR_FOR_EACH(functions, iterator)
     {
         function = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
-        GEN_codegen(function, module, builder);
+        value = GEN_codegen(function, module, builder);
+        if (NULL == value)
+        {
+            (void) fprintf(stderr, "Failed generating code for function %s.\n", function->function.prototype->prototype.name);
+            value = LLVMGetNamedFunction(module, function->function.prototype->prototype.name);
+            if (NULL == value)
+            {
+                (void) fprintf(stderr, "Failed finding the function inside the module.\n");
+            }
+            else
+            {
+                (void) LLVMDeleteFunction(value);
+            }
+        }
     }
 
-    GEN_codegen_reset();
+    (void) GEN_codegen_reset();
 
-    LLVMVerifyModule(module, LLVMAbortProcessAction, &error);
-    LLVMDisposeMessage(error);
+    (void) LLVMVerifyModule(module, LLVMAbortProcessAction, &error);
+    (void) LLVMDisposeMessage(error);
 
     pass_manager = LLVMCreatePassManager();
-    LLVMAddConstantPropagationPass(pass_manager);
-    LLVMAddInstructionCombiningPass(pass_manager);
-    LLVMAddPromoteMemoryToRegisterPass(pass_manager);
-    LLVMAddReassociatePass(pass_manager);
-    LLVMAddGVNPass(pass_manager);
-    LLVMAddCFGSimplificationPass(pass_manager);
+    (void) LLVMAddConstantPropagationPass(pass_manager);
+    (void) LLVMAddInstructionCombiningPass(pass_manager);
+    (void) LLVMAddPromoteMemoryToRegisterPass(pass_manager);
+    (void) LLVMAddReassociatePass(pass_manager);
+    (void) LLVMAddGVNPass(pass_manager);
+    (void) LLVMAddCFGSimplificationPass(pass_manager);
 
-    LLVMRunPassManager(pass_manager, module);
+    (void) LLVMRunPassManager(pass_manager, module);
 
-    LLVMDumpModule(module);
+    (void) LLVMDumpModule(module);
 
-    LLVMWriteBitcodeToFile(module, "out.bc");
+    (void) LLVMWriteBitcodeToFile(module, "out.bc");
 
     status_code = LUKA_SUCCESS;
 
-exit:
+cleanup:
+    if (NULL != file_contents)
+    {
+        (void) free(file_contents);
+        file_contents = NULL;
+    }
 
     if (NULL != parser)
     {
-        free(parser);
+        (void) free(parser);
+        parser = NULL;
     }
 
-    LIB_free_tokens_vector(&tokens);
-    LIB_free_functions_vector(functions);
-
-    // LLVM STUFF
+    (void) LIB_free_tokens_vector(&tokens);
+    (void) LIB_free_functions_vector(functions);
 
     if (NULL != pass_manager)
     {
-        LLVMDisposePassManager(pass_manager);
+        (void) LLVMDisposePassManager(pass_manager);
     }
 
     if (NULL != builder)
     {
-
-        LLVMDisposeBuilder(builder);
+        (void) LLVMDisposeBuilder(builder);
     }
+
     if (NULL != module)
     {
-
-        LLVMDisposeModule(module);
+        (void) LLVMDisposeModule(module);
     }
 
-    LLVMShutdown();
+    (void) LLVMShutdown();
 
     return status_code;
 }

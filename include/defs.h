@@ -6,6 +6,17 @@
 typedef Vector t_vector;
 typedef Iterator t_iterator;
 
+typedef enum
+{
+    LUKA_UNINITIALIZED = -1,
+    LUKA_SUCCESS = 0,
+    LUKA_WRONG_PARAMETERS,
+    LUKA_CANT_OPEN_FILE,
+    LUKA_CANT_ALLOC_MEMORY,
+    LUKA_LEXER_FAILED,
+    LUKA_VECTOR_FAILURE
+} t_return_code;
+
 #define NUMBER_OF_KEYWORDS 11
 extern const char *keywords[NUMBER_OF_KEYWORDS];
 

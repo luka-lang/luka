@@ -55,7 +55,7 @@ char *lexer_lex_identifier(const char *source, int *index)
         return NULL;
     }
 
-    strncpy(ident, source + *index, i - *index);
+    (void) strncpy(ident, source + *index, i - *index);
     ident[i - *index] = '\0';
 
     *index = i - 1;
@@ -79,8 +79,8 @@ char *lexer_lex_string(const char *source, int *index)
                 ++i;
                 break;
             default:
-                fprintf(stderr, "\\%c is not a valid esacpe sequence.\n", source[i + 1]);
-                exit(1);
+                (void) fprintf(stderr, "\\%c is not a valid esacpe sequence.\n", source[i + 1]);
+                (void) exit(1);
             }
         }
 
@@ -90,7 +90,7 @@ char *lexer_lex_string(const char *source, int *index)
 
     ++i;
 
-    char *str = calloc(sizeof(char), char_count);
+    char *str = calloc(sizeof(char), char_count + 1);
     if (NULL == str)
     {
         return NULL;
@@ -115,8 +115,8 @@ char *lexer_lex_string(const char *source, int *index)
                 str[ind] = '"';
                 break;
             default:
-                fprintf(stderr, "\\%c is not a valid esacpe sequence.\n", source[*index + ind + off + 1]);
-                exit(1);
+                (void) fprintf(stderr, "\\%c is not a valid esacpe sequence.\n", source[*index + ind + off + 1]);
+                (void) exit(1);
             }
 
             ++off;
@@ -133,20 +133,21 @@ char *lexer_lex_string(const char *source, int *index)
     return str;
 }
 
-void LEXER_tokenize_source(t_vector *tokens, const char *source)
+t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source)
 {
-    bool error = false;
     long line = 1, offset = 0;
     size_t length = strlen(source);
     char character = '\0';
     t_token *token = NULL;
     int number = 0;
     char *identifier;
+    t_return_code return_code = LUKA_UNINITIALIZED;
+
     token = calloc(1, sizeof(t_token));
     if (NULL == token)
     {
-        error = true;
-        goto tokenize_exit;
+        return_code = LUKA_CANT_ALLOC_MEMORY;
+        goto cleanup;
     }
 
     for (int i = 0; i < length; ++i)
@@ -298,8 +299,8 @@ void LEXER_tokenize_source(t_vector *tokens, const char *source)
             identifier = lexer_lex_string(source, &i);
             if (NULL == identifier)
             {
-                error = true;
-                goto tokenize_exit;
+                return_code = LUKA_LEXER_FAILED;
+                goto cleanup;
             }
             token->content = identifier;
             break;
@@ -319,10 +320,9 @@ void LEXER_tokenize_source(t_vector *tokens, const char *source)
                 token->content = calloc(sizeof(char), 11);
                 if (NULL == token->content)
                 {
-                    error = true;
-                    goto tokenize_exit;
+                    return_code = LUKA_CANT_ALLOC_MEMORY;
+                    goto cleanup;
                 }
-                sprintf(token->content, "%d", number);
                 break;
             }
 
@@ -332,8 +332,8 @@ void LEXER_tokenize_source(t_vector *tokens, const char *source)
                 identifier = lexer_lex_identifier(source, &i);
                 if (NULL == identifier)
                 {
-                    error = true;
-                    goto tokenize_exit;
+                    return_code = LUKA_LEXER_FAILED;
+                    goto cleanup;
                 }
                 number = lexer_is_keyword(identifier);
                 if (-1 != number)
@@ -344,29 +344,34 @@ void LEXER_tokenize_source(t_vector *tokens, const char *source)
                 break;
             }
 
-            printf("Unrecognized character %c at %ld:%ld\n", character, line, offset);
-            exit(1);
+            (void) printf("Unrecognized character %c at %ld:%ld\n", character, line, offset);
+            (void) exit(1);
         }
         }
 
         if (VECTOR_SUCCESS != vector_push_back(tokens, &token))
         {
-            error = true;
-            goto tokenize_exit;
+            return_code = LUKA_VECTOR_FAILURE;
+            goto cleanup;
         }
         token = calloc(1, sizeof(t_token));
         if (NULL == token)
         {
-            error = true;
-            goto tokenize_exit;
+            return_code = LUKA_CANT_ALLOC_MEMORY;
+            goto cleanup;
         }
     }
 
-    vector_shrink_to_fit(tokens);
+    (void) vector_shrink_to_fit(tokens);
 
-tokenize_exit:
+    return_code = LUKA_SUCCESS;
+
+cleanup:
     if (NULL != token)
     {
-        free(token);
+        (void) free(token);
+        token = NULL;
     }
+
+    return return_code;
 }
