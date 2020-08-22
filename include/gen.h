@@ -5,6 +5,7 @@
 #include <llvm-c/Core.h>
 
 #include "defs.h"
+#include "logger.h"
 #include "uthash.h"
 
 typedef struct
@@ -15,7 +16,7 @@ typedef struct
     UT_hash_handle hh;
 } t_named_value;
 
-LLVMValueRef GEN_codegen(t_ast_node *n, LLVMModuleRef module, LLVMBuilderRef builder);
+LLVMValueRef GEN_codegen(t_ast_node *n, LLVMModuleRef module, LLVMBuilderRef builder, t_logger *logger);
 
 void GEN_codegen_reset();
 

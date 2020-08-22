@@ -28,7 +28,7 @@ void LIB_free_tokens_vector(t_vector *tokens)
     (void) vector_destroy(tokens);
 }
 
-void LIB_free_functions_vector(t_vector *functions)
+void LIB_free_functions_vector(t_vector *functions, t_logger *logger)
 {
     t_ast_node *function = NULL;
     t_iterator iterator = vector_begin(functions);
@@ -36,7 +36,7 @@ void LIB_free_functions_vector(t_vector *functions)
     for (; !iterator_equals(&iterator, &last); iterator_increment(&iterator))
     {
         function = *(t_ast_node_ptr *)iterator_get(&iterator);
-        AST_free_node(function);
+        AST_free_node(function, logger);
     }
 
     (void) vector_clear(functions);

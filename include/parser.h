@@ -7,6 +7,7 @@
 #include <stdlib.h>
 
 #include "defs.h"
+#include "logger.h"
 #include "vector.h"
 
 typedef struct
@@ -14,9 +15,10 @@ typedef struct
     t_vector *tokens;
     size_t index;
     const char *file_path;
+    t_logger *logger;
 } t_parser;
 
-void PARSER_initialize_parser(t_parser *parser, t_vector *tokens, const char *file_path);
+void PARSER_initialize(t_parser *parser, t_vector *tokens, const char *file_path, t_logger *logger);
 
 t_vector *PARSER_parse_top_level(t_parser *parser);
 

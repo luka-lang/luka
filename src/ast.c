@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
-const char *ast_type_to_string(t_type type)
+const char *ast_type_to_string(t_type type, t_logger *logger)
 {
     switch (type)
     {
@@ -28,7 +28,7 @@ const char *ast_type_to_string(t_type type)
     case TYPE_INT128:
         return "int128";
     default:
-        (void) fprintf(stderr, "I don't know how to translate type %d to LLVM types.\n",
+        (void) LOGGER_log(logger, L_ERROR, "I don't know how to translate type %d to LLVM types.\n",
                 type);
         return "int32";
     }
@@ -138,7 +138,7 @@ t_ast_node *AST_new_expression_stmt(t_ast_node *expr)
     return node;
 }
 
-void AST_free_node(t_ast_node *node)
+void AST_free_node(t_ast_node *node, t_logger *logger)
 {
     if (NULL == node)
         return;
@@ -152,9 +152,9 @@ void AST_free_node(t_ast_node *node)
     case AST_TYPE_BINARY_EXPR:
     {
         if (NULL != node->binary_expr.lhs)
-            (void) AST_free_node(node->binary_expr.lhs);
+            (void) AST_free_node(node->binary_expr.lhs, logger);
         if (NULL != node->binary_expr.rhs)
-            (void) AST_free_node(node->binary_expr.rhs);
+            (void) AST_free_node(node->binary_expr.rhs, logger);
         break;
     }
     case AST_TYPE_PROTOTYPE:
@@ -195,7 +195,7 @@ void AST_free_node(t_ast_node *node)
     case AST_TYPE_FUNCTION:
     {
         if (NULL != node->function.prototype)
-            (void) AST_free_node(node->function.prototype);
+            (void) AST_free_node(node->function.prototype, logger);
 
         if (NULL != node->function.body)
         {
@@ -203,7 +203,7 @@ void AST_free_node(t_ast_node *node)
             VECTOR_FOR_EACH(node->function.body, stmts)
             {
                 stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
-                (void) AST_free_node(stmt);
+                (void) AST_free_node(stmt, logger);
             }
 
             (void) vector_clear(node->function.body);
@@ -216,20 +216,20 @@ void AST_free_node(t_ast_node *node)
     case AST_TYPE_RETURN_STMT:
     {
         if (NULL != node->return_stmt.expr)
-            (void) AST_free_node(node->return_stmt.expr);
+            (void) AST_free_node(node->return_stmt.expr, logger);
         break;
     }
     case AST_TYPE_IF_EXPR:
     {
         if (NULL != node->if_expr.cond)
-            (void) AST_free_node(node->if_expr.cond);
+            (void) AST_free_node(node->if_expr.cond, logger);
         if (node->if_expr.then_body)
         {
             t_ast_node *stmt = NULL;
             VECTOR_FOR_EACH(node->if_expr.then_body, stmts)
             {
                 stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
-                (void) AST_free_node(stmt);
+                (void) AST_free_node(stmt, logger);
             }
 
             (void) vector_clear(node->if_expr.then_body);
@@ -243,7 +243,7 @@ void AST_free_node(t_ast_node *node)
             VECTOR_FOR_EACH(node->if_expr.else_body, stmts)
             {
                 stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
-                (void) AST_free_node(stmt);
+                (void) AST_free_node(stmt, logger);
             }
 
             (void) vector_clear(node->if_expr.else_body);
@@ -257,12 +257,12 @@ void AST_free_node(t_ast_node *node)
     {
         if (NULL != node->let_stmt.var)
         {
-            (void) AST_free_node(node->let_stmt.var);
+            (void) AST_free_node(node->let_stmt.var, logger);
         }
 
         if (NULL != node->let_stmt.expr)
         {
-            (void) AST_free_node(node->let_stmt.expr);
+            (void) AST_free_node(node->let_stmt.expr, logger);
         }
         break;
     }
@@ -275,7 +275,7 @@ void AST_free_node(t_ast_node *node)
             VECTOR_FOR_EACH(node->call_expr.args, args)
             {
                 arg = ITERATOR_GET_AS(t_ast_node_ptr, &args);
-                (void) AST_free_node(arg);
+                (void) AST_free_node(arg, logger);
             }
 
             (void) vector_clear(node->call_expr.args);
@@ -289,13 +289,13 @@ void AST_free_node(t_ast_node *node)
     case AST_TYPE_EXPRESSION_STMT:
     {
         if (NULL != node->expression_stmt.expr)
-            (void) AST_free_node(node->expression_stmt.expr);
+            (void) AST_free_node(node->expression_stmt.expr, logger);
         break;
     }
 
     default:
     {
-        (void) printf("I don't now how to free type - %d\n", node->type);
+        (void) LOGGER_log(logger, L_ERROR, "I don't now how to free type - %d\n", node->type);
         break;
     }
     }
@@ -304,29 +304,29 @@ void AST_free_node(t_ast_node *node)
     node = NULL;
 }
 
-void ast_print_statements_block(t_vector *statements, int offset)
+void ast_print_statements_block(t_vector *statements, int offset, t_logger *logger)
 {
     t_ast_node *stmt = NULL;
 
-    (void) printf("%*c\b Statements block\n", offset, ' ');
+    (void) LOGGER_log(logger, L_DEBUG, "%*c\b Statements block\n", offset, ' ');
     VECTOR_FOR_EACH(statements, stmts)
     {
         stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
-        (void) AST_print_ast(stmt, offset + 2);
+        (void) AST_print_ast(stmt, offset + 2, logger);
     }
 }
 
-void AST_print_functions(t_vector *functions, int offset)
+void AST_print_functions(t_vector *functions, int offset, t_logger *logger)
 {
     t_ast_node *func = NULL;
     VECTOR_FOR_EACH(functions, funcs)
     {
         func = ITERATOR_GET_AS(t_ast_node_ptr, &funcs);
-        (void) AST_print_ast(func, offset);
+        (void) AST_print_ast(func, offset, logger);
     }
 }
 
-char *op_to_str(t_ast_binop_type op)
+char *op_to_str(t_ast_binop_type op, t_logger *logger)
 {
     switch (op)
     {
@@ -353,12 +353,12 @@ char *op_to_str(t_ast_binop_type op)
     case BINOP_GEQ:
         return ">=";
     default:
-        (void) fprintf(stderr, "Unknown operator: %d\n", op);
+        (void) LOGGER_log(logger, L_ERROR, "Unknown operator: %d\n", op);
         (void) exit(1);
     }
 }
 
-void AST_print_ast(t_ast_node *node, int offset)
+void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
 {
     t_ast_node *arg = NULL;
     size_t i = 0;
@@ -367,126 +367,126 @@ void AST_print_ast(t_ast_node *node, int offset)
 
     if (0 == offset)
     {
-        (void) printf("Printing AST:\n");
+        (void) LOGGER_log(logger, L_DEBUG, "Printing AST:\n");
     }
 
     switch (node->type)
     {
     case AST_TYPE_NUMBER:
-        (void) printf("%*c\b AST number %d\n", offset, ' ', node->number.value);
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b AST number %d\n", offset, ' ', node->number.value);
         break;
     case AST_TYPE_STRING:
-        (void) printf("%*c\b AST string \"%s\"\n", offset, ' ', node->string.value);
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b AST string \"%s\"\n", offset, ' ', node->string.value);
         break;
     case AST_TYPE_BINARY_EXPR:
     {
-        (void) printf("%*c\b Binary Expression\n", offset, ' ');
-        (void) printf("%*c\b Operator: %s\n", offset + 2, ' ',
-               op_to_str(node->binary_expr.operator));
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Binary Expression\n", offset, ' ');
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Operator: %s\n", offset + 2, ' ',
+                          op_to_str(node->binary_expr.operator, logger));
         if (NULL != node->binary_expr.lhs)
-            (void) AST_print_ast(node->binary_expr.lhs, offset + 4);
+            (void) AST_print_ast(node->binary_expr.lhs, offset + 4, logger);
         if (NULL != node->binary_expr.rhs)
-            (void) AST_print_ast(node->binary_expr.rhs, offset + 4);
+            (void) AST_print_ast(node->binary_expr.rhs, offset + 4, logger);
         break;
     }
     case AST_TYPE_PROTOTYPE:
     {
-        (void) printf("%*c\b %s - %d args\n", offset, '-', node->prototype.name,
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b %s - %d args\n", offset, '-', node->prototype.name,
                node->prototype.arity);
         for (i = 0; i < node->prototype.arity; ++i)
         {
-            (void) printf("%*c\b %zu: (%s) %s\n", offset, '-', i,
-                   ast_type_to_string(node->prototype.types[i]), node->prototype.args[i]);
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b %zu: (%s) %s\n", offset, '-', i,
+                   ast_type_to_string(node->prototype.types[i], logger), node->prototype.args[i]);
         }
-        (void) printf("%*c\b Return Type -> %s\n", offset, '-',
-               ast_type_to_string(node->prototype.return_type));
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Return Type -> %s\n", offset, '-',
+               ast_type_to_string(node->prototype.return_type, logger));
         break;
     }
 
     case AST_TYPE_FUNCTION:
     {
-        (void) printf("%*c\b Function definition\n", offset, ' ');
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Function definition\n", offset, ' ');
         if (NULL != node->function.prototype)
         {
-            (void) printf("%*c\b Prototype\n", offset + 2, ' ');
-            (void) AST_print_ast(node->function.prototype, offset + 4);
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Prototype\n", offset + 2, ' ');
+            (void) AST_print_ast(node->function.prototype, offset + 4, logger);
         }
 
         if (NULL != node->function.body)
         {
-            (void) printf("%*c\b Body\n", offset + 2, ' ');
-            (void) ast_print_statements_block(node->function.body, offset + 4);
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Body\n", offset + 2, ' ');
+            (void) ast_print_statements_block(node->function.body, offset + 4, logger);
         }
         break;
     }
     case AST_TYPE_RETURN_STMT:
     {
-        (void) printf("%*c\b Return statement\n", offset, ' ');
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Return statement\n", offset, ' ');
         if (NULL != node->return_stmt.expr)
-            (void) AST_print_ast(node->return_stmt.expr, offset + 2);
+            (void) AST_print_ast(node->return_stmt.expr, offset + 2, logger);
         break;
     }
     case AST_TYPE_IF_EXPR:
     {
-        (void) printf("%*c\b If Expression\n", offset, ' ');
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b If Expression\n", offset, ' ');
         if (NULL != node->if_expr.cond)
         {
-            (void) printf("%*c\b Condition\n", offset + 2, ' ');
-            (void) AST_print_ast(node->if_expr.cond, offset + 4);
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Condition\n", offset + 2, ' ');
+            (void) AST_print_ast(node->if_expr.cond, offset + 4, logger);
         }
         if (NULL != node->if_expr.then_body)
         {
-            (void) printf("%*c\b Then Body\n", offset + 2, ' ');
-            (void) ast_print_statements_block(node->if_expr.then_body, offset + 4);
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Then Body\n", offset + 2, ' ');
+            (void) ast_print_statements_block(node->if_expr.then_body, offset + 4, logger);
         }
         if (NULL != node->if_expr.else_body)
         {
-            (void) printf("%*c\b Else Body\n", offset + 2, ' ');
-            (void) ast_print_statements_block(node->if_expr.else_body, offset + 4);
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Else Body\n", offset + 2, ' ');
+            (void) ast_print_statements_block(node->if_expr.else_body, offset + 4, logger);
         }
         break;
     }
     case AST_TYPE_VARIABLE:
     {
-        (void) printf("%*c\b Variable\n", offset, ' ');
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Variable\n", offset, ' ');
         if (NULL != node->variable.name)
         {
-            (void) printf("%*c\b Name: %s\n", offset + 2, ' ', node->variable.name);
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Name: %s\n", offset + 2, ' ', node->variable.name);
         }
         break;
     }
     case AST_TYPE_LET_STMT:
     {
-        (void) printf("%*c\b Let Statement\n", offset, ' ');
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Let Statement\n", offset, ' ');
         if (NULL != node->let_stmt.var)
         {
-            (void) AST_print_ast(node->let_stmt.var, offset + 2);
+            (void) AST_print_ast(node->let_stmt.var, offset + 2, logger);
         }
 
         if (NULL != node->let_stmt.expr)
         {
-            (void) printf("%*c\b Expression\n", offset + 2, ' ');
-            (void) AST_print_ast(node->let_stmt.expr, offset + 4);
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Expression\n", offset + 2, ' ');
+            (void) AST_print_ast(node->let_stmt.expr, offset + 4, logger);
         }
         break;
     }
 
     case AST_TYPE_CALL_EXPR:
     {
-        (void) printf("%*c\b Call Expression\n", offset, ' ');
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Call Expression\n", offset, ' ');
         if (NULL != node->call_expr.name)
         {
-            (void) printf("%*c\b Name - %s\n", offset + 2, ' ', node->call_expr.name);
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Name - %s\n", offset + 2, ' ', node->call_expr.name);
         }
 
         if (NULL != node->call_expr.args)
         {
-            (void) printf("%*c\b Arguments\n", offset + 2, ' ');
-            (void) printf("%*c\b Count - %d\n", offset + 4, ' ', node->call_expr.args->size);
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Arguments\n", offset + 2, ' ');
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Count - %d\n", offset + 4, ' ', node->call_expr.args->size);
             VECTOR_FOR_EACH(node->call_expr.args, args)
             {
                 arg = ITERATOR_GET_AS(t_ast_node_ptr, &args);
-                (void) AST_print_ast(arg, offset + 4);
+                (void) AST_print_ast(arg, offset + 4, logger);
             }
         }
 
@@ -495,14 +495,14 @@ void AST_print_ast(t_ast_node *node, int offset)
 
     case AST_TYPE_EXPRESSION_STMT:
     {
-        (void) printf("%*c\b Expression statement\n", offset, ' ');
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Expression statement\n", offset, ' ');
         if (NULL != node->expression_stmt.expr)
-            (void) AST_print_ast(node->expression_stmt.expr, offset + 2);
+            (void) AST_print_ast(node->expression_stmt.expr, offset + 2, logger);
         break;
     }
     default:
     {
-        (void) printf("I don't know how to print type - %d\n", node->type);
+        (void) LOGGER_log(logger, L_DEBUG, "I don't know how to print type - %d\n", node->type);
         break;
     }
     }
