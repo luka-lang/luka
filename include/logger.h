@@ -9,6 +9,7 @@
 typedef struct {
     FILE *fp;
     char *file_path;
+    size_t verbosity;
 } t_logger;
 
 #define L_DEBUG "DEBUG"
@@ -16,7 +17,7 @@ typedef struct {
 #define L_INFO "INFO"
 #define L_WARNING "WARNING"
 
-t_logger *LOGGER_initialize(char *file_path);
+t_logger *LOGGER_initialize(char *file_path, size_t verbosity);
 
 void LOGGER_log(t_logger *logger, const char *level, const char *format, ...);
 
