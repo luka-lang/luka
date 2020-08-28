@@ -1,3 +1,4 @@
+#include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -19,6 +20,28 @@
 #include "logger.h"
 #include "parser.h"
 
+static struct option long_options[] =
+{
+    {"help", no_argument, NULL, 'h'},
+    {"verbose", no_argument, NULL, 'v'},
+    {NULL, 0, NULL, 0}
+};
+
+void print_help(void)
+{
+    (void) printf(
+        "OVERVIEW: luka LLVM compiler\n"
+        "\n"
+        "USAGE: luka [options] file\n"
+        "\n"
+        "OPTIONS:\n"
+        "  -h/--help\tDisplay this help.\n"
+        "  -o/--output\tOutput file path (out.bc by default)\n"
+        "  -v/--verbose\tIncrease verbosity level.\n"
+        "\n"
+    );
+}
+
 int main(int argc, char **argv)
 {
     t_return_code status_code = LUKA_UNINITIALIZED;
@@ -28,6 +51,7 @@ int main(int argc, char **argv)
     char *file_contents = NULL;
 
     t_vector tokens;
+    (void) vector_setup(&tokens, 1, sizeof(t_token_ptr));
     t_vector *functions = NULL;
     t_token *token = NULL;
 
@@ -43,20 +67,42 @@ int main(int argc, char **argv)
     char *error = NULL;
 
     t_logger *logger = NULL;
+    char ch = '\0';
+    size_t verbosity = 0;
+    char *output_path = "out.bc";
 
-    logger = LOGGER_initialize("/tmp/luka.log");
-
-    if (2 != argc)
+    while (-1 != (ch = getopt_long(argc, argv, "hvo:", long_options, NULL)))
     {
-        (void) LOGGER_log(logger, L_INFO, "USAGE: luka [luka source file]\n");
+        switch (ch)
+        {
+            case 'h':
+                (void) print_help();
+                return LUKA_SUCCESS;
+            case 'v':
+                ++verbosity;
+                break;
+            case 'o':
+                output_path = optarg;
+                break;
+            case '?':
+                break;
+            default:
+                abort();
+        }
+    }
+
+    logger = LOGGER_initialize("/tmp/luka.log", verbosity);
+
+    if (optind >= argc)
+    {
+        (void) print_help();
         status_code = LUKA_WRONG_PARAMETERS;
         goto cleanup;
     }
 
-    file_path = argv[1];
+    file_path = argv[optind++];
     file_contents = IO_get_file_contents(file_path);
 
-    (void) vector_setup(&tokens, 1, sizeof(t_token_ptr));
     status_code = LEXER_tokenize_source(&tokens, file_contents, logger);
     if (LUKA_SUCCESS != status_code)
     {
@@ -129,13 +175,17 @@ int main(int argc, char **argv)
 
     (void) LLVMDumpModule(module);
 
-    (void) LLVMWriteBitcodeToFile(module, "out.bc");
+    (void) LLVMWriteBitcodeToFile(module, output_path);
 
     status_code = LUKA_SUCCESS;
 
 cleanup:
     (void) LIB_free_tokens_vector(&tokens);
-    (void) LIB_free_functions_vector(functions, logger);
+
+    if (NULL != functions)
+    {
+        (void) LIB_free_functions_vector(functions, logger);
+    }
 
     if (NULL != logger)
     {

@@ -4,7 +4,7 @@
 #include <string.h>
 #include <time.h>
 
-t_logger *LOGGER_initialize(char *file_path)
+t_logger *LOGGER_initialize(char *file_path, size_t verbosity)
 {
     t_logger *logger = NULL;
     FILE *fp = NULL;
@@ -15,6 +15,7 @@ t_logger *LOGGER_initialize(char *file_path)
         goto cleanup;
     }
 
+    logger->verbosity = verbosity;
     logger->file_path = file_path;
     logger->fp = fopen(file_path, "a");
     if (NULL == logger->fp)
@@ -46,6 +47,8 @@ void LOGGER_log(t_logger *logger, const char *level, const char *format, ...)
     va_list args;
     time_t now = {0};
     char *time_string = NULL;
+    bool is_info_log = 0 == strcmp(L_INFO, level);
+    bool used_varargs = false;
 
     if ((NULL != logger) && (NULL != logger->fp))
     {
@@ -54,8 +57,36 @@ void LOGGER_log(t_logger *logger, const char *level, const char *format, ...)
         (void) time(&now);
         time_string = ctime(&now);
         time_string[strlen(time_string) - 1] = '\0';
-        (void) fprintf(logger->fp, "%s [%s]: ", time_string, level);
-        (void) vfprintf(logger->fp, format, args);
+        if ((0 == strcmp(L_ERROR, level)))
+        {
+            (void) vfprintf(stderr, format, args);
+            (void) fflush(stderr);
+            used_varargs = true;
+
+        }
+        else if (logger->verbosity > 0)
+        {
+            if (used_varargs)
+            {
+                (void) va_start(args, format);
+            }
+
+            (void) vfprintf(stdout, format, args);
+            (void) fflush(stdout);
+            used_varargs = true;
+        }
+
+
+        if (((is_info_log) && (logger->verbosity > 0)) || !is_info_log)
+        {
+            if (used_varargs)
+            {
+                (void) va_start(args, format);
+            }
+
+            (void) fprintf(logger->fp, "%s [%s]: ", time_string, level);
+            (void) vfprintf(logger->fp, format, args);
+        }
         (void) fflush(logger->fp);
         (void) va_end(args);
     }
