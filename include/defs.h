@@ -1,6 +1,8 @@
 #ifndef __DEFS_H__
 #define __DEFS_H__
 
+#include <stdbool.h>
+
 #include "vector.h"
 
 typedef Vector t_vector;
@@ -10,14 +12,16 @@ typedef enum
 {
     LUKA_UNINITIALIZED = -1,
     LUKA_SUCCESS = 0,
+    LUKA_GENERAL_ERROR,
     LUKA_WRONG_PARAMETERS,
     LUKA_CANT_OPEN_FILE,
     LUKA_CANT_ALLOC_MEMORY,
     LUKA_LEXER_FAILED,
-    LUKA_VECTOR_FAILURE
+    LUKA_VECTOR_FAILURE,
+    LUKA_CODEGEN_ERROR,
 } t_return_code;
 
-#define NUMBER_OF_KEYWORDS 11
+#define NUMBER_OF_KEYWORDS 12
 extern const char *keywords[NUMBER_OF_KEYWORDS];
 
 typedef enum
@@ -28,9 +32,11 @@ typedef enum
     T_IF,
     T_ELSE,
     T_LET,
+    T_MUT,
     T_EXTERN,
 
     T_INT_TYPE,
+    T_CHAR_TYPE,
     T_STR_TYPE,
     T_VOID_TYPE,
     T_FLOAT_TYPE,
@@ -86,6 +92,7 @@ typedef enum
     AST_TYPE_IF_EXPR,
     AST_TYPE_VARIABLE,
     AST_TYPE_LET_STMT,
+    AST_TYPE_ASSIGNMENT_STMT,
     AST_TYPE_CALL_EXPR,
     AST_TYPE_EXPRESSION_STMT
 } t_ast_node_type;
@@ -174,8 +181,15 @@ typedef struct
 
 typedef struct
 {
+    char *var_name;
+    t_ast_node *expr;
+} t_ast_assignment_stmt;
+
+typedef struct
+{
     char *name;
     t_type type;
+    bool mutable;
 } t_ast_variable;
 
 typedef struct
@@ -203,6 +217,7 @@ typedef struct s_ast_node
         t_ast_if_expr if_expr;
         t_ast_variable variable;
         t_ast_let_stmt let_stmt;
+        t_ast_assignment_stmt assignment_stmt;
         t_ast_call_expr call_expr;
         t_ast_expr_stmt expression_stmt;
     };

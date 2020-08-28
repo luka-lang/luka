@@ -1,0 +1,18 @@
+extern putchar(char);
+
+fn main() {
+    let a = 2;
+    let mut b = a + 2;
+    let c = a * b;
+
+    putchar(48 + b);
+    putchar(10);
+    b = 2;
+    putchar(48 + b);
+    putchar(10);
+
+    putchar(48 + c);
+    putchar(10);
+
+    return 0;
+}

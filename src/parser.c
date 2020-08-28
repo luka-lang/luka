@@ -9,6 +9,7 @@ t_ast_node *parse_expression(t_parser *parser);
 t_vector *parse_statements(t_parser *parser);
 
 t_ast_node *parse_prototype(t_parser *parser);
+t_ast_node *parse_assignment_stmt(t_parser *parser, char *var_name);
 
 void ERR(t_parser *parser, const char *message)
 {
@@ -98,6 +99,8 @@ t_type parse_type(t_parser *parser)
         return TYPE_FLOAT;
     case T_DOUBLE_TYPE:
         return TYPE_DOUBLE;
+    case T_CHAR_TYPE:
+        return TYPE_INT8;
     default:
         (void) LOGGER_log(parser->logger, L_ERROR, "Unknown type %d %s. Fallbacking to int32.\n", token->type,
                           token->content);
@@ -220,15 +223,26 @@ t_ast_node *parse_ident_expr(t_parser *parser)
     t_ast_node *node, *expr;
     char *ident_name;
     t_vector *args;
+    bool mutable = false;
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     ident_name = token->content;
 
     ADVANCE(parser);
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    if (T_EQUALS == token->type)
+    {
+        return parse_assignment_stmt(parser, ident_name);
+    }
+
     if (T_OPEN_PAREN != token->type)
     {
-        return AST_new_variable(ident_name, parse_type(parser));
+        if (MATCH(parser, T_MUT))
+        {
+            ADVANCE(parser);
+            mutable = true;
+        }
+        return AST_new_variable(ident_name, parse_type(parser), mutable);
     }
 
     ADVANCE(parser);
@@ -412,10 +426,24 @@ t_ast_node *parse_expression(t_parser *parser)
     }
 }
 
+t_ast_node *parse_assignment_stmt(t_parser *parser, char *var_name)
+{
+    t_ast_node *node = NULL, *expr = NULL;
+    MATCH_ADVANCE(parser, T_EQUALS, "Expected a '=' after identifier in assignment");
+    expr = parse_expression(parser);
+    node = AST_new_assignment_stmt(var_name, expr);
+    MATCH_ADVANCE(parser, T_SEMI_COLON, "Expected a ';' after let statement");
+    --parser->index;
+    return node;
+}
+
 t_ast_node *parse_statement(t_parser *parser)
 {
     t_ast_node *node = NULL, *expr = NULL, *var = NULL;
     t_token *token = NULL;
+    char *var_name = NULL;
+    bool mutable = false;
+    t_type type = TYPE_INT32;
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     switch (token->type)
@@ -431,14 +459,23 @@ t_ast_node *parse_statement(t_parser *parser)
     }
     case T_LET:
     {
+        if (EXPECT(parser, T_MUT))
+        {
+            ADVANCE(parser);
+            mutable = true;
+        }
         EXPECT_ADVANCE(parser, T_IDENTIFIER,
                        "Expected an identifier after a 'let'");
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-        var = AST_new_variable(token->content, TYPE_INT32);
+        if (EXPECT(parser, T_COLON))
+        {
+            type = parse_type(parser);
+        }
         EXPECT_ADVANCE(parser, T_EQUALS,
                        "Expected a '=' after ident in variable declaration");
         ADVANCE(parser);
         expr = parse_expression(parser);
+        var = AST_new_variable(token->content, type, mutable);
         node = AST_new_let_stmt(var, expr);
         MATCH_ADVANCE(parser, T_SEMI_COLON, "Expected a ';' after let statement");
         return node;

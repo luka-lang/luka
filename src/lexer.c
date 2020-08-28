@@ -6,8 +6,8 @@
 #include "lexer.h"
 
 const char *keywords[NUMBER_OF_KEYWORDS] = {"fn", "return", "if", "else",
-                                            "let", "extern", "int", "str",
-                                            "void", "float", "double"};
+                                            "let", "mut", "extern", "int",
+                                            "str", "void", "float", "double"};
 
 int lexer_is_keyword(const char *identifier)
 {
@@ -326,6 +326,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source, t_logg
                     return_code = LUKA_CANT_ALLOC_MEMORY;
                     goto cleanup;
                 }
+                (void) snprintf(token->content, 11, "%d", number);
                 break;
             }
 

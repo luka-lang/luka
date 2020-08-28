@@ -103,12 +103,13 @@ t_ast_node *AST_new_if_expr(t_ast_node *cond, t_vector *then_body, t_vector *els
     return node;
 }
 
-t_ast_node *AST_new_variable(char *name, t_type type)
+t_ast_node *AST_new_variable(char *name, t_type type, bool mutable)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_VARIABLE;
     node->variable.name = name;
     node->variable.type = type;
+    node->variable.mutable = mutable;
     return node;
 }
 
@@ -118,6 +119,15 @@ t_ast_node *AST_new_let_stmt(t_ast_node *var, t_ast_node *expr)
     node->type = AST_TYPE_LET_STMT;
     node->let_stmt.var = var;
     node->let_stmt.expr = expr;
+    return node;
+}
+
+t_ast_node *AST_new_assignment_stmt(char *var_name, t_ast_node *expr)
+{
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
+    node->type = AST_TYPE_ASSIGNMENT_STMT;
+    node->assignment_stmt.var_name = var_name;
+    node->assignment_stmt.expr = expr;
     return node;
 }
 
@@ -263,6 +273,14 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
         if (NULL != node->let_stmt.expr)
         {
             (void) AST_free_node(node->let_stmt.expr, logger);
+        }
+        break;
+    }
+    case AST_TYPE_ASSIGNMENT_STMT:
+    {
+        if (NULL != node->assignment_stmt.expr)
+        {
+            (void) AST_free_node(node->assignment_stmt.expr, logger);
         }
         break;
     }
@@ -467,6 +485,27 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
         {
             (void) LOGGER_log(logger, L_DEBUG, "%*c\b Expression\n", offset + 2, ' ');
             (void) AST_print_ast(node->let_stmt.expr, offset + 4, logger);
+        }
+        break;
+    }
+
+    case AST_TYPE_ASSIGNMENT_STMT:
+    {
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Assignment Statement\n", offset, ' ');
+        if (NULL != node->assignment_stmt.var_name)
+        {
+            (void) LOGGER_log(logger,
+                              L_DEBUG,
+                              "%*c\b Variable Name: %s\n",
+                              offset,
+                              ' ',
+                              node->assignment_stmt.var_name);
+        }
+
+        if (NULL != node->assignment_stmt.expr)
+        {
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Expression\n", offset + 2, ' ');
+            (void) AST_print_ast(node->assignment_stmt.expr, offset + 4, logger);
         }
         break;
     }
