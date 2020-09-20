@@ -7,6 +7,7 @@
 #include <llvm-c/BitWriter.h>
 #include <llvm-c/Core.h>
 #include <llvm-c/Target.h>
+#include <llvm-c/TargetMachine.h>
 #include <llvm-c/Transforms/InstCombine.h>
 #include <llvm-c/Transforms/PassManagerBuilder.h>
 #include <llvm-c/Transforms/Scalar.h>
@@ -20,10 +21,16 @@
 #include "logger.h"
 #include "parser.h"
 
+
+#define BITCODE_FILENAME ("a.out.bc")
+#define CMD_LEN          (20 + 256)
+
 static struct option long_options[] =
 {
     {"help", no_argument, NULL, 'h'},
     {"verbose", no_argument, NULL, 'v'},
+    {"output", required_argument, NULL, 'o'},
+    {"bitcode", no_argument, NULL, 'b'},
     {NULL, 0, NULL, 0}
 };
 
@@ -36,8 +43,9 @@ void print_help(void)
         "\n"
         "OPTIONS:\n"
         "  -h/--help\tDisplay this help.\n"
-        "  -o/--output\tOutput file path (out.bc by default)\n"
+        "  -o/--output\tOutput file path (a.out by default)\n"
         "  -v/--verbose\tIncrease verbosity level.\n"
+        "  -b/--bitcode\tDon't compile bitcode to native machine code.\n"
         "\n"
     );
 }
@@ -63,15 +71,17 @@ int main(int argc, char **argv)
     LLVMBuilderRef builder = NULL;
     LLVMPassManagerRef pass_manager = NULL;
     LLVMValueRef value = NULL;
-
+    char *triple = NULL;
     char *error = NULL;
 
     t_logger *logger = NULL;
     char ch = '\0';
     size_t verbosity = 0;
-    char *output_path = "out.bc";
+    char *output_path = "a.out";
+    char *cmd = NULL;
+    bool bitcode = false;
 
-    while (-1 != (ch = getopt_long(argc, argv, "hvo:", long_options, NULL)))
+    while (-1 != (ch = getopt_long(argc, argv, "hvo:b", long_options, NULL)))
     {
         switch (ch)
         {
@@ -80,6 +90,9 @@ int main(int argc, char **argv)
                 return LUKA_SUCCESS;
             case 'v':
                 ++verbosity;
+                break;
+            case 'b':
+                bitcode = true;
                 break;
             case 'o':
                 output_path = optarg;
@@ -134,6 +147,9 @@ int main(int argc, char **argv)
     (void) LLVMInitializeCore(LLVMGetGlobalPassRegistry());
 
     module = LLVMModuleCreateWithName("luka_main_module");
+    triple = LLVMGetDefaultTargetTriple();
+    (void) LLVMSetTarget(module, triple);
+    LLVMDisposeMessage(triple);
     builder = LLVMCreateBuilder();
 
     VECTOR_FOR_EACH(functions, iterator)
@@ -173,13 +189,35 @@ int main(int argc, char **argv)
 
     (void) LLVMRunPassManager(pass_manager, module);
 
-    (void) LLVMDumpModule(module);
+    if (verbosity > 0)
+    {
+        (void) LLVMDumpModule(module);
+    }
 
-    (void) LLVMWriteBitcodeToFile(module, output_path);
+    if (bitcode)
+    {
+        (void) LLVMWriteBitcodeToFile(module, output_path);
+    }
+    else
+    {
+        (void) LLVMWriteBitcodeToFile(module, "a.out.bc");
+        cmd = malloc(CMD_LEN);
+        if (NULL != cmd) {
+            (void) snprintf(cmd, CMD_LEN, "clang -o \"%s\" %s", output_path, BITCODE_FILENAME);
+            (void) system(cmd);
+            (void) snprintf(cmd, CMD_LEN, "rm ./%s", BITCODE_FILENAME);
+            (void) system(cmd);
+        }
+    }
 
     status_code = LUKA_SUCCESS;
 
 cleanup:
+    if (NULL != cmd) {
+        (void) free(cmd);
+        cmd = NULL;
+    }
+
     (void) LIB_free_tokens_vector(&tokens);
 
     if (NULL != functions)
@@ -220,6 +258,7 @@ cleanup:
         (void) LLVMDisposeModule(module);
     }
 
+    (void) LLVMResetFatalErrorHandler();
     (void) LLVMShutdown();
 
     return status_code;
