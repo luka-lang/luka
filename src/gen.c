@@ -9,32 +9,102 @@ LLVMTypeRef gen_type_to_llvm_type(t_type type, t_logger *logger)
 {
     switch (type)
     {
-    case TYPE_INT32:
+    case TYPE_ANY:
+        return LLVMPointerType(LLVMVoidType(), 0);
+    case TYPE_BOOL:
+        return LLVMInt1Type();
+    case TYPE_SINT8:
+        return LLVMInt8Type();
+    case TYPE_SINT16:
+        return LLVMInt16Type();
+    case TYPE_SINT32:
         return LLVMInt32Type();
+    case TYPE_SINT64:
+        return LLVMInt64Type();
+    case TYPE_UINT8:
+        return LLVMInt8Type();
+    case TYPE_UINT16:
+        return LLVMInt16Type();
+    case TYPE_UINT32:
+        return LLVMInt32Type();
+    case TYPE_UINT64:
+        return LLVMInt64Type();
+    case TYPE_F32:
+        return LLVMFloatType();
+    case TYPE_F64:
+        return LLVMDoubleType();
     case TYPE_STRING:
         return LLVMPointerType(LLVMInt8Type(), 0);
     case TYPE_VOID:
         return LLVMVoidType();
-    case TYPE_DOUBLE:
-        return LLVMDoubleType();
-    case TYPE_FLOAT:
-        return LLVMFloatType();
-    case TYPE_INT1:
-        return LLVMInt1Type();
-    case TYPE_INT8:
-        return LLVMInt8Type();
-    case TYPE_INT16:
-        return LLVMInt16Type();
-    case TYPE_INT64:
-        return LLVMInt64Type();
-    case TYPE_INT128:
-        return LLVMInt128Type();
-
     default:
         (void) LOGGER_log(logger, L_ERROR, "I don't know how to translate type %d to LLVM types.\n",
                           type);
         (void) exit(LUKA_CODEGEN_ERROR);
     }
+}
+
+t_type gen_llvm_type_to_ttype(LLVMTypeRef type, t_logger *logger)
+{
+    if (type == LLVMPointerType(LLVMVoidType(), 0))
+    {
+        return TYPE_ANY;
+    }
+    else if (type == LLVMInt1Type())
+    {
+        return TYPE_BOOL;
+    }
+    else if (type == LLVMInt8Type())
+    {
+        return TYPE_SINT8;
+    }
+    else if (type == LLVMInt16Type())
+    {
+        return TYPE_SINT16;
+    }
+    else if (type == LLVMInt32Type())
+    {
+        return TYPE_SINT32;
+    }
+    else if (type == LLVMInt64Type())
+    {
+        return TYPE_SINT64;
+    }
+    else if (type == LLVMInt8Type())
+    {
+        return TYPE_UINT8;
+    }
+    else if (type == LLVMInt16Type())
+    {
+        return TYPE_UINT16;
+    }
+    else if (type == LLVMInt32Type())
+    {
+        return TYPE_UINT32;
+    }
+    else if (type == LLVMInt64Type())
+    {
+        return TYPE_UINT64;
+    }
+    else if (type == LLVMFloatType())
+    {
+        return TYPE_F32;
+    }
+    else if (type == LLVMDoubleType())
+    {
+        return TYPE_F64;
+    }
+    else if (type == LLVMPointerType(LLVMInt8Type(), 0))
+    {
+        return TYPE_STRING;
+    }
+    else if (type == LLVMVoidType())
+    {
+        return TYPE_VOID;
+    }
+    (void) LOGGER_log(logger, L_ERROR, "I don't know how to translate LLVM type %d to t_type.\n",
+                        type);
+    (void) exit(LUKA_CODEGEN_ERROR);
 }
 
 LLVMValueRef gen_create_entry_block_allca(LLVMValueRef function,
@@ -58,6 +128,37 @@ LLVMValueRef gen_create_entry_block_allca(LLVMValueRef function,
     LLVMDisposeBuilder(builder);
     return alloca_inst;
 }
+
+bool ttype_is_signed(t_type type)
+{
+    switch (type)
+    {
+    case TYPE_SINT8:
+    case TYPE_SINT16:
+    case TYPE_SINT32:
+    case TYPE_SINT64:
+        return true;
+    default:
+        return false;
+    }
+}
+
+LLVMValueRef gen_codegen_cast(LLVMBuilderRef builder,
+                              LLVMValueRef original_value,
+                              LLVMTypeRef dest_type,
+                              t_type dest_ttype)
+{
+    bool is_signed = ttype_is_signed(dest_ttype);
+
+    if ((dest_type == LLVMFloatType()) || (dest_type == LLVMDoubleType()))
+    {
+        return LLVMBuildFPCast(builder, original_value, dest_type, "fpcast");
+    }
+
+    original_value = LLVMConstIntCast(original_value, dest_type, is_signed);
+    return LLVMBuildIntCast2(builder, original_value, dest_type, is_signed, "intcast");
+}
+
 
 LLVMValueRef gen_codegen_binexpr(t_ast_node *n,
                                  LLVMModuleRef module,
@@ -124,7 +225,13 @@ LLVMValueRef gen_codegen_prototype(t_ast_node *n,
     LLVMValueRef func = NULL;
     LLVMTypeRef func_type = NULL;
     size_t i = 0, arity = n->prototype.arity;
-    LLVMTypeRef *params = calloc(arity, sizeof(LLVMTypeRef));
+    bool vararg = n->prototype.vararg;
+    LLVMTypeRef *params = NULL;
+    if (vararg)
+    {
+        --arity;
+    }
+    params = calloc(arity, sizeof(LLVMTypeRef));
     if (NULL == params)
     {
         (void) LOGGER_log(logger, L_ERROR, "Failed to assign memory for params in prototype generaion.\n");
@@ -136,7 +243,7 @@ LLVMValueRef gen_codegen_prototype(t_ast_node *n,
         params[i] = gen_type_to_llvm_type(n->prototype.types[i], logger);
     }
     func_type = LLVMFunctionType(gen_type_to_llvm_type(n->prototype.return_type, logger),
-                                 params, arity, 0);
+                                 params, arity, vararg);
 
     func = LLVMAddFunction(module, n->prototype.name, func_type);
     (void) LLVMSetLinkage(func, LLVMExternalLinkage);
@@ -150,6 +257,7 @@ LLVMValueRef gen_codegen_prototype(t_ast_node *n,
         val->name = strdup(n->prototype.args[i]);
         val->alloca_inst = NULL;
         val->type = params[i];
+        val->ttype = n->prototype.types[i];
         HASH_ADD_KEYPTR(hh, named_values, val->name, strlen(val->name), val);
     }
 
@@ -252,10 +360,19 @@ LLVMValueRef gen_codegen_function(t_ast_node *n,
         case TYPE_VOID:
             ret_val = NULL;
             break;
-        case TYPE_FLOAT:
-        case TYPE_DOUBLE:
+        case TYPE_F32:
+        case TYPE_F64:
             ret_val = LLVMConstReal(gen_type_to_llvm_type(return_type, logger), 0.0);
             break;
+        case TYPE_ANY:
+        case TYPE_STRING:
+            ret_val = LLVMConstPointerNull(gen_type_to_llvm_type(return_type, logger));
+            break;
+        case TYPE_SINT8:
+        case TYPE_SINT16:
+        case TYPE_SINT32:
+        case TYPE_SINT64:
+            ret_val = LLVMConstInt(gen_type_to_llvm_type(return_type, logger), 0, true);
         default:
             ret_val = LLVMConstInt(gen_type_to_llvm_type(return_type, logger), 0, false);
             break;
@@ -456,6 +573,10 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node,
     val->name = strdup(variable.name);
     val->type = gen_type_to_llvm_type(variable.type, logger);
     val->alloca_inst = gen_create_entry_block_allca(LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder)), val->type, val->name);
+    if (LLVMTypeOf(expr) != val->type)
+    {
+        expr = gen_codegen_cast(builder, expr, val->type, val->ttype);
+    }
     LLVMBuildStore(builder, expr, val->alloca_inst);
     val->mutable = variable.mutable;
     HASH_ADD_KEYPTR(hh, named_values, val->name, strlen(val->name), val);
@@ -505,8 +626,12 @@ LLVMValueRef gen_codegen_call(t_ast_node *node,
     LLVMValueRef call = NULL;
     LLVMValueRef func = NULL;
     LLVMValueRef *args = NULL;
+    LLVMValueRef *varargs = NULL;
+    LLVMTypeRef func_type = NULL;
     t_ast_node *arg = NULL;
     size_t i = 0;
+    bool vararg = NULL;
+    size_t required_params_count = 0;
 
     func = LLVMGetNamedFunction(module, node->call_expr.name);
     if (NULL == func)
@@ -514,7 +639,16 @@ LLVMValueRef gen_codegen_call(t_ast_node *node,
         goto cleanup;
     }
 
-    if (node->call_expr.args->size != LLVMCountParams(func))
+    func_type = LLVMGetElementType(LLVMTypeOf(func));
+    vararg = LLVMIsFunctionVarArg(func_type);
+    required_params_count = LLVMCountParams(func);
+
+    if (!vararg && node->call_expr.args->size != required_params_count)
+    {
+        goto cleanup;
+    }
+
+    if (vararg && node->call_expr.args->size < required_params_count)
     {
         goto cleanup;
     }
@@ -529,19 +663,27 @@ LLVMValueRef gen_codegen_call(t_ast_node *node,
     {
         arg = ITERATOR_GET_AS(t_ast_node_ptr, &args_iter);
         args[i] = GEN_codegen(arg, module, builder, logger);
-
         if (NULL == args[i])
         {
             goto cleanup;
         }
-
         ++i;
     }
 
-    call = LLVMBuildCall(builder, func, args, node->call_expr.args->size,
-                         "calltmp");
+    call = LLVMBuildCall2(builder,
+                          func_type,
+                          func,
+                          args,
+                          node->call_expr.args->size,
+                          "calltmp");
 
 cleanup:
+    if (NULL != varargs)
+    {
+        (void) free(varargs);
+        varargs = NULL;
+    }
+
     if (NULL != args)
     {
         (void) free(args);

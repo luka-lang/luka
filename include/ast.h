@@ -6,14 +6,14 @@
 
 #include <stdlib.h>
 
-t_ast_node *AST_new_number(int value);
+t_ast_node *AST_new_number(long long value);
 t_ast_node *AST_new_string(char *content);
 
 t_ast_node *AST_new_binary_expr(t_ast_binop_type operator, t_ast_node * lhs,
                                 t_ast_node * rhs);
 
 t_ast_node *AST_new_prototype(char *name, char **args, t_type *types, int arity,
-                              t_type return_type);
+                              t_type return_type, bool vararg);
 t_ast_node *AST_new_function(t_ast_node *prototype, t_vector *body);
 
 t_ast_node *AST_new_return_stmt(t_ast_node *expr);
