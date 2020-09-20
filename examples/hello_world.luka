@@ -1,18 +1,9 @@
-extern puts(s: str);
+extern puts(s: string);
+extern printf(s: string, ...);
 
-fn add(a: int, b: int): int {
-    if 1 > 0 {
-        a + b
-    }
-    else {
-        b - a
-    }
-}
-
-fn returns_nothing(): void {
-   1 + 2;
-}
-
-fn main(): int {
-   puts("Hello World!");
+fn main(): void {
+    let a: u8 = 3;
+    let b: u8 = 5;
+    puts("Hello World!");
+    printf("%d + %d = %d\n", a, b, a + b);
 }

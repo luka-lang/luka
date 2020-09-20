@@ -21,7 +21,7 @@ typedef enum
     LUKA_CODEGEN_ERROR,
 } t_return_code;
 
-#define NUMBER_OF_KEYWORDS 13
+#define NUMBER_OF_KEYWORDS 26
 extern const char *keywords[NUMBER_OF_KEYWORDS];
 
 typedef enum
@@ -42,6 +42,18 @@ typedef enum
     T_VOID_TYPE,
     T_FLOAT_TYPE,
     T_DOUBLE_TYPE,
+    T_ANY_TYPE,
+    T_BOOL_TYPE,
+    T_U8_TYPE,
+    T_U16_TYPE,
+    T_U32_TYPE,
+    T_U64_TYPE,
+    T_S8_TYPE,
+    T_S16_TYPE,
+    T_S32_TYPE,
+    T_S64_TYPE,
+    T_F32_TYPE,
+    T_F64_TYPE,
 
     T_IDENTIFIER = NUMBER_OF_KEYWORDS,
     T_OPEN_PAREN,
@@ -68,6 +80,8 @@ typedef enum
     T_GEQ,
 
     T_COLON,
+    T_DOT,
+    T_THREE_DOTS,
 
     T_EOF,
 } t_toktype;
@@ -116,14 +130,18 @@ typedef enum
 
 typedef enum
 {
-    TYPE_INT1,
-    TYPE_INT8,
-    TYPE_INT16,
-    TYPE_INT32,
-    TYPE_INT64,
-    TYPE_INT128,
-    TYPE_FLOAT,
-    TYPE_DOUBLE,
+    TYPE_ANY,
+    TYPE_BOOL,
+    TYPE_SINT8,
+    TYPE_SINT16,
+    TYPE_SINT32,
+    TYPE_SINT64,
+    TYPE_UINT8,
+    TYPE_UINT16,
+    TYPE_UINT32,
+    TYPE_UINT64,
+    TYPE_F32,
+    TYPE_F64,
     TYPE_STRING,
     TYPE_VOID
 } t_type;
@@ -132,7 +150,7 @@ typedef struct s_ast_node t_ast_node;
 
 typedef struct
 {
-    int value;
+    long long value;
 } t_ast_number;
 
 typedef struct
@@ -155,6 +173,7 @@ typedef struct
     t_type *types;
     t_type return_type;
     unsigned int arity;
+    bool vararg;
 } t_ast_prototype;
 
 typedef struct

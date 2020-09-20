@@ -7,26 +7,34 @@ const char *ast_type_to_string(t_type type, t_logger *logger)
 {
     switch (type)
     {
-    case TYPE_INT32:
-        return "int32";
+    case TYPE_ANY:
+        return "any";
+    case TYPE_BOOL:
+        return "bool";
+    case TYPE_SINT8:
+        return "s8";
+    case TYPE_SINT16:
+        return "s16";
+    case TYPE_SINT32:
+        return "s32";
+    case TYPE_SINT64:
+        return "s64";
+    case TYPE_UINT8:
+        return "u8";
+    case TYPE_UINT16:
+        return "u16";
+    case TYPE_UINT32:
+        return "u32";
+    case TYPE_UINT64:
+        return "u64";
+    case TYPE_F32:
+        return "float";
+    case TYPE_F64:
+        return "double";
     case TYPE_STRING:
         return "str";
     case TYPE_VOID:
         return "void";
-    case TYPE_DOUBLE:
-        return "double";
-    case TYPE_FLOAT:
-        return "float";
-    case TYPE_INT1:
-        return "int1";
-    case TYPE_INT8:
-        return "int8";
-    case TYPE_INT16:
-        return "int16";
-    case TYPE_INT64:
-        return "int64";
-    case TYPE_INT128:
-        return "int128";
     default:
         (void) LOGGER_log(logger, L_ERROR, "I don't know how to translate type %d to LLVM types.\n",
                 type);
@@ -34,7 +42,7 @@ const char *ast_type_to_string(t_type type, t_logger *logger)
     }
 }
 
-t_ast_node *AST_new_number(int value)
+t_ast_node *AST_new_number(long long value)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_NUMBER;
@@ -63,7 +71,7 @@ t_ast_node *AST_new_binary_expr(t_ast_binop_type operator, t_ast_node * lhs,
 }
 
 t_ast_node *AST_new_prototype(char *name, char **args, t_type *types, int arity,
-                              t_type return_type)
+                              t_type return_type, bool vararg)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_PROTOTYPE;
@@ -72,6 +80,7 @@ t_ast_node *AST_new_prototype(char *name, char **args, t_type *types, int arity,
     node->prototype.types = types;
     node->prototype.return_type = return_type;
     node->prototype.arity = arity;
+    node->prototype.vararg = vararg;
 
     return node;
 }
@@ -441,12 +450,30 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
     }
     case AST_TYPE_PROTOTYPE:
     {
-        (void) LOGGER_log(logger, L_DEBUG, "%*c\b %s - %d args\n", offset, '-', node->prototype.name,
-               node->prototype.arity);
-        for (i = 0; i < node->prototype.arity; ++i)
+        if (node->prototype.vararg)
         {
-            (void) LOGGER_log(logger, L_DEBUG, "%*c\b %zu: (%s) %s\n", offset, '-', i,
-                   ast_type_to_string(node->prototype.types[i], logger), node->prototype.args[i]);
+            (void) LOGGER_log(logger,
+                              L_DEBUG,
+                              "%*c\b %s - %d required args (VarArg)\n",
+                              offset,
+                              '-',
+                              node->prototype.name,
+                              node->prototype.arity - 1);
+            for (i = 0; i < node->prototype.arity - 1; ++i)
+            {
+                (void) LOGGER_log(logger, L_DEBUG, "%*c\b %zu: (%s) %s\n", offset, '-', i,
+                    ast_type_to_string(node->prototype.types[i], logger), node->prototype.args[i]);
+            }
+        }
+        else
+        {
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b %s - %d args\n", offset, '-', node->prototype.name,
+                node->prototype.arity);
+            for (i = 0; i < node->prototype.arity; ++i)
+            {
+                (void) LOGGER_log(logger, L_DEBUG, "%*c\b %zu: (%s) %s\n", offset, '-', i,
+                    ast_type_to_string(node->prototype.types[i], logger), node->prototype.args[i]);
+            }
         }
         (void) LOGGER_log(logger, L_DEBUG, "%*c\b Return Type -> %s\n", offset, '-',
                ast_type_to_string(node->prototype.return_type, logger));

@@ -8,8 +8,13 @@
 const char *keywords[NUMBER_OF_KEYWORDS] = {
     "fn", "return", "if", "else",
     "let", "mut", "extern", "while",
-    "int", "str", "void", "float",
-    "double"
+
+    /* Builtin Types */
+    "int", "char", "string", "void",
+    "float", "double", "any", "bool",
+    "u8", "u16", "u32", "u64",
+    "s8", "s16", "s32", "s64",
+    "f32", "f64"
 };
 
 int lexer_is_keyword(const char *identifier)
@@ -308,6 +313,21 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source, t_logg
                 goto cleanup;
             }
             token->content = identifier;
+            break;
+        }
+        case '.':
+        {
+            if (('.' == source[i + 1]) && ('.' == source[i + 2]))
+            {
+                i += 2;
+                token->type = T_THREE_DOTS;
+                token->content = "...";
+            }
+            else
+            {
+                token->type = T_DOT;
+                token->content = ".";
+            }
             break;
         }
         case EOF:

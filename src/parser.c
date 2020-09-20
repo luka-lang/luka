@@ -78,7 +78,7 @@ t_type parse_type(t_parser *parser)
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
     if (T_COLON != token->type)
     {
-        return TYPE_INT32;
+        return TYPE_SINT32;
     }
 
     EXPECT_ADVANCE(parser, T_COLON, "Expected a `:` before type.");
@@ -89,22 +89,40 @@ t_type parse_type(t_parser *parser)
 
     switch (token->type)
     {
+    case T_ANY_TYPE:
+        return TYPE_ANY;
+    case T_BOOL_TYPE:
+        return TYPE_BOOL;
+    case T_S8_TYPE:
+        return TYPE_SINT8;
+    case T_S16_TYPE:
+        return TYPE_SINT16;
+    case T_S32_TYPE:
     case T_INT_TYPE:
-        return TYPE_INT32;
+        return TYPE_SINT32;
+    case T_S64_TYPE:
+        return TYPE_SINT64;
+    case T_U8_TYPE:
+    case T_CHAR_TYPE:
+        return TYPE_UINT8;
+    case T_U16_TYPE:
+        return TYPE_UINT16;
+    case T_U64_TYPE:
+        return TYPE_UINT64;
+    case T_F32_TYPE:
+    case T_FLOAT_TYPE:
+        return TYPE_F32;
+    case T_F64_TYPE:
+    case T_DOUBLE_TYPE:
+        return TYPE_F64;
     case T_STR_TYPE:
         return TYPE_STRING;
     case T_VOID_TYPE:
         return TYPE_VOID;
-    case T_FLOAT_TYPE:
-        return TYPE_FLOAT;
-    case T_DOUBLE_TYPE:
-        return TYPE_DOUBLE;
-    case T_CHAR_TYPE:
-        return TYPE_INT8;
     default:
-        (void) LOGGER_log(parser->logger, L_ERROR, "Unknown type %d %s. Fallbacking to int32.\n", token->type,
-                          token->content);
-        return TYPE_INT32;
+        (void) LOGGER_log(parser->logger, L_ERROR, "Unknown type %d %s. Fallbacking to s32.\n", token->type,
+                        token->content);
+        return TYPE_SINT32;
     }
 }
 
@@ -290,6 +308,7 @@ t_ast_node *parse_primary(t_parser *parser)
 {
     t_ast_node *n;
     t_token *token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    t_type type = TYPE_SINT32;
 
     switch (token->type)
     {
@@ -299,7 +318,11 @@ t_ast_node *parse_primary(t_parser *parser)
     }
     case T_NUMBER:
     {
-        n = AST_new_number(atoi(token->content));
+        if (NULL != strchr(token->content, '.'))
+        {
+            type = TYPE_F32;
+        }
+        n = AST_new_number(atoi(token->content), type);
         ADVANCE(parser);
         return n;
     }
@@ -453,7 +476,7 @@ t_ast_node *parse_statement(t_parser *parser)
     t_token *token = NULL;
     char *var_name = NULL;
     bool mutable = false;
-    t_type type = TYPE_INT32;
+    t_type type = TYPE_SINT32;
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     switch (token->type)
@@ -570,6 +593,7 @@ t_ast_node *parse_prototype(t_parser *parser)
     t_type *types = NULL, *new_types = NULL, return_type;
     int arity = 0;
     size_t allocated = 6;
+    bool vararg = false;
 
     t_token *token = NULL;
 
@@ -585,7 +609,7 @@ t_ast_node *parse_prototype(t_parser *parser)
         // No args
         ADVANCE(parser);
         return_type = parse_type(parser);
-        return AST_new_prototype(name, NULL, NULL, 0, return_type);
+        return AST_new_prototype(name, NULL, NULL, 0, return_type, vararg);
     }
 
     ADVANCE(parser);
@@ -603,16 +627,33 @@ t_ast_node *parse_prototype(t_parser *parser)
         (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for types.\n");
         goto cleanup;
     }
+
+    if (T_THREE_DOTS == token->type)
+    {
+        types[0] = parse_type(parser);
+        if (TYPE_ANY != types[0])
+        {
+            types[0] = TYPE_ANY;
+        }
+        vararg = true;
+    }
+    else
+    {
+        types[0] = parse_type(parser);
+    }
     args[0] = strdup(token->content);
-    types[0] = parse_type(parser);
     arity = 1;
 
-    while (T_CLOSE_PAREN !=
+    while ((T_CLOSE_PAREN !=
            (token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1))
-               ->type)
+               ->type) && !vararg)
     {
         EXPECT_ADVANCE(parser, T_COMMA, "Expected ',' after arg");
-        EXPECT_ADVANCE(parser, T_IDENTIFIER, "Expected another arg after ','");
+        if (!(EXPECT(parser, T_IDENTIFIER) || EXPECT(parser, T_THREE_DOTS)))
+        {
+            ERR(parser, "Expected another arg after ','");
+        }
+        ADVANCE(parser);
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
         ++arity;
 
@@ -636,9 +677,22 @@ t_ast_node *parse_prototype(t_parser *parser)
             types = new_types;
         }
 
+        if (T_THREE_DOTS == token->type)
+        {
+            types[arity - 1] = parse_type(parser);
+            if (TYPE_ANY != types[arity - 1])
+            {
+                types[arity - 1] = TYPE_ANY;
+            }
+            vararg = true;
+        }
+        else
+        {
+            types[arity - 1] = parse_type(parser);
+        }
         args[arity - 1] = strdup(token->content);
-        types[arity - 1] = parse_type(parser);
     }
+
     EXPECT_ADVANCE(parser, T_CLOSE_PAREN, "Expected a ')'");
 
     return_type = parse_type(parser);
@@ -662,7 +716,7 @@ t_ast_node *parse_prototype(t_parser *parser)
         types = new_types;
     }
 
-    return AST_new_prototype(name, args, types, arity, return_type);
+    return AST_new_prototype(name, args, types, arity, return_type, vararg);
 
 cleanup:
     if (NULL != args)
