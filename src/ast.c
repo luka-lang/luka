@@ -103,6 +103,15 @@ t_ast_node *AST_new_if_expr(t_ast_node *cond, t_vector *then_body, t_vector *els
     return node;
 }
 
+t_ast_node *AST_new_while_expr(t_ast_node *cond, t_vector *body)
+{
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
+    node->type = AST_TYPE_WHILE_EXPR;
+    node->while_expr.cond = cond;
+    node->while_expr.body = body;
+    return node;
+}
+
 t_ast_node *AST_new_variable(char *name, t_type type, bool mutable)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
@@ -260,6 +269,29 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
             (void) vector_destroy(node->if_expr.else_body);
             (void) free(node->if_expr.else_body);
             node->if_expr.else_body = NULL;
+        }
+        break;
+    }
+    case AST_TYPE_WHILE_EXPR:
+    {
+        if (NULL != node->while_expr.cond)
+        {
+            (void) AST_free_node(node->while_expr.cond, logger);
+        }
+
+        if (node->while_expr.body)
+        {
+            t_ast_node *stmt = NULL;
+            VECTOR_FOR_EACH(node->while_expr.body, stmts)
+            {
+                stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
+                (void) AST_free_node(stmt, logger);
+            }
+
+            (void) vector_clear(node->while_expr.body);
+            (void) vector_destroy(node->while_expr.body);
+            (void) free(node->while_expr.body);
+            node->while_expr.body = NULL;
         }
         break;
     }
@@ -461,6 +493,21 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
         {
             (void) LOGGER_log(logger, L_DEBUG, "%*c\b Else Body\n", offset + 2, ' ');
             (void) ast_print_statements_block(node->if_expr.else_body, offset + 4, logger);
+        }
+        break;
+    }
+    case AST_TYPE_WHILE_EXPR:
+    {
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b While Expression\n", offset, ' ');
+        if (NULL != node->while_expr.cond)
+        {
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Condition\n", offset + 2, ' ');
+            (void) AST_print_ast(node->while_expr.cond, offset + 4, logger);
+        }
+        if (NULL != node->while_expr.body)
+        {
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Body\n", offset + 2, ' ');
+            (void) ast_print_statements_block(node->while_expr.body, offset + 4, logger);
         }
         break;
     }

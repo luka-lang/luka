@@ -21,7 +21,7 @@ typedef enum
     LUKA_CODEGEN_ERROR,
 } t_return_code;
 
-#define NUMBER_OF_KEYWORDS 12
+#define NUMBER_OF_KEYWORDS 13
 extern const char *keywords[NUMBER_OF_KEYWORDS];
 
 typedef enum
@@ -34,6 +34,7 @@ typedef enum
     T_LET,
     T_MUT,
     T_EXTERN,
+    T_WHILE,
 
     T_INT_TYPE,
     T_CHAR_TYPE,
@@ -90,6 +91,7 @@ typedef enum
     AST_TYPE_FUNCTION,
     AST_TYPE_RETURN_STMT,
     AST_TYPE_IF_EXPR,
+    AST_TYPE_WHILE_EXPR,
     AST_TYPE_VARIABLE,
     AST_TYPE_LET_STMT,
     AST_TYPE_ASSIGNMENT_STMT,
@@ -175,6 +177,12 @@ typedef struct
 
 typedef struct
 {
+    t_ast_node *cond;
+    t_vector *body;
+} t_ast_while_expr;
+
+typedef struct
+{
     t_ast_node *var;
     t_ast_node *expr;
 } t_ast_let_stmt;
@@ -215,6 +223,7 @@ typedef struct s_ast_node
         t_ast_function function;
         t_ast_return_stmt return_stmt;
         t_ast_if_expr if_expr;
+        t_ast_while_expr while_expr;
         t_ast_variable variable;
         t_ast_let_stmt let_stmt;
         t_ast_assignment_stmt assignment_stmt;

@@ -5,9 +5,12 @@
 
 #include "lexer.h"
 
-const char *keywords[NUMBER_OF_KEYWORDS] = {"fn", "return", "if", "else",
-                                            "let", "mut", "extern", "int",
-                                            "str", "void", "float", "double"};
+const char *keywords[NUMBER_OF_KEYWORDS] = {
+    "fn", "return", "if", "else",
+    "let", "mut", "extern", "while",
+    "int", "str", "void", "float",
+    "double"
+};
 
 int lexer_is_keyword(const char *identifier)
 {

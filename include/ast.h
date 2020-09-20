@@ -21,6 +21,7 @@ t_ast_node *AST_new_let_stmt(t_ast_node *var, t_ast_node *expr);
 t_ast_node *AST_new_assignment_stmt(char *var_name, t_ast_node *expr);
 
 t_ast_node *AST_new_if_expr(t_ast_node *cond, t_vector *then_body, t_vector *else_body);
+t_ast_node *AST_new_while_expr(t_ast_node *cond, t_vector *body);
 
 t_ast_node *AST_new_variable(char *name, t_type type, bool mutable);
 

@@ -392,7 +392,7 @@ t_ast_node *PARSER_parse_binexpr(t_parser *parser, int ptp)
 t_ast_node *parse_expression(t_parser *parser)
 {
     t_ast_node *node = NULL, *expr = NULL, *cond = false;
-    t_vector *then_body = NULL, *else_body = NULL;
+    t_vector *then_body = NULL, *else_body = NULL, *body = NULL;
     t_token *token = NULL;
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
@@ -419,6 +419,16 @@ t_ast_node *parse_expression(t_parser *parser)
         node = AST_new_if_expr(cond, then_body, else_body);
         return node;
     };
+    case T_WHILE:
+    {
+        ADVANCE(parser);
+        cond = parse_expression(parser);
+        --parser->index;
+        body = parse_statements(parser);
+        ADVANCE(parser);
+        node = AST_new_while_expr(cond, body);
+        return node;
+    }
     default:
     {
         return PARSER_parse_binexpr(parser, 0);

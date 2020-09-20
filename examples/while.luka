@@ -1,0 +1,12 @@
+extern putchar(ch: int);
+
+fn main() {
+    let mut num = 20;
+    while num < 127 {
+        putchar(num);
+        num = num + 1;
+    };
+
+    putchar(10);
+    return 0;
+}
