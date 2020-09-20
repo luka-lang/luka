@@ -41,10 +41,22 @@ LLVMValueRef gen_create_entry_block_allca(LLVMValueRef function,
                                           LLVMTypeRef type,
                                           const char *var_name)
 {
-    LLVMBuilderRef builder = LLVMCreateBuilder();
-    LLVMPositionBuilderAtEnd(builder, LLVMGetEntryBasicBlock(function));
-    LLVMBuildAlloca(builder, type, var_name);
+    LLVMBuilderRef builder = NULL;
+    LLVMValueRef alloca_inst = NULL;
+    LLVMBasicBlockRef entry_block = NULL;
+    LLVMValueRef inst = NULL;
+    builder = LLVMCreateBuilder();
+    entry_block = LLVMGetEntryBasicBlock(function);
+    inst = LLVMGetFirstInstruction(entry_block);
+    LLVMPositionBuilderAtEnd(builder, entry_block);
+    if (inst != NULL) {
+        LLVMPositionBuilderBefore(builder, inst);
+    } else {
+        LLVMPositionBuilderAtEnd(builder, entry_block);
+    }
+    alloca_inst = LLVMBuildAlloca(builder, type, var_name);
     LLVMDisposeBuilder(builder);
+    return alloca_inst;
 }
 
 LLVMValueRef gen_codegen_binexpr(t_ast_node *n,
@@ -136,7 +148,7 @@ LLVMValueRef gen_codegen_prototype(t_ast_node *n,
 
         t_named_value *val = malloc(sizeof(t_named_value));
         val->name = strdup(n->prototype.args[i]);
-        val->value = param;
+        val->alloca_inst = NULL;
         val->type = params[i];
         HASH_ADD_KEYPTR(hh, named_values, val->name, strlen(val->name), val);
     }
@@ -188,9 +200,12 @@ LLVMValueRef gen_codegen_function(t_ast_node *n,
 {
     LLVMValueRef func = NULL, tmp = NULL, ret_val = NULL;
     LLVMBasicBlockRef block = NULL;
-    t_ast_node *stmt = NULL;
+    t_ast_node *stmt = NULL, *proto = NULL;
     bool has_return_stmt = false;
     t_type return_type;
+    size_t i = 0, arity = 0;
+    t_named_value *val = NULL;
+    char **args = NULL;
 
     func = GEN_codegen(n->function.prototype, module, builder, logger);
     if (NULL == func)
@@ -205,8 +220,27 @@ LLVMValueRef gen_codegen_function(t_ast_node *n,
         return func;
     }
 
+    proto = n->function.prototype;
+    arity = proto->prototype.arity;
+    args = proto->prototype.args;
+
     block = LLVMAppendBasicBlock(func, "entry");
     (void) LLVMPositionBuilderAtEnd(builder, block);
+
+    for (i = 0; i < arity; ++i)
+    {
+        HASH_FIND_STR(named_values, args[i], val);
+        if (NULL != val)
+        {
+            val->alloca_inst = gen_create_entry_block_allca(func, val->type, val->name);
+        }
+        else
+        {
+            (void) LOGGER_log(logger, L_ERROR, "There is not named value with name %s\n");
+            (void) exit(LUKA_CODEGEN_ERROR);
+        }
+
+    }
 
     ret_val = gen_codegen_stmts(n->function.body, module, builder, &has_return_stmt, logger);
     return_type = n->function.prototype->prototype.return_type;
@@ -394,7 +428,7 @@ LLVMValueRef gen_codegen_variable(t_ast_node *node,
 
     if (NULL != val)
     {
-        return val->value;
+        return LLVMBuildLoad2(builder, val->type, val->alloca_inst, val->name);
     }
 
     (void) LOGGER_log(logger, L_ERROR, "Variable %s is undefined.\n", node->variable.name);
@@ -420,8 +454,9 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node,
 
     val = malloc(sizeof(t_named_value));
     val->name = strdup(variable.name);
-    val->value = expr;
     val->type = gen_type_to_llvm_type(variable.type, logger);
+    val->alloca_inst = gen_create_entry_block_allca(LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder)), val->type, val->name);
+    LLVMBuildStore(builder, expr, val->alloca_inst);
     val->mutable = variable.mutable;
     HASH_ADD_KEYPTR(hh, named_values, val->name, strlen(val->name), val);
 
@@ -458,7 +493,7 @@ LLVMValueRef gen_codegen_assignment_stmt(t_ast_node *node,
         (void) exit(LUKA_CODEGEN_ERROR);
     }
 
-    val->value = expr;
+    LLVMBuildStore(builder, expr, val->alloca_inst);
     return expr;
 }
 

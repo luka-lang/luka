@@ -11,7 +11,7 @@
 typedef struct
 {
     const char *name;
-    LLVMValueRef value;
+    LLVMValueRef alloca_inst;
     LLVMTypeRef type;
     bool mutable;
     UT_hash_handle hh;
