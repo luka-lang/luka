@@ -343,6 +343,46 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n,
     return phi;
 }
 
+LLVMValueRef gen_codegen_while_expr(t_ast_node *n,
+                                 LLVMModuleRef module,
+                                 LLVMBuilderRef builder,
+                                 t_logger *logger)
+{
+    LLVMValueRef func = NULL, cond = NULL, body_value = NULL;
+    LLVMBasicBlockRef cond_block = NULL, body_block = NULL, end_block = NULL;
+
+    func = LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder));
+
+    cond_block = LLVMAppendBasicBlock(func, "while_cond");
+    body_block = LLVMAppendBasicBlock(func, "while_body");
+    end_block = LLVMAppendBasicBlock(func, "while_end");
+
+    (void) LLVMBuildBr(builder, cond_block);
+    (void) LLVMPositionBuilderAtEnd(builder, cond_block);
+
+    cond = GEN_codegen(n->while_expr.cond, module, builder, logger);
+    if (NULL == cond)
+    {
+        (void) LOGGER_log(logger, L_ERROR, "Condition generation failed in while expr\n");
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
+
+    (void) LLVMBuildCondBr(builder, cond, body_block, end_block);
+    (void) LLVMPositionBuilderAtEnd(builder, body_block);
+
+    body_value = gen_codegen_stmts(n->while_expr.body, module, builder, NULL, logger);
+    cond = GEN_codegen(n->while_expr.cond, module, builder, logger);
+    if (NULL == cond)
+    {
+        (void) LOGGER_log(logger, L_ERROR, "Condition generation failed in while expr\n");
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
+    (void) LLVMBuildCondBr(builder, cond, body_block, end_block);
+    (void) LLVMPositionBuilderAtEnd(builder, end_block);
+
+    return body_value;
+}
+
 LLVMValueRef gen_codegen_variable(t_ast_node *node,
                                   LLVMModuleRef module,
                                   LLVMBuilderRef builder,
@@ -512,6 +552,8 @@ LLVMValueRef GEN_codegen(t_ast_node *node,
         return gen_codegen_return_stmt(node, module, builder, logger);
     case AST_TYPE_IF_EXPR:
         return gen_codegen_if_expr(node, module, builder, logger);
+    case AST_TYPE_WHILE_EXPR:
+        return gen_codegen_while_expr(node, module, builder, logger);
     case AST_TYPE_VARIABLE:
         return gen_codegen_variable(node, module, builder, logger);
     case AST_TYPE_LET_STMT:
