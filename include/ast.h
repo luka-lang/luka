@@ -6,7 +6,7 @@
 
 #include <stdlib.h>
 
-t_ast_node *AST_new_number(long long value);
+t_ast_node *AST_new_number(t_type type, void *value);
 t_ast_node *AST_new_string(char *content);
 
 t_ast_node *AST_new_binary_expr(t_ast_binop_type operator, t_ast_node * lhs,

@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "type.h"
+
 t_named_value *named_values = NULL;
 
 LLVMTypeRef gen_type_to_llvm_type(t_type type, t_logger *logger)
@@ -571,8 +573,14 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node,
 
     val = malloc(sizeof(t_named_value));
     val->name = strdup(variable.name);
+    val->ttype = variable.type;
     val->type = gen_type_to_llvm_type(variable.type, logger);
     val->alloca_inst = gen_create_entry_block_allca(LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder)), val->type, val->name);
+    printf("Expr Type: ");
+    LLVMDumpType(LLVMTypeOf(expr));
+    printf("\nVal Type: ");
+    LLVMDumpType(val->type);
+    puts("");
     if (LLVMTypeOf(expr) != val->type)
     {
         expr = gen_codegen_cast(builder, expr, val->type, val->ttype);
@@ -708,6 +716,37 @@ LLVMValueRef gen_codegen_expression_stmt(t_ast_node *n,
     return NULL;
 }
 
+LLVMValueRef gen_codegen_number(t_ast_node *node, t_logger *logger)
+{
+    LLVMTypeRef type = gen_type_to_llvm_type(node->number.type, logger);
+    switch (node->number.type)
+    {
+        case TYPE_F32:
+            return LLVMConstReal(type, node->number.value.f32);
+        case TYPE_F64:
+            return LLVMConstReal(type, node->number.value.f64);
+        case TYPE_SINT8:
+            return LLVMConstInt(type, node->number.value.s8, true);
+        case TYPE_SINT16:
+            return LLVMConstInt(type, node->number.value.s16, true);
+        case TYPE_SINT32:
+            return LLVMConstInt(type, node->number.value.s32, true);
+        case TYPE_SINT64:
+            return LLVMConstInt(type, node->number.value.s64, true);
+        case TYPE_UINT8:
+            return LLVMConstInt(type, node->number.value.u8, false);
+        case TYPE_UINT16:
+            return LLVMConstInt(type, node->number.value.u16, false);
+        case TYPE_UINT32:
+            return LLVMConstInt(type, node->number.value.u32, false);
+        case TYPE_UINT64:
+            return LLVMConstInt(type, node->number.value.u64, false);
+        default:
+            (void) fprintf(stderr, "%d is not a number type.\n", type);
+            (void) exit(LUKA_GENERAL_ERROR);
+    }
+}
+
 LLVMValueRef GEN_codegen(t_ast_node *node,
                          LLVMModuleRef module,
                          LLVMBuilderRef builder,
@@ -716,7 +755,7 @@ LLVMValueRef GEN_codegen(t_ast_node *node,
     switch (node->type)
     {
     case AST_TYPE_NUMBER:
-        return LLVMConstInt(LLVMInt32Type(), node->number.value, 0);
+        return gen_codegen_number(node, logger);
     case AST_TYPE_STRING:
         return LLVMBuildGlobalStringPtr(builder, node->string.value, "str");
     case AST_TYPE_BINARY_EXPR:

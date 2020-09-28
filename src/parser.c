@@ -1,6 +1,7 @@
 #include "parser.h"
 #include "ast.h"
 #include "expr.h"
+#include "type.h"
 
 #include <string.h>
 
@@ -308,7 +309,11 @@ t_ast_node *parse_primary(t_parser *parser)
 {
     t_ast_node *n;
     t_token *token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-    t_type type = TYPE_SINT32;
+    t_type type = TYPE_UINT64;
+    uint64_t u64;
+    double f64;
+    float f32;
+
 
     switch (token->type)
     {
@@ -318,11 +323,26 @@ t_ast_node *parse_primary(t_parser *parser)
     }
     case T_NUMBER:
     {
-        if (NULL != strchr(token->content, '.'))
+        if (TYPE_is_floating_point(token->content))
         {
-            type = TYPE_F32;
+            if ('f' == token->content[strlen(token->content) - 1])
+            {
+                type = TYPE_F32;
+                f32 = strtof(token->content, NULL);
+                n = AST_new_number(type, &f32);
+            }
+            else
+            {
+                type = TYPE_F64;
+                f64 = strtod(token->content, NULL);
+                n = AST_new_number(type, &f64);
+            }
         }
-        n = AST_new_number(atoi(token->content), type);
+        else
+        {
+            u64 = strtoll(token->content, NULL, 10);
+            n = AST_new_number(type, &u64);
+        }
         ADVANCE(parser);
         return n;
     }

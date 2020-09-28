@@ -2,6 +2,7 @@
 #define __DEFS_H__
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "vector.h"
 
@@ -150,7 +151,19 @@ typedef struct s_ast_node t_ast_node;
 
 typedef struct
 {
-    long long value;
+    t_type type;
+    union {
+        int8_t s8;
+        uint8_t u8;
+        int16_t s16;
+        uint16_t u16;
+        int32_t s32;
+        uint32_t u32;
+        int64_t s64;
+        uint64_t u64;
+        float f32;
+        double f64;
+    } value;
 } t_ast_number;
 
 typedef struct
