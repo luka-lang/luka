@@ -4,7 +4,26 @@
 
 // PLUS MINUS MULT DIV INTLIT EQUALS BANG OPEN_ANG CLOSE_ANG EQEQ NEQ LEQ GEQ
 // EOF
-int g_operator_precedence[] = {12, 12, 13, 13, 0, 2, 15, 9, 9, 8, 8, 9, 9, 0};
+int g_operator_precedence[] = {
+    12, /* PLUS */
+    12, /* MINUS */
+    13, /* MULT */
+    13, /* DIV */
+    0, /*  INTLIT */
+    2, /*  EQUALS */
+    14, /* BANG */
+    9, /*  OPEN_ANG */
+    9, /*  CLOSE_ANG */
+    8, /*  EQEQ */
+    8, /*  NEQ */
+    9, /*  LEQ */
+    9, /*  GEQ */
+    14, /* AMPERCENT */
+    0, /*  COLON */
+    0, /*  DOT */
+    0, /*  THREE_DOTS */
+    0 /*   EOF */
+};
 
 int EXPR_get_op_precedence(t_token *token, t_logger *logger)
 {

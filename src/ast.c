@@ -5,9 +5,9 @@
 
 #include "type.h"
 
-const char *ast_type_to_string(t_type type, t_logger *logger)
+const char *ast_type_to_string(t_type *type, t_logger *logger)
 {
-    switch (type)
+    switch (type->type)
     {
     case TYPE_ANY:
         return "any";
@@ -37,6 +37,8 @@ const char *ast_type_to_string(t_type type, t_logger *logger)
         return "str";
     case TYPE_VOID:
         return "void";
+    case TYPE_PTR:
+        return "ptr";
     default:
         (void) LOGGER_log(logger, L_ERROR, "I don't know how to translate type %d to LLVM types.\n",
                 type);
@@ -44,12 +46,13 @@ const char *ast_type_to_string(t_type type, t_logger *logger)
     }
 }
 
-t_ast_node *AST_new_number(t_type type, void *value)
+t_ast_node *AST_new_number(t_type *type, void *value)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_NUMBER;
-    node->number.type = type;
-    switch (type)
+    node->number.type.type = type->type;
+    node->number.type.inner_type = NULL;
+    switch (type->type)
     {
         case TYPE_F32:
             node->number.value.f32 = *(float *)value;
@@ -82,7 +85,7 @@ t_ast_node *AST_new_number(t_type type, void *value)
             node->number.value.u64 = *(uint64_t *)value;
             break;
         default:
-            (void) fprintf(stderr, "%d is not a number type.\n", type);
+            (void) fprintf(stderr, "%d is not a number type.\n", type->type);
             (void) exit(LUKA_GENERAL_ERROR);
     }
     return node;
@@ -97,6 +100,15 @@ t_ast_node *AST_new_string(char *value)
     return node;
 }
 
+t_ast_node *AST_new_unary_expr(t_ast_unop_type operator, t_ast_node *rhs)
+{
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
+    node->type = AST_TYPE_UNARY_EXPR;
+    node->unary_expr.operator= operator;
+    node->unary_expr.rhs = rhs;
+    return node;
+}
+
 t_ast_node *AST_new_binary_expr(t_ast_binop_type operator, t_ast_node * lhs,
                                 t_ast_node * rhs)
 {
@@ -108,8 +120,8 @@ t_ast_node *AST_new_binary_expr(t_ast_binop_type operator, t_ast_node * lhs,
     return node;
 }
 
-t_ast_node *AST_new_prototype(char *name, char **args, t_type *types, int arity,
-                              t_type return_type, bool vararg)
+t_ast_node *AST_new_prototype(char *name, char **args, t_type **types, int arity,
+                              t_type *return_type, bool vararg)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_PROTOTYPE;
@@ -159,7 +171,7 @@ t_ast_node *AST_new_while_expr(t_ast_node *cond, t_vector *body)
     return node;
 }
 
-t_ast_node *AST_new_variable(char *name, t_type type, bool mutable)
+t_ast_node *AST_new_variable(char *name, t_type *type, bool mutable)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_VARIABLE;
@@ -215,6 +227,12 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
     case AST_TYPE_STRING:
     case AST_TYPE_VARIABLE:
         break;
+    case AST_TYPE_UNARY_EXPR:
+    {
+        if (NULL != node->unary_expr.rhs)
+            (void) AST_free_node(node->unary_expr.rhs, logger);
+        break;
+    }
     case AST_TYPE_BINARY_EXPR:
     {
         if (NULL != node->binary_expr.lhs)
@@ -234,7 +252,7 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
 
         if (NULL != node->prototype.args)
         {
-            for (int i = 0; i < node->prototype.arity; ++i)
+            for (size_t i = 0; i < node->prototype.arity; ++i)
             {
                 if (NULL != node->prototype.args[i])
                 {
@@ -423,7 +441,27 @@ void AST_print_functions(t_vector *functions, int offset, t_logger *logger)
     }
 }
 
-char *op_to_str(t_ast_binop_type op, t_logger *logger)
+char *unop_to_str(t_ast_unop_type op, t_logger *logger)
+{
+    switch (op)
+    {
+    case UNOP_NOT:
+        return "!";
+    case UNOP_MINUS:
+        return "-";
+    case UNOP_PLUS:
+        return "+";
+    case UNOP_DEREF:
+        return "*";
+    case UNOP_REF:
+        return "&";
+    default:
+        (void) LOGGER_log(logger, L_ERROR, "Unknown unary operator: %d\n", op);
+        (void) exit(1);
+    }
+}
+
+char *binop_to_str(t_ast_binop_type op, t_logger *logger)
 {
     switch (op)
     {
@@ -435,8 +473,6 @@ char *op_to_str(t_ast_binop_type op, t_logger *logger)
         return "*";
     case BINOP_DIVIDE:
         return "/";
-    case BINOP_NOT:
-        return "!";
     case BINOP_LESSER:
         return "<";
     case BINOP_GREATER:
@@ -450,7 +486,7 @@ char *op_to_str(t_ast_binop_type op, t_logger *logger)
     case BINOP_GEQ:
         return ">=";
     default:
-        (void) LOGGER_log(logger, L_ERROR, "Unknown operator: %d\n", op);
+        (void) LOGGER_log(logger, L_ERROR, "Unknown binary operator: %d\n", op);
         (void) exit(1);
     }
 }
@@ -470,7 +506,7 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
     switch (node->type)
     {
     case AST_TYPE_NUMBER:
-        if (TYPE_is_floating_type(node->number.type))
+        if (TYPE_is_floating_type(&node->number.type))
         {
             (void) LOGGER_log(logger, L_DEBUG, "%*c\b AST number %lf\n", offset, ' ', node->number.value.f64);
         }
@@ -482,11 +518,20 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
     case AST_TYPE_STRING:
         (void) LOGGER_log(logger, L_DEBUG, "%*c\b AST string \"%s\"\n", offset, ' ', node->string.value);
         break;
+    case AST_TYPE_UNARY_EXPR:
+    {
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Unary Expression\n", offset, ' ');
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Operator: %s\n", offset + 2, ' ',
+                          unop_to_str(node->unary_expr.operator, logger));
+        if (NULL != node->unary_expr.rhs)
+            (void) AST_print_ast(node->unary_expr.rhs, offset + 4, logger);
+        break;
+    }
     case AST_TYPE_BINARY_EXPR:
     {
         (void) LOGGER_log(logger, L_DEBUG, "%*c\b Binary Expression\n", offset, ' ');
         (void) LOGGER_log(logger, L_DEBUG, "%*c\b Operator: %s\n", offset + 2, ' ',
-                          op_to_str(node->binary_expr.operator, logger));
+                          binop_to_str(node->binary_expr.operator, logger));
         if (NULL != node->binary_expr.lhs)
             (void) AST_print_ast(node->binary_expr.lhs, offset + 4, logger);
         if (NULL != node->binary_expr.rhs)

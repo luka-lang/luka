@@ -7,9 +7,9 @@
 
 t_named_value *named_values = NULL;
 
-LLVMTypeRef gen_type_to_llvm_type(t_type type, t_logger *logger)
+LLVMTypeRef gen_type_to_llvm_type(t_type *type, t_logger *logger)
 {
-    switch (type)
+    switch (type->type)
     {
     case TYPE_ANY:
         return LLVMPointerType(LLVMVoidType(), 0);
@@ -39,6 +39,8 @@ LLVMTypeRef gen_type_to_llvm_type(t_type type, t_logger *logger)
         return LLVMPointerType(LLVMInt8Type(), 0);
     case TYPE_VOID:
         return LLVMVoidType();
+    case TYPE_PTR:
+        return LLVMPointerType(gen_type_to_llvm_type(type->inner_type, logger), 0);
     default:
         (void) LOGGER_log(logger, L_ERROR, "I don't know how to translate type %d to LLVM types.\n",
                           type);
@@ -46,67 +48,80 @@ LLVMTypeRef gen_type_to_llvm_type(t_type type, t_logger *logger)
     }
 }
 
-t_type gen_llvm_type_to_ttype(LLVMTypeRef type, t_logger *logger)
+t_type *gen_llvm_type_to_ttype(LLVMTypeRef type, t_logger *logger)
 {
+    t_type *ttype = calloc(1, sizeof(t_type));
+    if (NULL == type)
+    {
+        (void) exit(LUKA_CANT_ALLOC_MEMORY);
+    }
+
+    ttype->inner_type = NULL;
     if (type == LLVMPointerType(LLVMVoidType(), 0))
     {
-        return TYPE_ANY;
+        ttype->type = TYPE_ANY;
     }
     else if (type == LLVMInt1Type())
     {
-        return TYPE_BOOL;
+        ttype->type = TYPE_BOOL;
     }
     else if (type == LLVMInt8Type())
     {
-        return TYPE_SINT8;
+        ttype->type = TYPE_SINT8;
     }
     else if (type == LLVMInt16Type())
     {
-        return TYPE_SINT16;
+        ttype->type = TYPE_SINT16;
     }
     else if (type == LLVMInt32Type())
     {
-        return TYPE_SINT32;
+        ttype->type = TYPE_SINT32;
     }
     else if (type == LLVMInt64Type())
     {
-        return TYPE_SINT64;
+        ttype->type = TYPE_SINT64;
     }
     else if (type == LLVMInt8Type())
     {
-        return TYPE_UINT8;
+        ttype->type = TYPE_UINT8;
     }
     else if (type == LLVMInt16Type())
     {
-        return TYPE_UINT16;
+        ttype->type = TYPE_UINT16;
     }
     else if (type == LLVMInt32Type())
     {
-        return TYPE_UINT32;
+        ttype->type = TYPE_UINT32;
     }
     else if (type == LLVMInt64Type())
     {
-        return TYPE_UINT64;
+        ttype->type = TYPE_UINT64;
     }
     else if (type == LLVMFloatType())
     {
-        return TYPE_F32;
+        ttype->type = TYPE_F32;
     }
     else if (type == LLVMDoubleType())
     {
-        return TYPE_F64;
+        ttype->type = TYPE_F64;
     }
     else if (type == LLVMPointerType(LLVMInt8Type(), 0))
     {
-        return TYPE_STRING;
+        ttype->type = TYPE_STRING;
     }
     else if (type == LLVMVoidType())
     {
-        return TYPE_VOID;
+        ttype->type = TYPE_VOID;
     }
-    (void) LOGGER_log(logger, L_ERROR, "I don't know how to translate LLVM type %d to t_type.\n",
-                        type);
-    (void) exit(LUKA_CODEGEN_ERROR);
+    else
+    {
+        (void) LLVMDumpType(type);
+        (void) LOGGER_log(logger, L_ERROR, "I don't know how to translate LLVM type %d to t_type.\n",
+                            type);
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
+
+    return ttype;
 }
 
 LLVMValueRef gen_create_entry_block_allca(LLVMValueRef function,
@@ -131,9 +146,9 @@ LLVMValueRef gen_create_entry_block_allca(LLVMValueRef function,
     return alloca_inst;
 }
 
-bool ttype_is_signed(t_type type)
+bool ttype_is_signed(t_type *type)
 {
-    switch (type)
+    switch (type->type)
     {
     case TYPE_SINT8:
     case TYPE_SINT16:
@@ -148,7 +163,7 @@ bool ttype_is_signed(t_type type)
 LLVMValueRef gen_codegen_cast(LLVMBuilderRef builder,
                               LLVMValueRef original_value,
                               LLVMTypeRef dest_type,
-                              t_type dest_ttype)
+                              t_type *dest_ttype)
 {
     bool is_signed = ttype_is_signed(dest_ttype);
 
@@ -178,8 +193,8 @@ bool gen_is_cond_op(t_ast_binop_type op) {
 }
 
 bool gen_llvm_cast_to_fp_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBuilderRef builder, t_logger *logger) {
-    t_type lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*lhs), logger);
-    t_type rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*rhs), logger);
+    t_type *lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*lhs), logger);
+    t_type *rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*rhs), logger);
 
     if (TYPE_is_floating_type(lhs_t) || TYPE_is_floating_type(rhs_t)) {
         if (TYPE_is_floating_type(lhs_t) && !TYPE_is_floating_type(rhs_t)) {
@@ -203,8 +218,8 @@ bool gen_llvm_cast_to_fp_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBui
 }
 
 bool gen_llvm_cast_to_signed_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBuilderRef builder, t_logger *logger) {
-    t_type lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*lhs), logger);
-    t_type rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*rhs), logger);
+    t_type *lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*lhs), logger);
+    t_type *rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*rhs), logger);
 
     if (ttype_is_signed(lhs_t) || ttype_is_signed(rhs_t)) {
         if (ttype_is_signed(lhs_t) && !ttype_is_signed(rhs_t)) {
@@ -220,8 +235,6 @@ bool gen_llvm_cast_to_signed_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLV
 }
 
 LLVMOpcode gen_get_llvm_opcode(t_ast_binop_type op, LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBuilderRef builder, t_logger *logger) {
-    t_type lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*lhs), logger);
-    t_type rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*rhs), logger);
     switch (op)
     {
     case BINOP_ADD:
@@ -261,8 +274,8 @@ LLVMOpcode gen_get_llvm_opcode(t_ast_binop_type op, LLVMValueRef *lhs, LLVMValue
 }
 
 bool gen_is_icmp(LLVMValueRef lhs, LLVMValueRef rhs, t_logger *logger) {
-    t_type lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(lhs), logger);
-    t_type rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(rhs), logger);
+    t_type *lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(lhs), logger);
+    t_type *rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(rhs), logger);
     return !TYPE_is_floating_type(lhs_t) && !TYPE_is_floating_type(rhs_t);
 }
 
@@ -327,6 +340,70 @@ LLVMRealPredicate gen_llvm_get_real_predicate(t_ast_binop_type op, LLVMValueRef 
     }
 }
 
+LLVMValueRef gen_get_address(t_ast_node *node, t_logger *logger)
+{
+    switch (node->type)
+    {
+        case AST_TYPE_VARIABLE:
+        {
+            t_named_value *val = NULL;
+
+            HASH_FIND_STR(named_values, node->variable.name, val);
+
+            if (NULL != val)
+            {
+                return val->alloca_inst;
+            }
+
+            (void) LOGGER_log(logger, L_ERROR, "Variable %s is undefined.\n", node->variable.name);
+            (void) exit(LUKA_CODEGEN_ERROR);
+        }
+        default:
+        {
+            (void) LOGGER_log(logger, L_ERROR, "Can't get address of %d.\n", node->type);
+            (void) exit(LUKA_CODEGEN_ERROR);
+        }
+    }
+}
+LLVMValueRef gen_codegen_unexpr(t_ast_node *n,
+                                LLVMModuleRef module,
+                                LLVMBuilderRef builder,
+                                t_logger *logger)
+{
+    LLVMValueRef rhs = NULL;
+    if (NULL != n->unary_expr.rhs)
+    {
+        rhs = GEN_codegen(n->unary_expr.rhs, module, builder, logger);
+    }
+
+    if (NULL == rhs)
+    {
+        (void) LOGGER_log(logger, L_ERROR, "Couldn't codegen rhs for unary expression.\n");
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
+
+    switch (n->unary_expr.operator)
+    {
+        case UNOP_NOT:
+        {
+            return LLVMBuildNot(builder, rhs, "nottmp");
+        }
+        case UNOP_REF:
+        {
+            return gen_get_address(n->unary_expr.rhs, logger);
+        }
+        case UNOP_DEREF:
+        {
+            return LLVMBuildLoad(builder, rhs, "loadtmp");
+        }
+        default:
+        {
+            (void) LOGGER_log(logger, L_ERROR, "Currently not supporting %d operator in unary expression.\n", n->unary_expr.operator);
+            (void) exit(LUKA_CODEGEN_ERROR);
+        }
+
+    }
+}
 
 LLVMValueRef gen_codegen_binexpr(t_ast_node *n,
                                  LLVMModuleRef module,
@@ -341,15 +418,6 @@ LLVMValueRef gen_codegen_binexpr(t_ast_node *n,
     if (NULL != n->binary_expr.lhs)
     {
         lhs = GEN_codegen(n->binary_expr.lhs, module, builder, logger);
-    }
-
-    if (n->binary_expr.operator == BINOP_NOT) {
-        if (NULL != lhs) {
-            return LLVMBuildNot(builder, lhs, "nottmp");
-        }
-
-        (void) LOGGER_log(logger, L_ERROR, "Couldn't codegen lhs for not expression.\n");
-        (void) exit(LUKA_CODEGEN_ERROR);
     }
 
     if (NULL != n->binary_expr.rhs)
@@ -465,11 +533,11 @@ LLVMValueRef gen_codegen_function(t_ast_node *n,
                                   LLVMBuilderRef builder,
                                   t_logger *logger)
 {
-    LLVMValueRef func = NULL, tmp = NULL, ret_val = NULL;
+    LLVMValueRef func = NULL, ret_val = NULL;
     LLVMBasicBlockRef block = NULL;
-    t_ast_node *stmt = NULL, *proto = NULL;
+    t_ast_node *proto = NULL;
     bool has_return_stmt = false;
-    t_type return_type;
+    t_type *return_type;
     size_t i = 0, arity = 0;
     t_named_value *val = NULL;
     char **args = NULL;
@@ -515,7 +583,7 @@ LLVMValueRef gen_codegen_function(t_ast_node *n,
 
     if (false == has_return_stmt)
     {
-        switch (return_type)
+        switch (return_type->type)
         {
         case TYPE_VOID:
             ret_val = NULL;
@@ -871,8 +939,8 @@ LLVMValueRef gen_codegen_expression_stmt(t_ast_node *n,
 
 LLVMValueRef gen_codegen_number(t_ast_node *node, t_logger *logger)
 {
-    LLVMTypeRef type = gen_type_to_llvm_type(node->number.type, logger);
-    switch (node->number.type)
+    LLVMTypeRef type = gen_type_to_llvm_type(&node->number.type, logger);
+    switch (node->number.type.type)
     {
         case TYPE_F32:
             return LLVMConstReal(type, node->number.value.f32);
@@ -895,7 +963,7 @@ LLVMValueRef gen_codegen_number(t_ast_node *node, t_logger *logger)
         case TYPE_UINT64:
             return LLVMConstInt(type, node->number.value.u64, false);
         default:
-            (void) fprintf(stderr, "%d is not a number type.\n", type);
+            (void) fprintf(stderr, "%d is not a number type.\n", node->number.type.type);
             (void) exit(LUKA_GENERAL_ERROR);
     }
 }
@@ -911,6 +979,8 @@ LLVMValueRef GEN_codegen(t_ast_node *node,
         return gen_codegen_number(node, logger);
     case AST_TYPE_STRING:
         return LLVMBuildGlobalStringPtr(builder, node->string.value, "str");
+    case AST_TYPE_UNARY_EXPR:
+        return gen_codegen_unexpr(node, module, builder, logger);
     case AST_TYPE_BINARY_EXPR:
         return gen_codegen_binexpr(node, module, builder, logger);
     case AST_TYPE_PROTOTYPE:

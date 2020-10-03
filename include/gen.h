@@ -13,7 +13,7 @@ typedef struct
     const char *name;
     LLVMValueRef alloca_inst;
     LLVMTypeRef type;
-    t_type ttype;
+    t_type *ttype;
     bool mutable;
     UT_hash_handle hh;
 } t_named_value;
