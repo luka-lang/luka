@@ -1,15 +1,29 @@
-fn add(a: int, b: int): int {
+extern printf(format: string, ...: any): s32;
+
+fn add(a: s32, b: s32): s32 {
     return a + b;
 }
 
-fn sub(a: int, b: int): int {
+fn sub(a: s32, b: s32): s32 {
     return a - b;
 }
 
-fn mul(a: int, b: int): int {
+fn mul(a: s32, b: s32): s32 {
     return a * b;
 }
 
-fn div(a: int, b: int): int {
-    return a / b;
+fn div(a: s32, b: s32): s32 {
+    return if b == 0 {
+        0
+    } else {
+      a / b
+    };
+}
+
+fn main() {
+    printf("10 + 2 = %d\n", add(10, 2));
+    printf("10 - 2 = %d\n", sub(10, 2));
+    printf("10 * 2 = %d\n", mul(10, 2));
+    printf("10 / 2 = %d\n", div(10, 2));
+    0
 }

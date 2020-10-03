@@ -309,8 +309,8 @@ t_ast_node *parse_primary(t_parser *parser)
 {
     t_ast_node *n;
     t_token *token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-    t_type type = TYPE_UINT64;
-    uint64_t u64;
+    t_type type = TYPE_SINT32;
+    int32_t s32;
     double f64;
     float f32;
 
@@ -340,8 +340,8 @@ t_ast_node *parse_primary(t_parser *parser)
         }
         else
         {
-            u64 = strtoll(token->content, NULL, 10);
-            n = AST_new_number(type, &u64);
+            s32 = strtol(token->content, NULL, 10);
+            n = AST_new_number(type, &s32);
         }
         ADVANCE(parser);
         return n;
