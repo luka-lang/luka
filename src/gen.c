@@ -341,6 +341,7 @@ LLVMValueRef gen_codegen_function(t_ast_node *n,
         if (NULL != val)
         {
             val->alloca_inst = gen_create_entry_block_allca(func, val->type, val->name);
+            LLVMBuildStore(builder, LLVMGetParam(func, i), val->alloca_inst);
         }
         else
         {
