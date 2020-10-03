@@ -5,7 +5,7 @@ fn main() {
     while num < 127 {
         putchar(num);
         num = num + 1;
-    };
+    }
 
     putchar(10);
     return 0;
