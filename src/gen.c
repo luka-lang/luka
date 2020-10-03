@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "type.h"
+
 t_named_value *named_values = NULL;
 
 LLVMTypeRef gen_type_to_llvm_type(t_type type, t_logger *logger)
@@ -159,6 +161,172 @@ LLVMValueRef gen_codegen_cast(LLVMBuilderRef builder,
     return LLVMBuildIntCast2(builder, original_value, dest_type, is_signed, "intcast");
 }
 
+bool gen_is_cond_op(t_ast_binop_type op) {
+    switch (op) {
+    case BINOP_LESSER:
+    case BINOP_GREATER:
+    case BINOP_EQUALS:
+    case BINOP_NEQ:
+    case BINOP_LEQ:
+    case BINOP_GEQ:
+        return true;
+    default:
+    {
+        return false;
+    }
+    }
+}
+
+bool gen_llvm_cast_to_fp_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBuilderRef builder, t_logger *logger) {
+    t_type lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*lhs), logger);
+    t_type rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*rhs), logger);
+
+    if (TYPE_is_floating_type(lhs_t) || TYPE_is_floating_type(rhs_t)) {
+        if (TYPE_is_floating_type(lhs_t) && !TYPE_is_floating_type(rhs_t)) {
+            if (ttype_is_signed(rhs_t)) {
+                *rhs = LLVMBuildSIToFP(builder, *rhs, LLVMTypeOf(*lhs), "sitofpcasttmp");
+            } else {
+                *rhs = LLVMBuildUIToFP(builder, *rhs, LLVMTypeOf(*lhs), "uitofpcasttmp");
+            }
+        } else if (!TYPE_is_floating_type(lhs_t) && TYPE_is_floating_type(rhs_t)) {
+            if (ttype_is_signed(lhs_t)) {
+                *lhs = LLVMBuildSIToFP(builder, *lhs, LLVMTypeOf(*rhs), "sitofpcasttmp");
+            } else {
+                *lhs = LLVMBuildUIToFP(builder, *lhs, LLVMTypeOf(*rhs), "uitofpcasttmp");
+            }
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+bool gen_llvm_cast_to_signed_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBuilderRef builder, t_logger *logger) {
+    t_type lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*lhs), logger);
+    t_type rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*rhs), logger);
+
+    if (ttype_is_signed(lhs_t) || ttype_is_signed(rhs_t)) {
+        if (ttype_is_signed(lhs_t) && !ttype_is_signed(rhs_t)) {
+            *rhs = LLVMBuildIntCast2(builder, *rhs, LLVMTypeOf(*lhs), true, "signedcasttmp");
+        } else if (!ttype_is_signed(lhs_t) && ttype_is_signed(rhs_t)) {
+            *lhs = LLVMBuildIntCast2(builder, *lhs, LLVMTypeOf(*rhs), true, "signedcasttmp");
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+LLVMOpcode gen_get_llvm_opcode(t_ast_binop_type op, LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBuilderRef builder, t_logger *logger) {
+    t_type lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*lhs), logger);
+    t_type rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*rhs), logger);
+    switch (op)
+    {
+    case BINOP_ADD:
+        if (gen_llvm_cast_to_fp_if_needed(lhs, rhs, builder, logger)) {
+           return LLVMFAdd;
+        }
+
+        return LLVMAdd;
+    case BINOP_SUBTRACT:
+        if (gen_llvm_cast_to_fp_if_needed(lhs, rhs, builder, logger)) {
+           return LLVMFSub;
+        }
+
+        return LLVMSub;
+    case BINOP_MULTIPLY:
+        if (gen_llvm_cast_to_fp_if_needed(lhs, rhs, builder, logger)) {
+           return LLVMFMul;
+        }
+
+        return LLVMMul;
+    case BINOP_DIVIDE:
+        if (gen_llvm_cast_to_fp_if_needed(lhs, rhs, builder, logger)) {
+           return LLVMFDiv;
+        }
+
+        if (gen_llvm_cast_to_signed_if_needed(lhs, rhs, builder, logger)) {
+            return LLVMSDiv;
+        }
+
+        return LLVMUDiv;
+    default:
+    {
+        (void) LOGGER_log(logger, L_ERROR, "No handler found for op: %d\n", op);
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
+    }
+}
+
+bool gen_is_icmp(LLVMValueRef lhs, LLVMValueRef rhs, t_logger *logger) {
+    t_type lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(lhs), logger);
+    t_type rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(rhs), logger);
+    return !TYPE_is_floating_type(lhs_t) && !TYPE_is_floating_type(rhs_t);
+}
+
+LLVMIntPredicate gen_llvm_get_int_predicate(t_ast_binop_type op, LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBuilderRef builder, t_logger *logger) {
+    switch (op) {
+    case BINOP_LESSER:
+        if (gen_llvm_cast_to_signed_if_needed(lhs, rhs, builder, logger)) {
+            return LLVMIntSLE;
+        }
+
+        return LLVMIntULE;
+    case BINOP_GREATER:
+        if (gen_llvm_cast_to_signed_if_needed(lhs, rhs, builder, logger)) {
+            return LLVMIntSGT;
+        }
+
+        return LLVMIntUGT;
+    case BINOP_EQUALS:
+        return LLVMIntEQ;
+    case BINOP_NEQ:
+        return LLVMIntNE;
+    case BINOP_LEQ:
+        if (gen_llvm_cast_to_signed_if_needed(lhs, rhs, builder, logger)) {
+            return LLVMIntSLE;
+        }
+
+        return LLVMIntULE;
+    case BINOP_GEQ:
+        if (gen_llvm_cast_to_signed_if_needed(lhs, rhs, builder, logger)) {
+            return LLVMIntSGE;
+        }
+
+        return LLVMIntUGE;
+    default:
+    {
+        (void) LOGGER_log(logger, L_ERROR, "Op %d is not a int comparison operator.\n", op);
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
+    }
+}
+
+LLVMRealPredicate gen_llvm_get_real_predicate(t_ast_binop_type op, LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBuilderRef builder, t_logger *logger) {
+    (void) gen_llvm_cast_to_fp_if_needed(lhs, rhs, builder, logger);
+    switch (op) {
+    case BINOP_LESSER:
+        return LLVMRealOLE;
+    case BINOP_GREATER:
+        return LLVMRealOGT;
+    case BINOP_EQUALS:
+        return LLVMRealOEQ;
+    case BINOP_NEQ:
+        return LLVMRealONE;
+    case BINOP_LEQ:
+        return LLVMRealOLE;
+    case BINOP_GEQ:
+        return LLVMRealOGE;
+    default:
+    {
+        (void) LOGGER_log(logger, L_ERROR, "Op %d is not a real comparison operator.\n", op);
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
+    }
+}
+
 
 LLVMValueRef gen_codegen_binexpr(t_ast_node *n,
                                  LLVMModuleRef module,
@@ -166,10 +334,22 @@ LLVMValueRef gen_codegen_binexpr(t_ast_node *n,
                                  t_logger *logger)
 {
     LLVMValueRef lhs = NULL, rhs = NULL;
+    LLVMOpcode opcode = LLVMAdd;
+    LLVMIntPredicate int_predicate = LLVMIntEQ;
+    LLVMRealPredicate real_predicate = LLVMRealOEQ;
 
     if (NULL != n->binary_expr.lhs)
     {
         lhs = GEN_codegen(n->binary_expr.lhs, module, builder, logger);
+    }
+
+    if (n->binary_expr.operator == BINOP_NOT) {
+        if (NULL != lhs) {
+            return LLVMBuildNot(builder, lhs, "nottmp");
+        }
+
+        (void) LOGGER_log(logger, L_ERROR, "Couldn't codegen lhs for not expression.\n");
+        (void) exit(LUKA_CODEGEN_ERROR);
     }
 
     if (NULL != n->binary_expr.rhs)
@@ -183,38 +363,19 @@ LLVMValueRef gen_codegen_binexpr(t_ast_node *n,
         (void) exit(LUKA_CODEGEN_ERROR);
     }
 
-    switch (n->binary_expr.operator)
+    if (gen_is_cond_op(n->binary_expr.operator))
     {
-    case BINOP_ADD:
-        return LLVMBuildAdd(builder, lhs, rhs, "addtmp");
-    case BINOP_SUBTRACT:
-        return LLVMBuildSub(builder, lhs, rhs, "subtmp");
-    case BINOP_MULTIPLY:
-        return LLVMBuildMul(builder, lhs, rhs, "multmp");
-    case BINOP_DIVIDE:
-        return LLVMBuildExactSDiv(builder, lhs, rhs, "divtmp");
-    case BINOP_NOT:
-        return LLVMBuildNot(builder, lhs, "nottmp");
-    case BINOP_LESSER:
-        return LLVMBuildICmp(builder, LLVMIntSLT, lhs, rhs, "lessertmp");
-    case BINOP_GREATER:
-        return LLVMBuildICmp(builder, LLVMIntSGT, lhs, rhs, "greatertmp");
-    case BINOP_EQUALS:
-        return LLVMBuildICmp(builder, LLVMIntEQ, lhs, rhs, "eqeqtmp");
-    case BINOP_NEQ:
-        return LLVMBuildICmp(builder, LLVMIntNE, lhs, rhs, "neqtmp");
-    case BINOP_LEQ:
-        return LLVMBuildICmp(builder, LLVMIntSLE, lhs, rhs, "leqtmp");
-    case BINOP_GEQ:
-        return LLVMBuildICmp(builder, LLVMIntSGE, lhs, rhs, "geqtmp");
-    default:
-    {
-        (void) LOGGER_log(logger, L_ERROR, "No handler found for op: %d\n", n->binary_expr.operator);
-        (void) exit(LUKA_CODEGEN_ERROR);
-    }
+        if (gen_is_icmp(lhs, rhs, logger))
+        {
+            int_predicate = gen_llvm_get_int_predicate(n->binary_expr.operator, &lhs, &rhs, builder, logger);
+            return LLVMBuildICmp(builder, int_predicate, lhs, rhs, "icmptmp");
+        }
+        real_predicate = gen_llvm_get_real_predicate(n->binary_expr.operator, &lhs, &rhs, builder, logger);
+        return LLVMBuildFCmp(builder, real_predicate, lhs, rhs, "fcmptmp");
     }
 
-    return NULL;
+    opcode = gen_get_llvm_opcode(n->binary_expr.operator, &lhs, &rhs, builder, logger);
+    return LLVMBuildBinOp(builder, opcode, lhs, rhs, "binoptmp");
 }
 
 LLVMValueRef gen_codegen_prototype(t_ast_node *n,
@@ -478,7 +639,7 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n,
     else_block = LLVMGetInsertBlock(builder);
 
     (void) LLVMPositionBuilderAtEnd(builder, merge_block);
-    phi = LLVMBuildPhi(builder, LLVMInt32Type(), "phi");
+    phi = LLVMBuildPhi(builder, LLVMTypeOf(then_value), "phi");
 
     (void) LLVMAddIncoming(phi, &then_value, &then_block, 1);
 
@@ -572,6 +733,7 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node,
 
     val = malloc(sizeof(t_named_value));
     val->name = strdup(variable.name);
+    val->ttype = variable.type;
     val->type = gen_type_to_llvm_type(variable.type, logger);
     val->alloca_inst = gen_create_entry_block_allca(LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder)), val->type, val->name);
     if (LLVMTypeOf(expr) != val->type)
@@ -709,6 +871,37 @@ LLVMValueRef gen_codegen_expression_stmt(t_ast_node *n,
     return NULL;
 }
 
+LLVMValueRef gen_codegen_number(t_ast_node *node, t_logger *logger)
+{
+    LLVMTypeRef type = gen_type_to_llvm_type(node->number.type, logger);
+    switch (node->number.type)
+    {
+        case TYPE_F32:
+            return LLVMConstReal(type, node->number.value.f32);
+        case TYPE_F64:
+            return LLVMConstReal(type, node->number.value.f64);
+        case TYPE_SINT8:
+            return LLVMConstInt(type, node->number.value.s8, true);
+        case TYPE_SINT16:
+            return LLVMConstInt(type, node->number.value.s16, true);
+        case TYPE_SINT32:
+            return LLVMConstInt(type, node->number.value.s32, true);
+        case TYPE_SINT64:
+            return LLVMConstInt(type, node->number.value.s64, true);
+        case TYPE_UINT8:
+            return LLVMConstInt(type, node->number.value.u8, false);
+        case TYPE_UINT16:
+            return LLVMConstInt(type, node->number.value.u16, false);
+        case TYPE_UINT32:
+            return LLVMConstInt(type, node->number.value.u32, false);
+        case TYPE_UINT64:
+            return LLVMConstInt(type, node->number.value.u64, false);
+        default:
+            (void) fprintf(stderr, "%d is not a number type.\n", type);
+            (void) exit(LUKA_GENERAL_ERROR);
+    }
+}
+
 LLVMValueRef GEN_codegen(t_ast_node *node,
                          LLVMModuleRef module,
                          LLVMBuilderRef builder,
@@ -717,7 +910,7 @@ LLVMValueRef GEN_codegen(t_ast_node *node,
     switch (node->type)
     {
     case AST_TYPE_NUMBER:
-        return LLVMConstInt(LLVMInt32Type(), node->number.value, 0);
+        return gen_codegen_number(node, logger);
     case AST_TYPE_STRING:
         return LLVMBuildGlobalStringPtr(builder, node->string.value, "str");
     case AST_TYPE_BINARY_EXPR:

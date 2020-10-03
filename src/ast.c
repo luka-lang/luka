@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "type.h"
+
 const char *ast_type_to_string(t_type type, t_logger *logger)
 {
     switch (type)
@@ -42,11 +44,47 @@ const char *ast_type_to_string(t_type type, t_logger *logger)
     }
 }
 
-t_ast_node *AST_new_number(long long value)
+t_ast_node *AST_new_number(t_type type, void *value)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_NUMBER;
-    node->number.value = value;
+    node->number.type = type;
+    switch (type)
+    {
+        case TYPE_F32:
+            node->number.value.f32 = *(float *)value;
+            break;
+        case TYPE_F64:
+            node->number.value.f64 = *(double *)value;
+            break;
+        case TYPE_SINT8:
+            node->number.value.s8 = *(int8_t *)value;
+            break;
+        case TYPE_SINT16:
+            node->number.value.s16 = *(int16_t *)value;
+            break;
+        case TYPE_SINT32:
+            node->number.value.s32 = *(int32_t *)value;
+            break;
+        case TYPE_SINT64:
+            node->number.value.s64 = *(int64_t *)value;
+            break;
+        case TYPE_UINT8:
+            node->number.value.u8 = *(uint8_t *)value;
+            break;
+        case TYPE_UINT16:
+            node->number.value.u16 = *(uint16_t *)value;
+            break;
+        case TYPE_UINT32:
+            node->number.value.u32 = *(uint32_t *)value;
+            break;
+        case TYPE_UINT64:
+            node->number.value.u64 = *(uint64_t *)value;
+            break;
+        default:
+            (void) fprintf(stderr, "%d is not a number type.\n", type);
+            (void) exit(LUKA_GENERAL_ERROR);
+    }
     return node;
 }
 
@@ -432,7 +470,14 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
     switch (node->type)
     {
     case AST_TYPE_NUMBER:
-        (void) LOGGER_log(logger, L_DEBUG, "%*c\b AST number %d\n", offset, ' ', node->number.value);
+        if (TYPE_is_floating_type(node->number.type))
+        {
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b AST number %lf\n", offset, ' ', node->number.value.f64);
+        }
+        else
+        {
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b AST number %ld\n", offset, ' ', node->number.value.u64);
+        }
         break;
     case AST_TYPE_STRING:
         (void) LOGGER_log(logger, L_DEBUG, "%*c\b AST string \"%s\"\n", offset, ' ', node->string.value);

@@ -34,19 +34,45 @@ int lexer_is_keyword(const char *identifier)
     return -1;
 }
 
-int lexer_lex_number(const char *source, int *index)
+char * lexer_lex_number(const char *source, int *index, t_logger *logger)
 {
-    int number = 0;
+    bool is_floating = false;
+    int start_index = *index;
+    size_t string_length = 0;
+    char * substring = NULL;
 
-    do
+    do {} while (isdigit(source[++*index]));
+
+    if ('.' == source[*index])
     {
-        number *= 10;
-        number += (source[*index] - '0');
-    } while (isdigit(source[++*index]));
+        is_floating = true;
+        ++*index;
+        if (!isdigit(source[*index]))
+        {
+            (void) LOGGER_log(logger, L_ERROR, "Floating point numbers must have at least one digit after the '.'\n");
+            (void) exit(LUKA_LEXER_FAILED);
+        }
 
+        do {} while(isdigit(source[++*index]));
+    }
+
+    if (is_floating && ('f' == source[*index]))
+    {
+        ++*index;
+    }
+
+    string_length = *index - start_index;
+    substring = malloc(string_length + 1);
+    if (NULL == substring)
+    {
+        (void) LOGGER_log(logger, L_ERROR, "Couldn't allocate memory for number substring.\n");
+        (void) exit(LUKA_CANT_ALLOC_MEMORY);
+    }
+    memcpy(substring, &source[start_index], string_length);
+    substring[string_length] = '\0';
     --*index;
 
-    return number;
+    return substring;
 }
 
 char *lexer_lex_identifier(const char *source, int *index)
@@ -341,15 +367,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source, t_logg
             if (isdigit(character))
             {
                 token->type = T_NUMBER;
-                number = lexer_lex_number(source, &i);
-                token->content = calloc(sizeof(char), 11);
-                if (NULL == token->content)
-                {
-                    (void) LOGGER_log(logger, L_ERROR, "Couldn't allocate memory for token->content.\n");
-                    return_code = LUKA_CANT_ALLOC_MEMORY;
-                    goto cleanup;
-                }
-                (void) snprintf(token->content, 11, "%d", number);
+                token->content = lexer_lex_number(source, &i, logger);
                 break;
             }
 
