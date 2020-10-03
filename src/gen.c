@@ -380,7 +380,7 @@ LLVMValueRef gen_codegen_binexpr(t_ast_node *n,
 
 LLVMValueRef gen_codegen_prototype(t_ast_node *n,
                                    LLVMModuleRef module,
-                                   LLVMBuilderRef builder,
+                                   LLVMBuilderRef UNUSED(builder),
                                    t_logger *logger)
 {
     LLVMValueRef func = NULL;
@@ -422,7 +422,6 @@ LLVMValueRef gen_codegen_prototype(t_ast_node *n,
         HASH_ADD_KEYPTR(hh, named_values, val->name, strlen(val->name), val);
     }
 
-cleanup:
     if (NULL != params)
     {
         (void) free(params);
@@ -440,7 +439,6 @@ LLVMValueRef gen_codegen_stmts(t_vector *statements,
 {
     t_ast_node *stmt = NULL;
     LLVMValueRef ret_val = NULL;
-    int i = 0;
 
     VECTOR_FOR_EACH(statements, stmts)
     {
@@ -535,6 +533,7 @@ LLVMValueRef gen_codegen_function(t_ast_node *n,
         case TYPE_SINT32:
         case TYPE_SINT64:
             ret_val = LLVMConstInt(gen_type_to_llvm_type(return_type, logger), 0, true);
+            break;
         default:
             ret_val = LLVMConstInt(gen_type_to_llvm_type(return_type, logger), 0, false);
             break;
@@ -578,9 +577,9 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n,
                                  t_logger *logger)
 {
     LLVMValueRef cond = NULL, then_value = NULL, else_value = NULL, phi = NULL,
-                 zero = NULL, func = NULL, incoming_values[2] = {NULL, NULL};
+                 func = NULL, incoming_values[2] = {NULL, NULL};
     LLVMBasicBlockRef cond_block = NULL, then_block = NULL, else_block = NULL,
-                      merge_block = NULL, incoming_blocks[2] = {NULL, NULL};
+                      merge_block = NULL;
 
     func = LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder));
 
@@ -697,7 +696,7 @@ LLVMValueRef gen_codegen_while_expr(t_ast_node *n,
 }
 
 LLVMValueRef gen_codegen_variable(t_ast_node *node,
-                                  LLVMModuleRef module,
+                                  LLVMModuleRef UNUSED(module),
                                   LLVMBuilderRef builder,
                                   t_logger *logger)
 {
@@ -861,7 +860,6 @@ LLVMValueRef gen_codegen_expression_stmt(t_ast_node *n,
                                          LLVMBuilderRef builder,
                                          t_logger *logger)
 {
-    LLVMValueRef expr;
     if (NULL != n->expression_stmt.expr)
     {
         (void) GEN_codegen(n->expression_stmt.expr, module, builder, logger);

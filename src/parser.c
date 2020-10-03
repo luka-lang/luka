@@ -463,6 +463,7 @@ t_ast_node *parse_expression(t_parser *parser)
             else_body = NULL;
         }
         node = AST_new_if_expr(cond, then_body, else_body);
+        ADVANCE(parser);
         return node;
     };
     case T_WHILE:
@@ -476,7 +477,7 @@ t_ast_node *parse_expression(t_parser *parser)
     }
     default:
     {
-        return PARSER_parse_binexpr(parser, 0);
+        return parser_parse_binexpr(parser, 0);
     }
     }
 }
@@ -748,7 +749,6 @@ cleanup:
 
 t_ast_node *PARSER_parse_function(t_parser *parser)
 {
-    int number = 0;
     t_ast_node *prototype = NULL;
     t_vector *body = NULL;
     prototype = parse_prototype(parser);
