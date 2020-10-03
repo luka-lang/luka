@@ -557,31 +557,21 @@ t_vector *parse_statements(t_parser *parser)
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
 
-    if (T_OPEN_BRACKET != token->type)
+    EXPECT_ADVANCE(parser, T_OPEN_BRACKET,
+                    "Expected '{' to open a body of statements");
+
+    while (
+        T_CLOSE_BRACKET !=
+        (token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1))
+            ->type)
     {
         ADVANCE(parser);
         stmt = parse_statement(parser);
-        vector_push_back(stmts, &stmt);
+        (void) vector_push_back(stmts, &stmt);
         --parser->index;
     }
-    else
-    {
-        EXPECT_ADVANCE(parser, T_OPEN_BRACKET,
-                       "Expected '{' to open a body of statements");
 
-        while (
-            T_CLOSE_BRACKET !=
-            (token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1))
-                ->type)
-        {
-            ADVANCE(parser);
-            stmt = parse_statement(parser);
-            (void) vector_push_back(stmts, &stmt);
-            --parser->index;
-        }
-
-        ADVANCE(parser);
-    }
+    ADVANCE(parser);
     (void) vector_shrink_to_fit(stmts);
 
 cleanup:
