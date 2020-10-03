@@ -71,6 +71,11 @@ void MATCH_ADVANCE(t_parser *parser, t_toktype type, const char *message)
     ADVANCE(parser);
 }
 
+bool parser_is_compound_expr(t_ast_node *node)
+{
+    return (node->type == AST_TYPE_WHILE_EXPR) || (node->type == AST_TYPE_IF_EXPR);
+}
+
 t_type parse_type(t_parser *parser)
 {
     t_token *token = NULL;
@@ -437,8 +442,6 @@ t_ast_node *parse_expression(t_parser *parser)
         {
             else_body = NULL;
         }
-        ADVANCE(parser);
-
         node = AST_new_if_expr(cond, then_body, else_body);
         return node;
     };
@@ -448,7 +451,6 @@ t_ast_node *parse_expression(t_parser *parser)
         cond = parse_expression(parser);
         --parser->index;
         body = parse_statements(parser);
-        ADVANCE(parser);
         node = AST_new_while_expr(cond, body);
         return node;
     }
@@ -518,7 +520,7 @@ t_ast_node *parse_statement(t_parser *parser)
         expr = parse_expression(parser);
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
 
-        if (T_SEMI_COLON == token->type)
+        if ((T_SEMI_COLON == token->type) || (parser_is_compound_expr(expr)))
         {
             /* Expression Statement */
             ADVANCE(parser);
