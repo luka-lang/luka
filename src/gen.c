@@ -576,11 +576,6 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node,
     val->ttype = variable.type;
     val->type = gen_type_to_llvm_type(variable.type, logger);
     val->alloca_inst = gen_create_entry_block_allca(LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder)), val->type, val->name);
-    printf("Expr Type: ");
-    LLVMDumpType(LLVMTypeOf(expr));
-    printf("\nVal Type: ");
-    LLVMDumpType(val->type);
-    puts("");
     if (LLVMTypeOf(expr) != val->type)
     {
         expr = gen_codegen_cast(builder, expr, val->type, val->ttype);
