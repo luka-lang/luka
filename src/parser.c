@@ -1,11 +1,16 @@
 #include "parser.h"
 #include "ast.h"
-#include "expr.h"
 #include "type.h"
 
 #include <string.h>
 
-t_ast_node *parse_expression(t_parser *parser);
+t_ast_node *parser_parse_expression(t_parser *parser);
+t_ast_node *parser_parse_equality(t_parser *parser);
+t_ast_node *parser_parse_comparison(t_parser *parser);
+t_ast_node *parser_parse_term(t_parser *parser);
+t_ast_node *parser_parse_factor(t_parser *parser);
+t_ast_node *parser_parse_unary(t_parser *parser);
+t_ast_node *parser_parse_primary(t_parser *parser);
 
 t_vector *parse_statements(t_parser *parser);
 
@@ -235,7 +240,7 @@ t_ast_node *parse_paren_expr(t_parser *parser)
 {
     t_ast_node *expr;
     ADVANCE(parser);
-    expr = parse_expression(parser);
+    expr = parser_parse_expression(parser);
     EXPECT_ADVANCE(parser, T_CLOSE_PAREN, "Expected ')'");
     ADVANCE(parser);
     return expr;
@@ -281,7 +286,7 @@ t_ast_node *parse_ident_expr(t_parser *parser)
     {
         while (true)
         {
-            expr = parse_expression(parser);
+            expr = parser_parse_expression(parser);
             vector_push_back(args, &expr);
 
             token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
@@ -310,7 +315,167 @@ cleanup:
 
 }
 
-t_ast_node *parse_primary(t_parser *parser)
+t_ast_node *parser_parse_equality(t_parser *parser)
+{
+    t_ast_node *lhs = NULL, *rhs = NULL;
+    t_token *token = NULL;
+    t_ast_binop_type operator = BINOP_NEQ;
+
+    lhs = parser_parse_comparison(parser);
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    switch (token->type)
+    {
+        case T_NEQ:
+        {
+            operator = BINOP_NEQ;
+            break;
+        }
+        case T_EQEQ:
+        {
+            operator = BINOP_EQUALS;
+            break;
+        }
+        default:
+        {
+            return lhs;
+        }
+    }
+
+    ADVANCE(parser);
+    rhs = parser_parse_comparison(parser);
+    return AST_new_binary_expr(operator, lhs, rhs);
+}
+
+t_ast_node *parser_parse_comparison(t_parser *parser)
+{
+    t_ast_node *lhs = NULL, *rhs = NULL;
+    t_token *token = NULL;
+    t_ast_binop_type operator = BINOP_GREATER;
+
+    lhs = parser_parse_term(parser);
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    switch (token->type)
+    {
+        case T_CLOSE_ANG:
+        {
+            operator = BINOP_GREATER;
+            break;
+        }
+        case T_GEQ:
+        {
+            operator = BINOP_GEQ;
+            break;
+        }
+        case T_OPEN_ANG:
+        {
+            operator = BINOP_LESSER;
+            break;
+        }
+        case T_LEQ:
+        {
+            operator = BINOP_LEQ;
+            break;
+        }
+        default:
+        {
+            return lhs;
+        }
+    }
+
+    ADVANCE(parser);
+    rhs = parser_parse_term(parser);
+    return AST_new_binary_expr(operator, lhs, rhs);
+}
+
+t_ast_node *parser_parse_term(t_parser *parser)
+{
+    t_ast_node *lhs = NULL, *rhs = NULL;
+    t_token *token = NULL;
+    t_ast_binop_type operator = BINOP_SUBTRACT;
+
+    lhs = parser_parse_factor(parser);
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    switch (token->type)
+    {
+        case T_MINUS:
+        {
+            operator = BINOP_SUBTRACT;
+            break;
+        }
+        case T_PLUS:
+        {
+            operator = BINOP_ADD;
+            break;
+        }
+        default:
+        {
+            return lhs;
+        }
+    }
+
+    ADVANCE(parser);
+    rhs = parser_parse_factor(parser);
+    return AST_new_binary_expr(operator, lhs, rhs);
+}
+
+
+t_ast_node *parser_parse_factor(t_parser *parser)
+{
+    t_ast_node *lhs = NULL, *rhs = NULL;
+    t_token *token = NULL;
+    t_ast_binop_type operator = BINOP_DIVIDE;
+
+    lhs = parser_parse_unary(parser);
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    switch (token->type)
+    {
+        case T_SLASH:
+        {
+            operator = BINOP_DIVIDE;
+            break;
+        }
+        case T_STAR:
+        {
+            operator = BINOP_MULTIPLY;
+            break;
+        }
+        default:
+        {
+            return lhs;
+        }
+    }
+
+    ADVANCE(parser);
+    rhs = parser_parse_unary(parser);
+    return AST_new_binary_expr(operator, lhs, rhs);
+}
+
+t_ast_node *parser_parse_unary(t_parser *parser)
+{
+    t_token *token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    t_ast_node *unary = NULL;
+    int32_t num = -1;
+
+    switch (token->type)
+    {
+        case T_BANG:
+        {
+            return AST_new_binary_expr(BINOP_NOT, unary, NULL);
+        }
+        case T_MINUS:
+        {
+            return AST_new_binary_expr(BINOP_MULTIPLY, AST_new_number(TYPE_SINT32, &num), unary);
+        }
+        default:
+        {
+            return parser_parse_primary(parser);
+        }
+    }
+
+    return parser_parse_primary(parser);
+}
+
+t_ast_node *parser_parse_primary(t_parser *parser)
 {
     t_ast_node *n;
     t_token *token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
@@ -404,40 +569,7 @@ bool should_finish_expression(t_token *token)
     return false;
 }
 
-t_ast_node *PARSER_parse_binexpr(t_parser *parser, int ptp)
-{
-    t_ast_node *left, *right;
-    int nodetype;
-    t_token *token = NULL;
-
-    left = parse_primary(parser);
-
-    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-
-    if (should_finish_expression(token))
-    {
-        return left;
-    }
-
-    while (EXPR_get_op_precedence(token, parser->logger) > ptp)
-    {
-        ADVANCE(parser);
-
-        right = PARSER_parse_binexpr(parser, g_operator_precedence[token->type - T_PLUS]);
-        left = AST_new_binary_expr(parse_op(token, parser->logger), left, right);
-
-        token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-
-        if (should_finish_expression(token))
-        {
-            return left;
-        }
-    }
-
-    return left;
-}
-
-t_ast_node *parse_expression(t_parser *parser)
+t_ast_node *parser_parse_expression(t_parser *parser)
 {
     t_ast_node *node = NULL, *expr = NULL, *cond = false;
     t_vector *then_body = NULL, *else_body = NULL, *body = NULL;
@@ -450,7 +582,7 @@ t_ast_node *parse_expression(t_parser *parser)
     case T_IF:
     {
         ADVANCE(parser);
-        cond = parse_expression(parser);
+        cond = parser_parse_expression(parser);
         --parser->index;
         then_body = parse_statements(parser);
         if (EXPECT(parser, T_ELSE))
@@ -468,7 +600,7 @@ t_ast_node *parse_expression(t_parser *parser)
     case T_WHILE:
     {
         ADVANCE(parser);
-        cond = parse_expression(parser);
+        cond = parser_parse_expression(parser);
         --parser->index;
         body = parse_statements(parser);
         node = AST_new_while_expr(cond, body);
@@ -476,7 +608,7 @@ t_ast_node *parse_expression(t_parser *parser)
     }
     default:
     {
-        return PARSER_parse_binexpr(parser, 0);
+        return parser_parse_equality(parser);
     }
     }
 }
@@ -485,7 +617,7 @@ t_ast_node *parse_assignment_stmt(t_parser *parser, char *var_name)
 {
     t_ast_node *node = NULL, *expr = NULL;
     MATCH_ADVANCE(parser, T_EQUALS, "Expected a '=' after identifier in assignment");
-    expr = parse_expression(parser);
+    expr = parser_parse_expression(parser);
     node = AST_new_assignment_stmt(var_name, expr);
     MATCH_ADVANCE(parser, T_SEMI_COLON, "Expected a ';' after let statement");
     --parser->index;
@@ -506,7 +638,7 @@ t_ast_node *parse_statement(t_parser *parser)
     case T_RETURN:
     {
         ADVANCE(parser);
-        expr = parse_expression(parser);
+        expr = parser_parse_expression(parser);
         MATCH_ADVANCE(parser, T_SEMI_COLON,
                       "Expected a ';' at the end of a return statement");
         node = AST_new_return_stmt(expr);
@@ -529,7 +661,7 @@ t_ast_node *parse_statement(t_parser *parser)
         EXPECT_ADVANCE(parser, T_EQUALS,
                        "Expected a '=' after ident in variable declaration");
         ADVANCE(parser);
-        expr = parse_expression(parser);
+        expr = parser_parse_expression(parser);
         var = AST_new_variable(token->content, type, mutable);
         node = AST_new_let_stmt(var, expr);
         MATCH_ADVANCE(parser, T_SEMI_COLON, "Expected a ';' after let statement");
@@ -537,7 +669,7 @@ t_ast_node *parse_statement(t_parser *parser)
     }
     default:
     {
-        expr = parse_expression(parser);
+        expr = parser_parse_expression(parser);
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
 
         if ((T_SEMI_COLON == token->type) || (parser_is_compound_expr(expr)))
