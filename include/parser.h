@@ -23,7 +23,6 @@ void PARSER_initialize(t_parser *parser, t_vector *tokens, const char *file_path
 t_vector *PARSER_parse_top_level(t_parser *parser);
 
 t_ast_node *PARSER_parse_function(t_parser *parser);
-t_ast_node *PARSER_parse_binexpr(t_parser *parser, int ptp);
 
 void PARSER_print_parser_tokens(t_parser *parser);
 
