@@ -1,0 +1,57 @@
+program =  { ( function_declaration | function_definition ) } ;
+
+function_prototype = identifier "(" argument_list ")" [ type ] ;
+function_declration = "extern" function_prototype ;
+function_definition = "fn" function_prototype block ;
+
+block = "{" { statements } "}" ;
+
+statements = statements statement | statement ;
+statement = return_statement | let_statement | expression_statement ;
+
+return_statement = "return" expression ";" ;
+let_statement = "let" [ "mut" ] identifier [ type ] "=" expression ";" ;
+expression_statement = expression ";" ;
+
+expression = if_expression | while_expression | equality ;
+if_expression = "if" expression block [ "else" block ] ;
+while_expression = "while" expression block ;
+equality = comparison [ ( "!=" | "==" ) comparison ] ;
+comparison = term [ ( ">" | ">=" | "<" | "<=" ) term ] ;
+term = factor [ ( "-" | "+" ) factor ] ;
+factor = unary [ ( "/" | "*" ) unary ] ;
+unary = ( "!" | "-" ) unary | primary ;
+primary = number
+        | string
+        | identifer
+        | function_call
+        | literal
+        | "(" expression ")" ;
+function_call = identifier "(" argument_list ")"
+
+number = digits [ "."  digits ] ;
+digits = digit [ { digit } ] ;
+
+string = "\"" [ { ( letter | escape_character ) } ]  "\"" ;
+escape_character = "\n" | "\t" | "\\" "\"" ;
+
+argument_list = argument | argument_list "," argument | argument_list "," "..." [ type ] ;
+argument = identifier [ type ] ;
+
+type = ":" type_keyword ;
+base_type = "any"  | "bool" | "int"   | "string"
+          | "u8"   | "u16"  | "u32"   | "u64"
+          | "s8"   | "s16"  | "s32"   | "s64"
+          | "f32"  | "f64"  | "float" | "double"
+          | "void" | "char" ;
+
+identifier = ( letter | "_" ) [ { ( letter | digit | "_" ) } ] ;
+letter = "A" | "B" | "C" | "D" | "E" | "F" | "G"
+       | "H" | "I" | "J" | "K" | "L" | "M" | "N"
+       | "O" | "P" | "Q" | "R" | "S" | "T" | "U"
+       | "V" | "W" | "X" | "Y" | "Z" | "a" | "b"
+       | "c" | "d" | "e" | "f" | "g" | "h" | "i"
+       | "j" | "k" | "l" | "m" | "n" | "o" | "p"
+       | "q" | "r" | "s" | "t" | "u" | "v" | "w"
+       | "x" | "y" | "z" ;
+digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
