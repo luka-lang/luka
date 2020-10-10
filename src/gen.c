@@ -398,6 +398,15 @@ LLVMValueRef gen_codegen_unexpr(t_ast_node *n,
         {
             return LLVMBuildNot(builder, rhs, "nottmp");
         }
+        case UNOP_MINUS:
+        {
+            if (TYPE_is_floating_type(gen_llvm_type_to_ttype(LLVMTypeOf(rhs), logger)))
+            {
+                return LLVMBuildFNeg(builder, rhs, "negtmp");
+            }
+
+            return LLVMBuildNeg(builder, rhs, "negtmp");
+        }
         case UNOP_REF:
         {
             return gen_get_address(n->unary_expr.rhs, logger);
