@@ -700,11 +700,6 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n,
     (void) LLVMPositionBuilderAtEnd(builder, then_block);
 
     then_value = gen_codegen_stmts(n->if_expr.then_body, module, builder, NULL, logger);
-    if (NULL == then_value)
-    {
-        (void) LOGGER_log(logger, L_ERROR, "Then value generation failed in if expr\n");
-        (void) exit(LUKA_CODEGEN_ERROR);
-    }
 
     (void) LLVMBuildBr(builder, merge_block);
 
@@ -714,17 +709,30 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n,
     {
         (void) LLVMPositionBuilderAtEnd(builder, else_block);
         else_value = gen_codegen_stmts(n->if_expr.else_body, module, builder, NULL, logger);
-        if (NULL == else_value)
-        {
-            (void) LOGGER_log(logger, L_ERROR, "Else value generation failed in if expr\n");
-            (void) exit(LUKA_CODEGEN_ERROR);
-        }
         (void) LLVMBuildBr(builder, merge_block);
     }
 
     else_block = LLVMGetInsertBlock(builder);
 
     (void) LLVMPositionBuilderAtEnd(builder, merge_block);
+
+    if ((NULL == then_value) && !((NULL != n->if_expr.else_body) && (NULL != else_value)))
+    {
+        return NULL;
+    }
+
+    if (((NULL == then_value) && (NULL != else_value)) || ((NULL != then_value) && (NULL == else_value)))
+    {
+        (void) LOGGER_log(logger, L_ERROR, "If one branch returns a values, both must return a value.\n");
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
+
+    if ((NULL != n->if_expr.else_body) && (LLVMTypeOf(then_value) != LLVMTypeOf(else_value)))
+    {
+        (void) LOGGER_log(logger, L_ERROR, "Values of then and else branches must be of the same type in if expr.\n");
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
+
     phi = LLVMBuildPhi(builder, LLVMTypeOf(then_value), "phi");
 
     (void) LLVMAddIncoming(phi, &then_value, &then_block, 1);
