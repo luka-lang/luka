@@ -1,5 +1,6 @@
 #include "type.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 bool TYPE_is_floating_point(const char *s)
@@ -15,7 +16,20 @@ bool TYPE_is_floating_point(const char *s)
     return false;
 }
 
-bool TYPE_is_floating_type(t_type type)
+bool TYPE_is_floating_type(t_type *type)
 {
-    return (type == TYPE_F32) || (type == TYPE_F64);
+    return (type->type == TYPE_F32) || (type->type == TYPE_F64);
+}
+
+t_type *TYPE_initialize_type(t_base_type type)
+{
+    t_type *ttype = calloc(1, sizeof(type));
+    if (NULL == ttype)
+    {
+        (void) exit(LUKA_CANT_ALLOC_MEMORY);
+    }
+
+    ttype->type = type;
+    ttype->inner_type = NULL;
+    return ttype;
 }

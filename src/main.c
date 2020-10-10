@@ -55,13 +55,11 @@ int main(int argc, char **argv)
     t_return_code status_code = LUKA_UNINITIALIZED;
     char *file_path = NULL;
 
-    int file_size = 0;
     char *file_contents = NULL;
 
     t_vector tokens;
     (void) vector_setup(&tokens, 1, sizeof(t_token_ptr));
     t_vector *functions = NULL;
-    t_token *token = NULL;
 
     t_parser *parser = NULL;
 

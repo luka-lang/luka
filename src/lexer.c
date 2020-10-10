@@ -34,10 +34,10 @@ int lexer_is_keyword(const char *identifier)
     return -1;
 }
 
-char * lexer_lex_number(const char *source, int *index, t_logger *logger)
+char * lexer_lex_number(const char *source, size_t *index, t_logger *logger)
 {
     bool is_floating = false;
-    int start_index = *index;
+    size_t start_index = *index;
     size_t string_length = 0;
     char * substring = NULL;
 
@@ -75,9 +75,9 @@ char * lexer_lex_number(const char *source, int *index, t_logger *logger)
     return substring;
 }
 
-char *lexer_lex_identifier(const char *source, int *index)
+char *lexer_lex_identifier(const char *source, size_t *index)
 {
-    int i = (*index) + 1;
+    size_t i = (*index) + 1;
     while ((0 != isalnum(source[i]) || ('_' == source[i])))
     {
         ++i;
@@ -96,9 +96,9 @@ char *lexer_lex_identifier(const char *source, int *index)
     return ident;
 }
 
-char *lexer_lex_string(const char *source, int *index, t_logger *logger)
+char *lexer_lex_string(const char *source, size_t *index, t_logger *logger)
 {
-    int i = *index;
+    size_t i = *index;
     size_t char_count = 0, off = 0, ind = 0;
     while ('"' != source[i])
     {
@@ -185,7 +185,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source, t_logg
         goto cleanup;
     }
 
-    for (int i = 0; i < length; ++i)
+    for (size_t i = 0; i < length; ++i)
     {
         character = source[i];
         ++offset;
@@ -258,6 +258,12 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source, t_logg
         {
             token->type = T_STAR;
             token->content = "*";
+            break;
+        }
+        case '&':
+        {
+            token->type = T_AMPERCENT;
+            token->content = "&";
             break;
         }
         case ':':

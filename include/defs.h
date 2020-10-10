@@ -6,6 +6,20 @@
 
 #include "vector.h"
 
+/* Taken from https://stackoverflow.com/questions/3599160/how-to-suppress-unused-parameter-warnings-in-c */
+#ifdef __GNUC__
+#  define UNUSED(x) UNUSED_ ## x __attribute__((__unused__))
+#else
+#  define UNUSED(x) UNUSED_ ## x
+#endif
+
+#ifdef __GNUC__
+#  define UNUSED_FUNCTION(x) __attribute__((__unused__)) UNUSED_ ## x
+#else
+#  define UNUSED_FUNCTION(x) UNUSED_ ## x
+#endif
+
+
 typedef Vector t_vector;
 typedef Iterator t_iterator;
 
@@ -80,6 +94,8 @@ typedef enum
     T_LEQ,
     T_GEQ,
 
+    T_AMPERCENT,
+
     T_COLON,
     T_DOT,
     T_THREE_DOTS,
@@ -101,6 +117,7 @@ typedef enum
 {
     AST_TYPE_NUMBER,
     AST_TYPE_STRING,
+    AST_TYPE_UNARY_EXPR,
     AST_TYPE_BINARY_EXPR,
     AST_TYPE_PROTOTYPE,
     AST_TYPE_FUNCTION,
@@ -109,7 +126,7 @@ typedef enum
     AST_TYPE_WHILE_EXPR,
     AST_TYPE_VARIABLE,
     AST_TYPE_LET_STMT,
-    AST_TYPE_ASSIGNMENT_STMT,
+    AST_TYPE_ASSIGNMENT_EXPR,
     AST_TYPE_CALL_EXPR,
     AST_TYPE_EXPRESSION_STMT
 } t_ast_node_type;
@@ -120,7 +137,6 @@ typedef enum
     BINOP_SUBTRACT,
     BINOP_MULTIPLY,
     BINOP_DIVIDE,
-    BINOP_NOT,
     BINOP_LESSER,
     BINOP_GREATER,
     BINOP_EQUALS,
@@ -128,6 +144,15 @@ typedef enum
     BINOP_LEQ,
     BINOP_GEQ,
 } t_ast_binop_type;
+
+typedef enum
+{
+    UNOP_NOT,
+    UNOP_MINUS,
+    UNOP_PLUS,
+    UNOP_DEREF,
+    UNOP_REF,
+} t_ast_unop_type;
 
 typedef enum
 {
@@ -144,7 +169,14 @@ typedef enum
     TYPE_F32,
     TYPE_F64,
     TYPE_STRING,
-    TYPE_VOID
+    TYPE_VOID,
+    TYPE_PTR
+} t_base_type;
+
+typedef struct s_type
+{
+    t_base_type type;
+    struct s_type *inner_type;
 } t_type;
 
 typedef struct s_ast_node t_ast_node;
@@ -174,6 +206,12 @@ typedef struct
 
 typedef struct
 {
+    t_ast_unop_type operator;
+    t_ast_node *rhs;
+} t_ast_unary_expr;
+
+typedef struct
+{
     t_ast_binop_type operator;
     t_ast_node *lhs;
     t_ast_node *rhs;
@@ -181,10 +219,16 @@ typedef struct
 
 typedef struct
 {
+    t_ast_node *lhs;
+    t_ast_node *rhs;
+} t_ast_assignment_expr;
+
+typedef struct
+{
     char *name;
     char **args;
-    t_type *types;
-    t_type return_type;
+    t_type **types;
+    t_type *return_type;
     unsigned int arity;
     bool vararg;
 } t_ast_prototype;
@@ -219,16 +263,11 @@ typedef struct
     t_ast_node *expr;
 } t_ast_let_stmt;
 
-typedef struct
-{
-    char *var_name;
-    t_ast_node *expr;
-} t_ast_assignment_stmt;
 
 typedef struct
 {
     char *name;
-    t_type type;
+    t_type *type;
     bool mutable;
 } t_ast_variable;
 
@@ -250,15 +289,16 @@ typedef struct s_ast_node
     {
         t_ast_number number;
         t_ast_string string;
+        t_ast_unary_expr unary_expr;
         t_ast_binary_expr binary_expr;
         t_ast_prototype prototype;
         t_ast_function function;
         t_ast_return_stmt return_stmt;
         t_ast_if_expr if_expr;
         t_ast_while_expr while_expr;
+        t_ast_assignment_expr assignment_expr;
         t_ast_variable variable;
         t_ast_let_stmt let_stmt;
-        t_ast_assignment_stmt assignment_stmt;
         t_ast_call_expr call_expr;
         t_ast_expr_stmt expression_stmt;
     };

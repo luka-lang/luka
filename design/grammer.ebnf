@@ -13,14 +13,17 @@ return_statement = "return" expression ";" ;
 let_statement = "let" [ "mut" ] identifier [ type ] "=" expression ";" ;
 expression_statement = expression ";" ;
 
-expression = if_expression | while_expression | equality ;
+expression = if_expression | while_expression | assignment ;
 if_expression = "if" expression block [ "else" block ] ;
 while_expression = "while" expression block ;
+assignment = identifier "=" assignment
+           | "*" identifier "=" assignment
+           | equality ;
 equality = comparison [ ( "!=" | "==" ) comparison ] ;
 comparison = term [ ( ">" | ">=" | "<" | "<=" ) term ] ;
 term = factor [ ( "-" | "+" ) factor ] ;
 factor = unary [ ( "/" | "*" ) unary ] ;
-unary = ( "!" | "-" ) unary | primary ;
+unary = ( "!" | "-" | "*" | "&" ) unary | primary ;
 primary = number
         | string
         | identifer
@@ -43,7 +46,8 @@ base_type = "any"  | "bool" | "int"   | "string"
           | "u8"   | "u16"  | "u32"   | "u64"
           | "s8"   | "s16"  | "s32"   | "s64"
           | "f32"  | "f64"  | "float" | "double"
-          | "void" | "char" ;
+          | "void" | "char" | base_type_ptr ;
+base_type_ptr = base_type "*" ;
 
 identifier = ( letter | "_" ) [ { ( letter | digit | "_" ) } ] ;
 letter = "A" | "B" | "C" | "D" | "E" | "F" | "G"

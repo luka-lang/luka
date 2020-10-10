@@ -15,7 +15,8 @@ t_ast_node *parser_parse_primary(t_parser *parser);
 t_vector *parse_statements(t_parser *parser);
 
 t_ast_node *parse_prototype(t_parser *parser);
-t_ast_node *parse_assignment_stmt(t_parser *parser, char *var_name);
+t_ast_node *parser_parse_assignment(t_parser *parser);
+t_ast_node *parse_unary_expr(t_parser *parser);
 
 void ERR(t_parser *parser, const char *message)
 {
@@ -82,14 +83,23 @@ bool parser_is_compound_expr(t_ast_node *node)
     return (node->type == AST_TYPE_WHILE_EXPR) || (node->type == AST_TYPE_IF_EXPR);
 }
 
-t_type parse_type(t_parser *parser)
+t_type *parse_type(t_parser *parser)
 {
     t_token *token = NULL;
+    t_type *type = NULL;
+    t_type *inner_type = NULL;
+    type = calloc(1, sizeof(t_type));
+    if (NULL == type)
+    {
+        (void) exit(LUKA_CANT_ALLOC_MEMORY);
+    }
+    type->inner_type = NULL;
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
     if (T_COLON != token->type)
     {
-        return TYPE_SINT32;
+        type->type = TYPE_SINT32;
+        return type;
     }
 
     EXPECT_ADVANCE(parser, T_COLON, "Expected a `:` before type.");
@@ -101,40 +111,70 @@ t_type parse_type(t_parser *parser)
     switch (token->type)
     {
     case T_ANY_TYPE:
-        return TYPE_ANY;
+        type->type = TYPE_ANY;
+        break;
     case T_BOOL_TYPE:
-        return TYPE_BOOL;
+        type->type = TYPE_BOOL;
+        break;
     case T_S8_TYPE:
-        return TYPE_SINT8;
+        type->type = TYPE_SINT8;
+        break;
     case T_S16_TYPE:
-        return TYPE_SINT16;
+        type->type = TYPE_SINT16;
+        break;
     case T_S32_TYPE:
     case T_INT_TYPE:
-        return TYPE_SINT32;
+        type->type = TYPE_SINT32;
+        break;
     case T_S64_TYPE:
-        return TYPE_SINT64;
+        type->type = TYPE_SINT64;
+        break;
     case T_U8_TYPE:
     case T_CHAR_TYPE:
-        return TYPE_UINT8;
+        type->type = TYPE_UINT8;
+        break;
     case T_U16_TYPE:
-        return TYPE_UINT16;
+        type->type = TYPE_UINT16;
+        break;
     case T_U64_TYPE:
-        return TYPE_UINT64;
+        type->type = TYPE_UINT64;
+        break;
     case T_F32_TYPE:
     case T_FLOAT_TYPE:
-        return TYPE_F32;
+        type->type = TYPE_F32;
+        break;
     case T_F64_TYPE:
     case T_DOUBLE_TYPE:
-        return TYPE_F64;
+        type->type = TYPE_F64;
+        break;
     case T_STR_TYPE:
-        return TYPE_STRING;
+        type->type = TYPE_STRING;
+        break;
     case T_VOID_TYPE:
-        return TYPE_VOID;
+        type->type = TYPE_VOID;
+        break;
     default:
         (void) LOGGER_log(parser->logger, L_ERROR, "Unknown type %d %s. Fallbacking to s32.\n", token->type,
                         token->content);
-        return TYPE_SINT32;
+        type->type = TYPE_SINT32;
     }
+
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
+    while (T_STAR == token->type)
+    {
+        inner_type = type;
+        type = calloc(1, sizeof(t_type));
+        if (NULL == type)
+        {
+            (void) exit(LUKA_CANT_ALLOC_MEMORY);
+        }
+        type->type = TYPE_PTR;
+        type->inner_type = inner_type;
+        ADVANCE(parser);
+        token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
+    }
+
+    return type;
 }
 
 void PARSER_initialize(t_parser *parser,
@@ -203,7 +243,28 @@ cleanup:
     return functions;
 }
 
-int parse_op(t_token *token, t_logger *logger)
+t_ast_unop_type parse_unop(t_token *token, t_logger *logger)
+{
+    switch (token->type)
+    {
+    case T_PLUS:
+        return UNOP_PLUS;
+    case T_MINUS:
+        return UNOP_MINUS;
+    case T_STAR:
+        return UNOP_DEREF;
+    case T_AMPERCENT:
+        return UNOP_REF;
+    case T_BANG:
+        return UNOP_NOT;
+    default:
+        (void) LOGGER_log(logger, L_ERROR, "Unknown token in parse_unop at %ld:%ld\n", token->line,
+                          token->offset);
+        (void) exit(1);
+    }
+}
+
+t_ast_binop_type parse_binop(t_token *token, t_logger *logger)
 {
     switch (token->type)
     {
@@ -219,8 +280,6 @@ int parse_op(t_token *token, t_logger *logger)
         return BINOP_LESSER;
     case T_CLOSE_ANG:
         return BINOP_GREATER;
-    case T_BANG:
-        return BINOP_NOT;
     case T_EQEQ:
         return BINOP_EQUALS;
     case T_NEQ:
@@ -230,7 +289,7 @@ int parse_op(t_token *token, t_logger *logger)
     case T_GEQ:
         return BINOP_GEQ;
     default:
-        (void) LOGGER_log(logger, L_ERROR, "Unknown token in parse_op at %ld:%ld\n", token->line,
+        (void) LOGGER_log(logger, L_ERROR, "Unknown token in parse_binop at %ld:%ld\n", token->line,
                           token->offset);
         (void) exit(1);
     }
@@ -249,9 +308,9 @@ t_ast_node *parse_paren_expr(t_parser *parser)
 t_ast_node *parse_ident_expr(t_parser *parser)
 {
     t_token *token;
-    t_ast_node *node, *expr;
-    char *ident_name;
-    t_vector *args;
+    t_ast_node *expr = NULL;
+    char *ident_name = NULL;
+    t_vector *args = NULL;
     bool mutable = false;
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
@@ -259,11 +318,6 @@ t_ast_node *parse_ident_expr(t_parser *parser)
 
     ADVANCE(parser);
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-    if (T_EQUALS == token->type)
-    {
-        return parse_assignment_stmt(parser, ident_name);
-    }
-
     if (T_OPEN_PAREN != token->type)
     {
         if (MATCH(parser, T_MUT))
@@ -304,7 +358,6 @@ t_ast_node *parse_ident_expr(t_parser *parser)
 
     return AST_new_call_expr(ident_name, args);
 
-cleanup:
     if (NULL != args)
     {
         (void) free(args);
@@ -454,32 +507,45 @@ t_ast_node *parser_parse_unary(t_parser *parser)
 {
     t_token *token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     t_ast_node *unary = NULL;
-    int32_t num = -1;
 
     switch (token->type)
     {
         case T_BANG:
         {
-            return AST_new_binary_expr(BINOP_NOT, unary, NULL);
+            ADVANCE(parser);
+            unary = parser_parse_unary(parser);
+            return AST_new_unary_expr(UNOP_NOT, unary);
         }
         case T_MINUS:
         {
-            return AST_new_binary_expr(BINOP_MULTIPLY, AST_new_number(TYPE_SINT32, &num), unary);
+            ADVANCE(parser);
+            unary = parser_parse_unary(parser);
+            return AST_new_unary_expr(UNOP_MINUS, unary);
+        }
+        case T_AMPERCENT:
+        {
+            ADVANCE(parser);
+            unary = parser_parse_unary(parser);
+            return AST_new_unary_expr(UNOP_REF, unary);
+        }
+        case T_STAR:
+        {
+            ADVANCE(parser);
+            unary = parser_parse_unary(parser);
+            return AST_new_unary_expr(UNOP_DEREF, unary);
         }
         default:
         {
             return parser_parse_primary(parser);
         }
     }
-
-    return parser_parse_primary(parser);
 }
 
 t_ast_node *parser_parse_primary(t_parser *parser)
 {
     t_ast_node *n;
     t_token *token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-    t_type type = TYPE_SINT32;
+    t_type *type = TYPE_initialize_type(TYPE_SINT32);
     int32_t s32;
     double f64;
     float f32;
@@ -497,13 +563,13 @@ t_ast_node *parser_parse_primary(t_parser *parser)
         {
             if ('f' == token->content[strlen(token->content) - 1])
             {
-                type = TYPE_F32;
+                type->type = TYPE_F32;
                 f32 = strtof(token->content, NULL);
                 n = AST_new_number(type, &f32);
             }
             else
             {
-                type = TYPE_F64;
+                type->type = TYPE_F64;
                 f64 = strtod(token->content, NULL);
                 n = AST_new_number(type, &f64);
             }
@@ -571,7 +637,7 @@ bool should_finish_expression(t_token *token)
 
 t_ast_node *parser_parse_expression(t_parser *parser)
 {
-    t_ast_node *node = NULL, *expr = NULL, *cond = false;
+    t_ast_node *node = NULL, *cond = false;
     t_vector *then_body = NULL, *else_body = NULL, *body = NULL;
     t_token *token = NULL;
 
@@ -595,6 +661,7 @@ t_ast_node *parser_parse_expression(t_parser *parser)
             else_body = NULL;
         }
         node = AST_new_if_expr(cond, then_body, else_body);
+        ADVANCE(parser);
         return node;
     };
     case T_WHILE:
@@ -608,29 +675,40 @@ t_ast_node *parser_parse_expression(t_parser *parser)
     }
     default:
     {
-        return parser_parse_equality(parser);
+        return parser_parse_assignment(parser);
     }
     }
 }
 
-t_ast_node *parse_assignment_stmt(t_parser *parser, char *var_name)
+t_ast_node *parser_parse_assignment(t_parser *parser)
 {
-    t_ast_node *node = NULL, *expr = NULL;
-    MATCH_ADVANCE(parser, T_EQUALS, "Expected a '=' after identifier in assignment");
-    expr = parser_parse_expression(parser);
-    node = AST_new_assignment_stmt(var_name, expr);
-    MATCH_ADVANCE(parser, T_SEMI_COLON, "Expected a ';' after let statement");
-    --parser->index;
-    return node;
+    t_ast_node *lhs = NULL, *rhs = NULL;
+
+    lhs = parser_parse_equality(parser);
+
+    if (MATCH(parser, T_EQUALS))
+    {
+        ADVANCE(parser);
+        rhs = parser_parse_assignment(parser);
+
+        if ((AST_TYPE_VARIABLE == lhs->type) || ((AST_TYPE_UNARY_EXPR == lhs->type) && (UNOP_DEREF == lhs->unary_expr.operator)))
+        {
+            return AST_new_assignment_expr(lhs, rhs);
+        }
+
+        (void) LOGGER_log(parser->logger, L_ERROR, "Invalid assignment target.");
+        (void) exit(LUKA_GENERAL_ERROR);
+    }
+
+    return lhs;
 }
 
 t_ast_node *parse_statement(t_parser *parser)
 {
     t_ast_node *node = NULL, *expr = NULL, *var = NULL;
     t_token *token = NULL;
-    char *var_name = NULL;
     bool mutable = false;
-    t_type type = TYPE_SINT32;
+    t_type *type = TYPE_initialize_type(TYPE_SINT32);
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     switch (token->type)
@@ -734,8 +812,8 @@ t_ast_node *parse_prototype(t_parser *parser)
 {
     char *name = NULL;
     char **args = NULL, **new_args = NULL;
-    t_type *types = NULL, *new_types = NULL, return_type;
-    int arity = 0;
+    t_type **types = NULL, **new_types = NULL, *return_type = NULL;
+    size_t arity = 0;
     size_t allocated = 6;
     bool vararg = false;
 
@@ -777,7 +855,8 @@ t_ast_node *parse_prototype(t_parser *parser)
         types[0] = parse_type(parser);
         if (TYPE_ANY != types[0])
         {
-            types[0] = TYPE_ANY;
+            types[0]->type = TYPE_ANY;
+            types[0]->inner_type = NULL;
         }
         vararg = true;
     }
@@ -826,7 +905,8 @@ t_ast_node *parse_prototype(t_parser *parser)
             types[arity - 1] = parse_type(parser);
             if (TYPE_ANY != types[arity - 1])
             {
-                types[arity - 1] = TYPE_ANY;
+                types[arity - 1]->type = TYPE_ANY;
+                types[arity - 1]->inner_type = NULL;
             }
             vararg = true;
         }
@@ -880,7 +960,6 @@ cleanup:
 
 t_ast_node *PARSER_parse_function(t_parser *parser)
 {
-    int number = 0;
     t_ast_node *prototype = NULL;
     t_vector *body = NULL;
     prototype = parse_prototype(parser);
