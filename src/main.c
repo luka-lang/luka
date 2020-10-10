@@ -144,7 +144,7 @@ int main(int argc, char **argv)
 
     (void) LLVMInitializeCore(LLVMGetGlobalPassRegistry());
 
-    module = LLVMModuleCreateWithName("luka_main_module");
+    module = LLVMModuleCreateWithName(file_path);
     triple = LLVMGetDefaultTargetTriple();
     (void) LLVMSetTarget(module, triple);
     LLVMDisposeMessage(triple);
