@@ -667,6 +667,7 @@ t_ast_node *parser_parse_expression(t_parser *parser)
         {
             else_body = NULL;
         }
+        --parser->index;
         node = AST_new_if_expr(cond, then_body, else_body);
         ADVANCE(parser);
         return node;
