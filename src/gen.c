@@ -265,6 +265,16 @@ LLVMOpcode gen_get_llvm_opcode(t_ast_binop_type op, LLVMValueRef *lhs, LLVMValue
         }
 
         return LLVMUDiv;
+    case BINOP_MODULOS:
+        if (gen_llvm_cast_to_fp_if_needed(lhs, rhs, builder, logger)) {
+           return LLVMFRem;
+        }
+
+        if (gen_llvm_cast_to_signed_if_needed(lhs, rhs, builder, logger)) {
+            return LLVMSRem;
+        }
+
+        return LLVMURem;
     default:
     {
         (void) LOGGER_log(logger, L_ERROR, "No handler found for op: %d\n", op);

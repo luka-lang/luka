@@ -260,6 +260,12 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source, t_logg
             token->content = "*";
             break;
         }
+        case '%':
+        {
+            token->type = T_PERCENT;
+            token->content = "%";
+            break;
+        }
         case '&':
         {
             token->type = T_AMPERCENT;

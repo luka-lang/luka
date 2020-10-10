@@ -83,6 +83,7 @@ typedef enum
     T_MINUS,
     T_STAR,
     T_SLASH,
+    T_PERCENT,
     T_INTLIT,
 
     T_EQUALS,
@@ -137,6 +138,7 @@ typedef enum
     BINOP_SUBTRACT,
     BINOP_MULTIPLY,
     BINOP_DIVIDE,
+    BINOP_MODULOS,
     BINOP_LESSER,
     BINOP_GREATER,
     BINOP_EQUALS,

@@ -492,6 +492,11 @@ t_ast_node *parser_parse_factor(t_parser *parser)
             operator = BINOP_MULTIPLY;
             break;
         }
+        case T_PERCENT:
+        {
+            operator = BINOP_MODULOS;
+            break;
+        }
         default:
         {
             return lhs;

@@ -478,6 +478,8 @@ char *binop_to_str(t_ast_binop_type op, t_logger *logger)
         return "*";
     case BINOP_DIVIDE:
         return "/";
+    case BINOP_MODULOS:
+        return "%";
     case BINOP_LESSER:
         return "<";
     case BINOP_GREATER:
