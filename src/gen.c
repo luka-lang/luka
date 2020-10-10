@@ -940,7 +940,7 @@ LLVMValueRef gen_codegen_call(t_ast_node *node,
                           func,
                           args,
                           node->call_expr.args->size,
-                          "calltmp");
+                          LLVMGetReturnType(func_type) != LLVMVoidType() ? "calltmp" : "");
 
 cleanup:
     if (NULL != varargs)
