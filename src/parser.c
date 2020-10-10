@@ -298,10 +298,9 @@ t_ast_binop_type parse_binop(t_token *token, t_logger *logger)
 t_ast_node *parse_paren_expr(t_parser *parser)
 {
     t_ast_node *expr;
-    ADVANCE(parser);
+    MATCH_ADVANCE(parser, T_OPEN_PAREN, "Expected '('");
     expr = parser_parse_expression(parser);
-    EXPECT_ADVANCE(parser, T_CLOSE_PAREN, "Expected ')'");
-    ADVANCE(parser);
+    MATCH_ADVANCE(parser, T_CLOSE_PAREN, "Expected ')'");
     return expr;
 }
 
