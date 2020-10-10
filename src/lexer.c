@@ -339,6 +339,21 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source, t_logg
             }
             break;
         }
+        case '!':
+        {
+            if ('=' == source[i + 1])
+            {
+                ++i;
+                token->type = T_NEQ;
+                token->content = "!=";
+            }
+            else
+            {
+                token->type = T_BANG;
+                token->content = "!";
+            }
+            break;
+        }
         case '"':
         {
             token->type = T_STRING;
