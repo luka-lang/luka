@@ -136,6 +136,9 @@ t_type *parse_type(t_parser *parser)
     case T_U16_TYPE:
         type->type = TYPE_UINT16;
         break;
+    case T_U32_TYPE:
+        type->type = TYPE_UINT32;
+        break;
     case T_U64_TYPE:
         type->type = TYPE_UINT64;
         break;
