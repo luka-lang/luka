@@ -126,7 +126,7 @@ typedef enum
     AST_TYPE_WHILE_EXPR,
     AST_TYPE_VARIABLE,
     AST_TYPE_LET_STMT,
-    AST_TYPE_ASSIGNMENT_STMT,
+    AST_TYPE_ASSIGNMENT_EXPR,
     AST_TYPE_CALL_EXPR,
     AST_TYPE_EXPRESSION_STMT
 } t_ast_node_type;
@@ -219,6 +219,12 @@ typedef struct
 
 typedef struct
 {
+    t_ast_node *lhs;
+    t_ast_node *rhs;
+} t_ast_assignment_expr;
+
+typedef struct
+{
     char *name;
     char **args;
     t_type **types;
@@ -257,11 +263,6 @@ typedef struct
     t_ast_node *expr;
 } t_ast_let_stmt;
 
-typedef struct
-{
-    char *var_name;
-    t_ast_node *expr;
-} t_ast_assignment_stmt;
 
 typedef struct
 {
@@ -295,9 +296,9 @@ typedef struct s_ast_node
         t_ast_return_stmt return_stmt;
         t_ast_if_expr if_expr;
         t_ast_while_expr while_expr;
+        t_ast_assignment_expr assignment_expr;
         t_ast_variable variable;
         t_ast_let_stmt let_stmt;
-        t_ast_assignment_stmt assignment_stmt;
         t_ast_call_expr call_expr;
         t_ast_expr_stmt expression_stmt;
     };

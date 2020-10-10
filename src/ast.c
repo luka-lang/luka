@@ -190,12 +190,12 @@ t_ast_node *AST_new_let_stmt(t_ast_node *var, t_ast_node *expr)
     return node;
 }
 
-t_ast_node *AST_new_assignment_stmt(char *var_name, t_ast_node *expr)
+t_ast_node *AST_new_assignment_expr(t_ast_node *lhs, t_ast_node *rhs)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
-    node->type = AST_TYPE_ASSIGNMENT_STMT;
-    node->assignment_stmt.var_name = var_name;
-    node->assignment_stmt.expr = expr;
+    node->type = AST_TYPE_ASSIGNMENT_EXPR;
+    node->assignment_expr.lhs = lhs;
+    node->assignment_expr.rhs = rhs;
     return node;
 }
 
@@ -373,11 +373,16 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
         }
         break;
     }
-    case AST_TYPE_ASSIGNMENT_STMT:
+    case AST_TYPE_ASSIGNMENT_EXPR:
     {
-        if (NULL != node->assignment_stmt.expr)
+        if (NULL != node->assignment_expr.lhs)
         {
-            (void) AST_free_node(node->assignment_stmt.expr, logger);
+            (void) AST_free_node(node->assignment_expr.lhs, logger);
+        }
+
+        if (NULL != node->assignment_expr.rhs)
+        {
+            (void) AST_free_node(node->assignment_expr.rhs, logger);
         }
         break;
     }
@@ -523,8 +528,12 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
         (void) LOGGER_log(logger, L_DEBUG, "%*c\b Unary Expression\n", offset, ' ');
         (void) LOGGER_log(logger, L_DEBUG, "%*c\b Operator: %s\n", offset + 2, ' ',
                           unop_to_str(node->unary_expr.operator, logger));
+
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Expression:\n", offset + 2, ' ');
         if (NULL != node->unary_expr.rhs)
+        {
             (void) AST_print_ast(node->unary_expr.rhs, offset + 4, logger);
+        }
         break;
     }
     case AST_TYPE_BINARY_EXPR:
@@ -653,23 +662,19 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
         break;
     }
 
-    case AST_TYPE_ASSIGNMENT_STMT:
+    case AST_TYPE_ASSIGNMENT_EXPR:
     {
-        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Assignment Statement\n", offset, ' ');
-        if (NULL != node->assignment_stmt.var_name)
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Assignment Expression\n", offset, ' ');
+        if (NULL != node->assignment_expr.lhs)
         {
-            (void) LOGGER_log(logger,
-                              L_DEBUG,
-                              "%*c\b Variable Name: %s\n",
-                              offset,
-                              ' ',
-                              node->assignment_stmt.var_name);
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Left hand side\n", offset + 2, ' ');
+            (void) AST_print_ast(node->assignment_expr.lhs, offset + 4, logger);
         }
 
-        if (NULL != node->assignment_stmt.expr)
+        if (NULL != node->assignment_expr.rhs)
         {
-            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Expression\n", offset + 2, ' ');
-            (void) AST_print_ast(node->assignment_stmt.expr, offset + 4, logger);
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Right hand side\n", offset + 2, ' ');
+            (void) AST_print_ast(node->assignment_expr.rhs, offset + 4, logger);
         }
         break;
     }

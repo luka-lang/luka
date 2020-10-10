@@ -1,0 +1,14 @@
+extern printf(format: s8*, ...: any): s32;
+
+fn main() {
+    let num = 32;
+    let mut p: s32* = &num;
+
+    printf("Num %d %p.\n", num, p);
+
+    *p = 12;
+
+    printf("Num %d %p.\n", num, p);
+
+    0
+}

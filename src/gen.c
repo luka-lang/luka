@@ -394,7 +394,7 @@ LLVMValueRef gen_codegen_unexpr(t_ast_node *n,
         }
         case UNOP_DEREF:
         {
-            return LLVMBuildLoad(builder, rhs, "loadtmp");
+            return LLVMBuildLoad(builder, gen_get_address(n->unary_expr.rhs, logger), "loadtmp");
         }
         default:
         {
@@ -814,38 +814,54 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node,
     return NULL;
 }
 
-LLVMValueRef gen_codegen_assignment_stmt(t_ast_node *node,
+LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node,
                                          LLVMModuleRef module,
                                          LLVMBuilderRef builder,
                                          t_logger *logger)
 {
-    LLVMValueRef expr = NULL;
-    char *var_name = NULL;
+    LLVMValueRef lhs = NULL, rhs = NULL;
+    t_ast_node *variable = NULL;
     t_named_value *val = NULL;
 
-    var_name = node->assignment_stmt.var_name;
-    expr = GEN_codegen(node->assignment_stmt.expr, module, builder, logger);
-    if (NULL == expr)
+    if (NULL != node->assignment_expr.lhs)
     {
-        (void) LOGGER_log(logger, L_ERROR, "Expression generation in assignment stmt failed.\n");
+        if (AST_TYPE_VARIABLE == node->assignment_expr.lhs->type)
+        {
+            variable = node->assignment_expr.lhs;
+            HASH_FIND_STR(named_values, variable->variable.name, val);
+            if (NULL == val)
+            {
+                (void) LOGGER_log(logger, L_ERROR, "Cannot assign to undeclared variable '%s'.\n", val->name);
+                (void) exit(LUKA_CODEGEN_ERROR);
+            }
+
+            if (!val->mutable)
+            {
+                (void) LOGGER_log(logger, L_ERROR, "Trying to assign to immutable variable '%s'.\n", val->name);
+                (void) exit(LUKA_CODEGEN_ERROR);
+            }
+
+            lhs = val->alloca_inst;
+        }
+        else
+        {
+            lhs = GEN_codegen(node->assignment_expr.lhs, module, builder, logger);
+        }
+    }
+
+    if (NULL != node->assignment_expr.rhs)
+    {
+        rhs = GEN_codegen(node->assignment_expr.rhs, module, builder, logger);
+    }
+
+    if ((NULL == lhs ) || (NULL == rhs))
+    {
+        (void) LOGGER_log(logger, L_ERROR, "Expression generation in assignment expr failed.\n");
         (void) exit(LUKA_CODEGEN_ERROR);
     }
 
-    HASH_FIND_STR(named_values, var_name, val);
-    if (NULL == val)
-    {
-        (void) LOGGER_log(logger, L_ERROR, "Cannot assign to undeclared variable.\n");
-        (void) exit(LUKA_CODEGEN_ERROR);
-    }
-
-    if (!val->mutable)
-    {
-        (void) LOGGER_log(logger, L_ERROR, "Tried to assign to an immutable variable.\n");
-        (void) exit(LUKA_CODEGEN_ERROR);
-    }
-
-    LLVMBuildStore(builder, expr, val->alloca_inst);
-    return expr;
+    LLVMBuildStore(builder, rhs, lhs);
+    return rhs;
 }
 
 LLVMValueRef gen_codegen_call(t_ast_node *node,
@@ -997,8 +1013,8 @@ LLVMValueRef GEN_codegen(t_ast_node *node,
         return gen_codegen_variable(node, module, builder, logger);
     case AST_TYPE_LET_STMT:
         return gen_codegen_let_stmt(node, module, builder, logger);
-    case AST_TYPE_ASSIGNMENT_STMT:
-        return gen_codegen_assignment_stmt(node, module, builder, logger);
+    case AST_TYPE_ASSIGNMENT_EXPR:
+        return gen_codegen_assignment_expr(node, module, builder, logger);
     case AST_TYPE_CALL_EXPR:
         return gen_codegen_call(node, module, builder, logger);
     case AST_TYPE_EXPRESSION_STMT:
