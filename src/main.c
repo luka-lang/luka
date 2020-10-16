@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include <llvm-c/Analysis.h>
 #include <llvm-c/BitWriter.h>
@@ -205,8 +206,8 @@ int main(int argc, char **argv)
         if (NULL != cmd) {
             (void) snprintf(cmd, CMD_LEN, "clang -o \"%s\" %s", output_path, BITCODE_FILENAME);
             (void) system(cmd);
-            (void) snprintf(cmd, CMD_LEN, "rm ./%s", BITCODE_FILENAME);
-            (void) system(cmd);
+            (void) snprintf(cmd, CMD_LEN, "./%s", BITCODE_FILENAME);
+            (void) unlink(cmd);
         }
     }
 
