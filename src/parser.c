@@ -736,7 +736,7 @@ t_ast_node *parse_statement(t_parser *parser)
     t_ast_node *node = NULL, *expr = NULL, *var = NULL;
     t_token *token = NULL;
     bool mutable = false;
-    t_type *type = TYPE_initialize_type(TYPE_SINT32);
+    t_type *type = NULL;
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     switch (token->type)

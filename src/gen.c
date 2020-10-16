@@ -929,8 +929,16 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node,
 
     val = malloc(sizeof(t_named_value));
     val->name = strdup(variable.name);
-    val->ttype = variable.type;
-    val->type = gen_type_to_llvm_type(variable.type, logger);
+    if (NULL == variable.type)
+    {
+        val->type = LLVMTypeOf(expr);
+        val->ttype = gen_llvm_type_to_ttype(val->type, logger);
+    }
+    else
+    {
+        val->ttype = variable.type;
+        val->type = gen_type_to_llvm_type(val->ttype, logger);
+    }
     val->alloca_inst = gen_create_entry_block_allca(LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder)), val->type, val->name);
     if (LLVMTypeOf(expr) != val->type)
     {

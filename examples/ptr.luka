@@ -6,27 +6,29 @@ extern strcat(ptr: string, str: string): string;
 extern free(ptr: any*): void;
 
 fn main() {
+    // Pointers to stack memory
     let num = 32;
-    let mut p: s32* = &num;
+    let mut p = &num;
     printf("Num %d %p.\n", num, p);
     *p = 12;
     printf("Num %d %p.\n", num, p);
 
-    let ptr: s32* = malloc(4) as s32*;
-    free(ptr as any*);
+    let ptr = malloc(4) as s32*;
+    free(ptr);
 
-   // Initial memory allocation
-   let mut str: u8* = malloc(15) as u8*;
+    // Pointers to heap memory
+    // Initial memory allocation
+    let mut str = malloc(15) as u8*;
 
-   strcpy(str, "luka is a nice");
-   printf("String = %s\t\t\t\tAddress = %u\n", str, str);
+    strcpy(str, "luka is a nice");
+    printf("String = %s\t\t\t\tAddress = %u\n", str, str);
 
-   // Reallocating memory
-   str = realloc(str, 36) as u8*;
-   strcat(str, " programming language");
-   printf("String = %s\tAddress = %u\n", str, str);
+    // Reallocating memory
+    str = realloc(str, 36) as u8*;
+    strcat(str, " programming language");
+    printf("String = %s\tAddress = %u\n", str, str);
 
-   free(str);
+    free(str);
 
     0
 }
