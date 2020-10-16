@@ -83,7 +83,7 @@ bool parser_is_compound_expr(t_ast_node *node)
     return (node->type == AST_TYPE_WHILE_EXPR) || (node->type == AST_TYPE_IF_EXPR);
 }
 
-t_type *parse_type(t_parser *parser)
+t_type *parse_type(t_parser *parser, bool parse_prefix)
 {
     t_token *token = NULL;
     t_type *type = NULL;
@@ -95,14 +95,18 @@ t_type *parse_type(t_parser *parser)
     }
     type->inner_type = NULL;
 
-    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
-    if (T_COLON != token->type)
+    if (parse_prefix)
     {
-        type->type = TYPE_SINT32;
-        return type;
-    }
+        token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
+        if (T_COLON != token->type)
+        {
+            type->type = TYPE_SINT32;
+            return type;
+        }
 
-    EXPECT_ADVANCE(parser, T_COLON, "Expected a `:` before type.");
+        EXPECT_ADVANCE(parser, T_COLON, "Expected a `:` before type.");
+
+    }
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
 
@@ -327,7 +331,7 @@ t_ast_node *parse_ident_expr(t_parser *parser)
             ADVANCE(parser);
             mutable = true;
         }
-        return AST_new_variable(ident_name, parse_type(parser), mutable);
+        return AST_new_variable(ident_name, parse_type(parser, true), mutable);
     }
 
     ADVANCE(parser);
@@ -639,6 +643,11 @@ bool should_finish_expression(t_token *token)
         return true;
     }
 
+    if (T_AS == token->type)
+    {
+        return true;
+    }
+
     return false;
 }
 
@@ -647,6 +656,7 @@ t_ast_node *parser_parse_expression(t_parser *parser)
     t_ast_node *node = NULL, *cond = false;
     t_vector *then_body = NULL, *else_body = NULL, *body = NULL;
     t_token *token = NULL;
+    t_type *type = NULL;
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
 
@@ -670,7 +680,7 @@ t_ast_node *parser_parse_expression(t_parser *parser)
         --parser->index;
         node = AST_new_if_expr(cond, then_body, else_body);
         ADVANCE(parser);
-        return node;
+        break;
     };
     case T_WHILE:
     {
@@ -679,13 +689,23 @@ t_ast_node *parser_parse_expression(t_parser *parser)
         --parser->index;
         body = parse_statements(parser);
         node = AST_new_while_expr(cond, body);
-        return node;
+        break;
     }
     default:
     {
-        return parser_parse_assignment(parser);
+        node = parser_parse_assignment(parser);
+        break;
     }
     }
+
+    if (MATCH(parser, T_AS))
+    {
+        type = parse_type(parser, false);
+        ADVANCE(parser);
+        return AST_new_cast_expr(node, type);
+    }
+
+    return node;
 }
 
 t_ast_node *parser_parse_assignment(t_parser *parser)
@@ -742,7 +762,7 @@ t_ast_node *parse_statement(t_parser *parser)
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
         if (EXPECT(parser, T_COLON))
         {
-            type = parse_type(parser);
+            type = parse_type(parser, true);
         }
         EXPECT_ADVANCE(parser, T_EQUALS,
                        "Expected a '=' after ident in variable declaration");
@@ -844,7 +864,7 @@ t_ast_node *parse_prototype(t_parser *parser)
     {
         // No args
         ADVANCE(parser);
-        return_type = parse_type(parser);
+        return_type = parse_type(parser, true);
         return AST_new_prototype(name, NULL, NULL, 0, return_type, vararg);
     }
 
@@ -866,7 +886,7 @@ t_ast_node *parse_prototype(t_parser *parser)
 
     if (T_THREE_DOTS == token->type)
     {
-        types[0] = parse_type(parser);
+        types[0] = parse_type(parser, true);
         if (TYPE_ANY != types[0])
         {
             types[0]->type = TYPE_ANY;
@@ -876,7 +896,7 @@ t_ast_node *parse_prototype(t_parser *parser)
     }
     else
     {
-        types[0] = parse_type(parser);
+        types[0] = parse_type(parser, true);
     }
     args[0] = strdup(token->content);
     arity = 1;
@@ -916,7 +936,7 @@ t_ast_node *parse_prototype(t_parser *parser)
 
         if (T_THREE_DOTS == token->type)
         {
-            types[arity - 1] = parse_type(parser);
+            types[arity - 1] = parse_type(parser, true);
             if (TYPE_ANY != types[arity - 1])
             {
                 types[arity - 1]->type = TYPE_ANY;
@@ -926,14 +946,14 @@ t_ast_node *parse_prototype(t_parser *parser)
         }
         else
         {
-            types[arity - 1] = parse_type(parser);
+            types[arity - 1] = parse_type(parser, true);
         }
         args[arity - 1] = strdup(token->content);
     }
 
     EXPECT_ADVANCE(parser, T_CLOSE_PAREN, "Expected a ')'");
 
-    return_type = parse_type(parser);
+    return_type = parse_type(parser, true);
 
     if (arity != allocated)
     {

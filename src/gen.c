@@ -114,6 +114,11 @@ t_type *gen_llvm_type_to_ttype(LLVMTypeRef type, t_logger *logger)
     {
         ttype->type = TYPE_VOID;
     }
+    else if (LLVMGetTypeKind(type) == LLVMPointerTypeKind)
+    {
+        ttype->type = TYPE_PTR;
+        ttype->inner_type = gen_llvm_type_to_ttype(LLVMGetElementType(type), logger);
+    }
     else
     {
         (void) LLVMDumpType(type);
@@ -806,6 +811,81 @@ LLVMValueRef gen_codegen_while_expr(t_ast_node *n,
     return body_value;
 }
 
+LLVMValueRef gen_codegen_cast_expr(t_ast_node *node,
+                                   LLVMModuleRef module,
+                                   LLVMBuilderRef builder,
+                                   t_logger *logger)
+{
+
+    LLVMValueRef expr = NULL;
+    LLVMTypeRef type = NULL, dest_type = NULL;
+    LLVMTypeKind type_kind = LLVMIntegerTypeKind, dtype_kind = LLVMIntegerTypeKind;
+    t_type *ttype = NULL;
+    t_type *dest_ttype = node->cast_expr.type;
+
+    expr = GEN_codegen(node->cast_expr.expr, module, builder, logger);
+    type = LLVMTypeOf(expr);
+    type_kind = LLVMGetTypeKind(type);
+    ttype = gen_llvm_type_to_ttype(LLVMTypeOf(expr), logger);
+    dest_type = gen_type_to_llvm_type(node->cast_expr.type, logger);
+    dtype_kind = LLVMGetTypeKind(dest_type);
+
+    if ((LLVMPointerTypeKind == type_kind) && (LLVMPointerTypeKind == LLVMGetTypeKind(dest_type)))
+    {
+        return LLVMBuildPointerCast(builder, expr, dest_type, "ptrcasttmp");
+    }
+    else if ((LLVMDoubleTypeKind == type_kind) || (LLVMFloatTypeKind == type_kind))
+    {
+        if (LLVMDoubleTypeKind == dtype_kind)
+        {
+            return LLVMBuildFPExt(builder, expr, dest_type, "fpexttmp");
+        }
+        else if (LLVMFloatTypeKind == dtype_kind)
+        {
+            return LLVMBuildFPTrunc(builder, expr, dest_type, "fptrunctmp");
+        }
+        else
+        {
+            if (ttype_is_signed(dest_ttype))
+            {
+                return LLVMBuildFPToSI(builder, expr, dest_type, "fptosicast");
+            }
+
+            return LLVMBuildFPToUI(builder, expr, dest_type, "fptosicast");
+        }
+
+        return LLVMBuildFPCast(builder, expr, dest_type, "fpcast");
+    }
+    else if (LLVMIntegerTypeKind == LLVMGetTypeKind(LLVMTypeOf(expr)))
+    {
+        if ((LLVMDoubleTypeKind == type_kind) || (LLVMFloatTypeKind == type_kind))
+        {
+            if (ttype_is_signed(ttype))
+            {
+                return LLVMBuildSIToFP(builder, expr, dest_type, "sitofpcast");
+            }
+
+            return LLVMBuildUIToFP(builder, expr, dest_type, "uitofpcast");
+        }
+
+        if (LLVMGetIntTypeWidth(dest_type) > LLVMGetIntTypeWidth(type))
+        {
+            if (ttype_is_signed(dest_ttype))
+            {
+                return LLVMBuildSExt(builder, expr, dest_type, "sextcasttmp");
+            }
+
+            return LLVMBuildZExt(builder, expr, dest_type, "zextcasttmp");
+        }
+        else
+        {
+            return LLVMBuildTrunc(builder, expr, dest_type, "trunccasttmp");
+        }
+    }
+
+    return LLVMBuildBitCast(builder, expr, dest_type, "bitcasttmp");
+}
+
 LLVMValueRef gen_codegen_variable(t_ast_node *node,
                                   LLVMModuleRef UNUSED(module),
                                   LLVMBuilderRef builder,
@@ -1075,6 +1155,8 @@ LLVMValueRef GEN_codegen(t_ast_node *node,
         return gen_codegen_if_expr(node, module, builder, logger);
     case AST_TYPE_WHILE_EXPR:
         return gen_codegen_while_expr(node, module, builder, logger);
+    case AST_TYPE_CAST_EXPR:
+        return gen_codegen_cast_expr(node, module, builder, logger);
     case AST_TYPE_VARIABLE:
         return gen_codegen_variable(node, module, builder, logger);
     case AST_TYPE_LET_STMT:
