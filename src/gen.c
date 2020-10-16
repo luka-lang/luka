@@ -119,6 +119,10 @@ t_type *gen_llvm_type_to_ttype(LLVMTypeRef type, t_logger *logger)
         ttype->type = TYPE_PTR;
         ttype->inner_type = gen_llvm_type_to_ttype(LLVMGetElementType(type), logger);
     }
+    else if (LLVMStructTypeKind == LLVMGetTypeKind(type))
+    {
+        ttype->type = TYPE_STRUCT;
+    }
     else
     {
         (void) LLVMDumpType(type);
@@ -1153,6 +1157,51 @@ LLVMValueRef gen_codegen_number(t_ast_node *node, t_logger *logger)
     }
 }
 
+LLVMValueRef gen_codegen_struct_definition(t_ast_node *node,
+                                           LLVMModuleRef UNUSED(module),
+                                           LLVMBuilderRef UNUSED(builder),
+                                           t_logger *logger)
+{
+    size_t elements_count = node->struct_definition.struct_fields->size;
+    LLVMTypeRef struct_type = NULL;
+    LLVMTypeRef *element_types = calloc(elements_count, sizeof(LLVMTypeRef));
+    if (NULL == element_types)
+    {
+        return NULL;
+    }
+
+    struct_type = LLVMStructCreateNamed(LLVMGetGlobalContext(), node->struct_definition.name);
+
+    for (size_t i = 0; i < elements_count; ++i)
+    {
+        element_types[i] = gen_type_to_llvm_type((VECTOR_GET_AS(t_struct_field_ptr, node->struct_definition.struct_fields, i))->type, logger);
+    }
+
+    LLVMStructSetBody(struct_type, element_types, elements_count, false);
+
+    return NULL;
+}
+
+LLVMValueRef gen_codegen_struct_value(t_ast_node *node,
+                                      LLVMModuleRef module,
+                                      LLVMBuilderRef builder,
+                                      t_logger *logger)
+{
+    size_t elements_count = node->struct_value.struct_values->size;
+    LLVMValueRef *element_values = calloc(elements_count, sizeof(LLVMValueRef));
+    if (NULL == element_values)
+    {
+        return NULL;
+    }
+
+    for (size_t i = 0; i < elements_count; ++i)
+    {
+        element_values[i] = GEN_codegen((VECTOR_GET_AS(t_struct_value_field_ptr, node->struct_value.struct_values, i))->expr, module, builder, logger);
+    }
+
+    return LLVMConstStruct(element_values, elements_count, false);
+}
+
 LLVMValueRef GEN_codegen(t_ast_node *node,
                          LLVMModuleRef module,
                          LLVMBuilderRef builder,
@@ -1192,6 +1241,10 @@ LLVMValueRef GEN_codegen(t_ast_node *node,
         return gen_codegen_expression_stmt(node, module, builder, logger);
     case AST_TYPE_BREAK_STMT:
         return gen_codegen_break_stmt(node, module, builder, logger);
+    case AST_TYPE_STRUCT_DEFINITION:
+        return gen_codegen_struct_definition(node, module, builder, logger);
+    case AST_TYPE_STRUCT_VALUE:
+        return gen_codegen_struct_value(node, module, builder, logger);
     default:
     {
         (void) LOGGER_log(logger, L_ERROR, "No codegen function was found for type - %d\n", node->type);

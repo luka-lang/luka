@@ -13,6 +13,8 @@ t_ast_node *parser_parse_unary(t_parser *parser);
 t_ast_node *parser_parse_primary(t_parser *parser);
 
 t_vector *parse_statements(t_parser *parser);
+t_vector *parser_parse_struct_fields(t_parser *parser);
+t_struct_field *parser_parse_struct_field(t_parser *parser);
 
 t_ast_node *parse_prototype(t_parser *parser);
 t_ast_node *parser_parse_assignment(t_parser *parser);
@@ -318,20 +320,67 @@ t_ast_node *parse_ident_expr(t_parser *parser)
     char *ident_name = NULL;
     t_vector *args = NULL;
     bool mutable = false;
+    t_vector *struct_value_fields = NULL;
+    t_struct_value_field *struct_value_field = NULL;
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     ident_name = token->content;
 
     ADVANCE(parser);
+
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     if (T_OPEN_PAREN != token->type)
     {
-        if (MATCH(parser, T_MUT))
+        if (T_OPEN_BRACKET != token->type)
         {
-            ADVANCE(parser);
-            mutable = true;
+            if (MATCH(parser, T_MUT))
+            {
+                ADVANCE(parser);
+                mutable = true;
+            }
+            return AST_new_variable(ident_name, parse_type(parser, true), mutable);
         }
-        return AST_new_variable(ident_name, parse_type(parser, true), mutable);
+
+        ADVANCE(parser);
+        struct_value_fields = calloc(1, sizeof(t_vector));
+        if (NULL == struct_value_fields)
+        {
+            (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for struct_value_fields.\n");
+            goto cleanup;
+        }
+
+        (void) vector_setup(struct_value_fields, 5, sizeof(t_struct_value_field_ptr));
+
+
+        while (true)
+        {
+            struct_value_field = calloc(1, sizeof(t_struct_value_field *));
+            if (NULL == struct_value_field)
+            {
+                (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for struct_value_field.\n");
+                goto cleanup;
+            }
+
+            token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+            struct_value_field->name = strdup(token->content);
+
+            EXPECT_ADVANCE(parser, T_COLON, "Expected ':' after field name in struct value.\n");
+            ADVANCE(parser);
+            struct_value_field->expr = parser_parse_expression(parser);
+
+            vector_push_back(struct_value_fields, &struct_value_field);
+
+            if (MATCH(parser, T_CLOSE_BRACKET))
+            {
+                ADVANCE(parser);
+                break;
+            }
+
+            MATCH_ADVANCE(parser, T_COMMA, "Expected '}' or ',' after struct value field.\n");
+        }
+
+        return AST_new_struct_value(ident_name, struct_value_fields);
+
     }
 
     ADVANCE(parser);
@@ -339,6 +388,7 @@ t_ast_node *parse_ident_expr(t_parser *parser)
     if (NULL == args)
     {
         (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for args.\n");
+        goto cleanup;
     }
     vector_setup(args, 10, sizeof(t_ast_node));
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
@@ -364,10 +414,83 @@ t_ast_node *parse_ident_expr(t_parser *parser)
 
     return AST_new_call_expr(ident_name, args);
 
+cleanup:
     if (NULL != args)
     {
+        t_ast_node *node = NULL;
+        t_iterator iterator = vector_begin(args);
+        t_iterator last = vector_end(args);
+
+        for (; !iterator_equals(&iterator, &last); iterator_increment(&iterator))
+        {
+            node = *(t_ast_node_ptr *)iterator_get(&iterator);
+            AST_free_node(node, parser->logger);
+        }
+
+        (void) vector_clear(args);
+        (void) vector_destroy(args);
         (void) free(args);
         args = NULL;
+    }
+
+    if (NULL != struct_value_fields)
+    {
+        t_struct_value_field *struct_value_field = NULL;
+        t_iterator iterator = vector_begin(struct_value_fields);
+        t_iterator last = vector_end(struct_value_fields);
+
+        for (; !iterator_equals(&iterator, &last); iterator_increment(&iterator))
+        {
+            struct_value_field = ITERATOR_GET_AS(t_struct_value_field_ptr, &iterator);
+            if (NULL == struct_value_field)
+            {
+                continue;
+            }
+
+            if (NULL != struct_value_field->name)
+            {
+                (void) free(struct_value_field->name);
+                struct_value_field->name = NULL;
+            }
+
+            if (NULL != struct_value_field->expr)
+            {
+                (void) AST_free_node(struct_value_field->expr, parser->logger);
+                struct_value_field->expr = NULL;
+            }
+
+            (void) free(struct_value_field);
+            struct_value_field = NULL;
+        }
+
+        (void) vector_clear(struct_value_fields);
+        (void) vector_destroy(struct_value_fields);
+        (void) free(struct_value_fields);
+        struct_value_fields = NULL;
+    }
+
+    if (NULL != struct_value_field)
+    {
+        if (NULL != struct_value_field->name)
+        {
+            (void) free(struct_value_field->name);
+            struct_value_field->name = NULL;
+        }
+
+        if (NULL != struct_value_field->expr)
+        {
+            (void) AST_free_node(struct_value_field->expr, parser->logger);
+            struct_value_field->expr = NULL;
+        }
+
+        (void) free(struct_value_field);
+        struct_value_field = NULL;
+    }
+
+    if (NULL != expr)
+    {
+        (void) AST_free_node(expr, parser->logger);
+        expr = NULL;
     }
 
     return NULL;
@@ -737,6 +860,8 @@ t_ast_node *parse_statement(t_parser *parser)
     t_token *token = NULL;
     bool mutable = false;
     t_type *type = NULL;
+    char *name = NULL;
+    t_vector *fields = NULL;
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     switch (token->type)
@@ -778,6 +903,17 @@ t_ast_node *parse_statement(t_parser *parser)
         EXPECT_ADVANCE(parser, T_SEMI_COLON, "Expected a ';' after 'break'");
         ADVANCE(parser);
         return AST_new_break_stmt();
+    }
+    case T_STRUCT:
+    {
+        EXPECT_ADVANCE(parser, T_IDENTIFIER, "Expected an identifier after keyword 'struct'");
+        token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+        name = strdup(token->content);
+        EXPECT_ADVANCE(parser, T_OPEN_BRACKET, "Expected a '{' after identifier in struct definition");
+        ADVANCE(parser);
+        fields = parser_parse_struct_fields(parser);
+        MATCH_ADVANCE(parser, T_CLOSE_BRACKET, "Expected a '}' after struct fields in struct definition");
+        return AST_new_struct_definition(name, fields);
     }
     default:
     {
@@ -990,6 +1126,116 @@ cleanup:
     }
 
     (void) exit(1);
+}
+
+
+t_vector *parser_parse_struct_fields(t_parser *parser)
+{
+    t_vector *fields = NULL;
+    t_struct_field *struct_field = NULL;
+    t_token *token = NULL;
+
+    fields = calloc(1, sizeof(t_vector));
+    if (NULL == fields)
+    {
+        (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for struct fields vector.\n");
+        goto cleanup;
+    }
+
+    vector_setup(fields, 5, sizeof(t_struct_field_ptr));
+
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    if (T_CLOSE_BRACKET != token->type)
+    {
+        while (true)
+        {
+            struct_field = parser_parse_struct_field(parser);
+            if (NULL == struct_field)
+            {
+                goto cleanup;
+            }
+            vector_push_back(fields, &struct_field);
+
+            token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+            if (T_CLOSE_BRACKET == token->type)
+            {
+                break;
+            }
+
+            MATCH_ADVANCE(parser, T_COMMA, "Expected '}' or ',' after a struct field.");
+
+        }
+    }
+
+    vector_shrink_to_fit(fields);
+    return fields;
+
+cleanup:
+
+    VECTOR_FOR_EACH(fields, field) {
+        struct_field = ITERATOR_GET_AS(t_struct_field_ptr, &field);
+        if (NULL != struct_field)
+        {
+            if (NULL != struct_field->name)
+            {
+                (void) free(struct_field->name);
+                struct_field->name = NULL;
+            }
+
+            if (NULL != struct_field->type)
+            {
+                (void) TYPE_free_type(struct_field->type);
+                struct_field->type = NULL;
+            }
+            (void) free(struct_field);
+            struct_field = NULL;
+        }
+
+    }
+    (void) vector_clear(fields);
+    (void) vector_destroy(fields);
+    (void) free(fields);
+    fields = NULL;
+    return NULL;
+}
+
+t_struct_field *parser_parse_struct_field(t_parser *parser)
+{
+    t_token *token = NULL;
+    t_struct_field *struct_field = calloc(1, sizeof(t_struct_field));
+    if (NULL == struct_field)
+    {
+        goto cleanup;
+    }
+
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    MATCH_ADVANCE(parser, T_IDENTIFIER, "Expected an identifier as a struct field name");
+    --parser->index;
+    struct_field->name = strdup(token->content);
+    struct_field->type = parse_type(parser, true);
+    ADVANCE(parser);
+
+    return struct_field;
+
+cleanup:
+    if (NULL != struct_field)
+    {
+        if (NULL != struct_field->name)
+        {
+            (void) free(struct_field->name);
+            struct_field->name = NULL;
+        }
+
+        if (NULL != struct_field->type)
+        {
+            (void) TYPE_free_type(struct_field->type);
+            struct_field->type = NULL;
+        }
+        (void) free(struct_field);
+        struct_field = NULL;
+    }
+
+    return NULL;
 }
 
 t_ast_node *PARSER_parse_function(t_parser *parser)

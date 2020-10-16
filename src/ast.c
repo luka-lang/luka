@@ -251,6 +251,24 @@ t_ast_node *AST_new_break_stmt()
     return node;
 }
 
+t_ast_node *AST_new_struct_definition(char *name, t_vector *struct_fields)
+{
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
+    node->type = AST_TYPE_STRUCT_DEFINITION;
+    node->struct_definition.name = name;
+    node->struct_definition.struct_fields = struct_fields;
+    return node;
+}
+
+t_ast_node *AST_new_struct_value(char *name, t_vector *struct_values)
+{
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
+    node->type = AST_TYPE_STRUCT_VALUE;
+    node->struct_value.name = name;
+    node->struct_value.struct_values = struct_values;
+    return node;
+}
+
 void AST_free_node(t_ast_node *node, t_logger *logger)
 {
     if (NULL == node)
@@ -463,6 +481,86 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
         break;
     }
 
+    case AST_TYPE_STRUCT_DEFINITION:
+    {
+        if (NULL != node->struct_definition.name)
+        {
+            (void) free(node->struct_definition.name);
+            node->struct_definition.name = NULL;
+        }
+        if (NULL != node->struct_definition.struct_fields)
+        {
+            t_struct_field *struct_field = NULL;
+            VECTOR_FOR_EACH(node->struct_definition.struct_fields, struct_fields)
+            {
+                struct_field = ITERATOR_GET_AS(t_struct_field_ptr, &struct_fields);
+                if (NULL != struct_field)
+                {
+                    if (NULL != struct_field->name)
+                    {
+                        (void) free(struct_field->name);
+                        struct_field->name = NULL;
+                    }
+
+                    if (NULL != struct_field->type)
+                    {
+                        (void) TYPE_free_type(struct_field->type);
+                        struct_field->type = NULL;
+                    }
+
+                    (void) free(struct_field);
+                    struct_field = NULL;
+                }
+            }
+
+            (void) vector_clear(node->struct_definition.struct_fields);
+            (void) vector_destroy(node->struct_definition.struct_fields);
+            (void) free(node->struct_definition.struct_fields);
+            node->struct_definition.struct_fields = NULL;
+        }
+        break;
+    }
+
+    case AST_TYPE_STRUCT_VALUE:
+    {
+        if (NULL != node->struct_value.name)
+        {
+            (void) free(node->struct_value.name);
+            node->struct_value.name = NULL;
+        }
+        if (NULL != node->struct_value.struct_values)
+        {
+            t_struct_value_field *struct_value = NULL;
+            VECTOR_FOR_EACH(node->struct_value.struct_values, struct_values)
+            {
+                struct_value = ITERATOR_GET_AS(t_struct_value_field_ptr, &struct_values);
+                if (NULL != struct_value)
+                {
+                    if (NULL != struct_value->name)
+                    {
+                        (void) free(struct_value->name);
+                        struct_value->name = NULL;
+                    }
+
+                    if (NULL != struct_value->expr)
+                    {
+                        (void) AST_free_node(struct_value->expr, logger);
+                        struct_value->expr = NULL;
+                    }
+
+                    (void) free(struct_value);
+                    struct_value = NULL;
+                }
+            }
+
+            (void) vector_clear(node->struct_value.struct_values);
+            (void) vector_destroy(node->struct_value.struct_values);
+            (void) free(node->struct_value.struct_values);
+            node->struct_value.struct_values = NULL;
+        }
+        break;
+    }
+
     default:
     {
         (void) LOGGER_log(logger, L_ERROR, "I don't now how to free type - %d\n", node->type);
@@ -551,6 +649,8 @@ char *binop_to_str(t_ast_binop_type op, t_logger *logger)
 void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
 {
     t_ast_node *arg = NULL;
+    t_struct_field *struct_field = NULL;
+    t_struct_value_field *value_field = NULL;
     size_t i = 0;
     char type_str[256] = {0};
 
@@ -786,6 +886,79 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
     case AST_TYPE_BREAK_STMT:
     {
         (void) LOGGER_log(logger, L_DEBUG, "%*c\b Break statement\n", offset, ' ');
+        break;
+    }
+    case AST_TYPE_STRUCT_DEFINITION:
+    {
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Struct Definition\n", offset, ' ');
+        if (NULL != node->struct_definition.name)
+        {
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Name - %s\n", offset + 2, ' ', node->struct_definition.name);
+        }
+
+        if (NULL != node->struct_definition.struct_fields)
+        {
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Fields\n", offset + 2, ' ', node->struct_definition.name);
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Count - %d\n", offset + 4, ' ', node->struct_definition.struct_fields->size);
+
+            VECTOR_FOR_EACH(node->struct_definition.struct_fields, struct_fields)
+            {
+                struct_field = ITERATOR_GET_AS(t_struct_field_ptr, &struct_fields);
+                if (NULL != struct_field)
+                {
+                    (void) LOGGER_log(logger, L_DEBUG, "%*c\b Struct Field\n", offset + 4, ' ');
+
+                    if (NULL != struct_field->name)
+                    {
+                        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Name - %s\n", offset + 6, ' ', struct_field->name);
+                    }
+
+                    if (NULL != struct_field->type)
+                    {
+                        (void) memset(type_str, 0, sizeof(type_str));
+                        (void) ast_type_to_string(struct_field->type, logger, type_str, sizeof(type_str));
+                        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Type - %s\n", offset + 6, ' ', type_str);
+                    }
+                }
+
+            }
+        }
+        break;
+    }
+    case AST_TYPE_STRUCT_VALUE:
+    {
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Struct Value\n", offset, ' ');
+        if (NULL != node->struct_value.name)
+        {
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Name - %s\n", offset + 2, ' ', node->struct_value.name);
+        }
+
+        if (NULL != node->struct_value.struct_values)
+        {
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Fields\n", offset + 2, ' ', node->struct_value.name);
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Count - %d\n", offset + 4, ' ', node->struct_value.struct_values->size);
+
+            VECTOR_FOR_EACH(node->struct_value.struct_values, value_fields)
+            {
+                value_field = ITERATOR_GET_AS(t_struct_value_field_ptr, &value_fields);
+                if (NULL != value_field)
+                {
+                    (void) LOGGER_log(logger, L_DEBUG, "%*c\b Struct Field\n", offset + 4, ' ');
+
+                    if (NULL != value_field->name)
+                    {
+                        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Name - %s\n", offset + 6, ' ', value_field->name);
+                    }
+
+                    if (NULL != value_field->expr)
+                    {
+                        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Expr\n", offset + 6, ' ');
+                        (void) AST_print_ast(value_field->expr, offset + 8, logger);
+                    }
+                }
+
+            }
+        }
         break;
     }
     default:

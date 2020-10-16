@@ -33,3 +33,16 @@ t_type *TYPE_initialize_type(t_base_type type)
     ttype->inner_type = NULL;
     return ttype;
 }
+
+
+void TYPE_free_type(t_type *type)
+{
+    if (NULL != type->inner_type)
+    {
+        (void) TYPE_free_type(type->inner_type);
+        type->inner_type = NULL;
+    }
+
+    (void) free(type);
+    type = NULL;
+}
