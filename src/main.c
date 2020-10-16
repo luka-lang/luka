@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include <llvm-c/Analysis.h>
 #include <llvm-c/BitWriter.h>
@@ -10,6 +11,10 @@
 #include <llvm-c/TargetMachine.h>
 #include <llvm-c/Transforms/InstCombine.h>
 #include <llvm-c/Transforms/PassManagerBuilder.h>
+#include <llvm-c/Transforms/IPO.h>
+#include <llvm-c/Transforms/Vectorize.h>
+#include <llvm-c/Transforms/Coroutines.h>
+#include <llvm-c/Transforms/AggressiveInstCombine.h>
 #include <llvm-c/Transforms/Scalar.h>
 #include <llvm-c/Transforms/Utils.h>
 
@@ -31,6 +36,7 @@ static struct option long_options[] =
     {"verbose", no_argument, NULL, 'v'},
     {"output", required_argument, NULL, 'o'},
     {"bitcode", no_argument, NULL, 'b'},
+    {"optimization", required_argument, NULL, 'O'},
     {NULL, 0, NULL, 0}
 };
 
@@ -46,6 +52,7 @@ void print_help(void)
         "  -o/--output\tOutput file path (a.out by default)\n"
         "  -v/--verbose\tIncrease verbosity level.\n"
         "  -b/--bitcode\tDon't compile bitcode to native machine code.\n"
+        "  -O/--optimization\tOptimization level (-O0 for no optimization).\n"
         "\n"
     );
 }
@@ -78,8 +85,9 @@ int main(int argc, char **argv)
     char *output_path = "a.out";
     char *cmd = NULL;
     bool bitcode = false;
+    char optimization = '3';
 
-    while (-1 != (ch = getopt_long(argc, argv, "hvo:b", long_options, NULL)))
+    while (-1 != (ch = getopt_long(argc, argv, "hvo:bO:", long_options, NULL)))
     {
         switch (ch)
         {
@@ -94,6 +102,9 @@ int main(int argc, char **argv)
                 break;
             case 'o':
                 output_path = optarg;
+                break;
+            case 'O':
+                optimization = optarg[0];
                 break;
             case '?':
                 break;
@@ -144,11 +155,13 @@ int main(int argc, char **argv)
 
     (void) LLVMInitializeCore(LLVMGetGlobalPassRegistry());
 
-    module = LLVMModuleCreateWithName("luka_main_module");
+    module = LLVMModuleCreateWithName(file_path);
     triple = LLVMGetDefaultTargetTriple();
     (void) LLVMSetTarget(module, triple);
     LLVMDisposeMessage(triple);
     builder = LLVMCreateBuilder();
+
+    (void) GEN_codegen_initialize();
 
     VECTOR_FOR_EACH(functions, iterator)
     {
@@ -178,13 +191,69 @@ int main(int argc, char **argv)
     (void) LLVMDisposeMessage(error);
 
     pass_manager = LLVMCreatePassManager();
-    (void) LLVMAddConstantPropagationPass(pass_manager);
-    (void) LLVMAddInstructionCombiningPass(pass_manager);
-    (void) LLVMAddPromoteMemoryToRegisterPass(pass_manager);
-    (void) LLVMAddReassociatePass(pass_manager);
-    (void) LLVMAddGVNPass(pass_manager);
-    (void) LLVMAddCFGSimplificationPass(pass_manager);
+    (void) LLVMAddVerifierPass(pass_manager);
+    if (('0' == optimization) || ('1' == optimization))
+    {
+        (void) LLVMAddAlwaysInlinerPass(pass_manager);
+    }
 
+    if ('0' != optimization)
+    {
+        (void) LLVMAddDeadArgEliminationPass(pass_manager);
+        (void) LLVMAddCalledValuePropagationPass(pass_manager);
+        (void) LLVMAddAlignmentFromAssumptionsPass(pass_manager);
+        (void) LLVMAddFunctionAttrsPass(pass_manager);
+        (void) LLVMAddInstructionCombiningPass(pass_manager);
+        (void) LLVMAddCFGSimplificationPass(pass_manager);
+        (void) LLVMAddEarlyCSEMemSSAPass(pass_manager);
+        (void) LLVMAddJumpThreadingPass(pass_manager);
+        (void) LLVMAddCorrelatedValuePropagationPass(pass_manager);
+        (void) LLVMAddTailCallEliminationPass(pass_manager);
+        (void) LLVMAddReassociatePass(pass_manager);
+        (void) LLVMAddLoopRotatePass(pass_manager);
+        (void) LLVMAddLoopUnswitchPass(pass_manager);
+        (void) LLVMAddIndVarSimplifyPass(pass_manager);
+        (void) LLVMAddLoopIdiomPass(pass_manager);
+        (void) LLVMAddLoopDeletionPass(pass_manager);
+        (void) LLVMAddLoopUnrollPass(pass_manager);
+        (void) LLVMAddMemCpyOptPass(pass_manager);
+        (void) LLVMAddSCCPPass(pass_manager);
+        (void) LLVMAddBitTrackingDCEPass(pass_manager);
+        (void) LLVMAddDeadStoreEliminationPass(pass_manager);
+        (void) LLVMAddAggressiveDCEPass(pass_manager);
+        (void) LLVMAddGlobalDCEPass(pass_manager);
+        (void) LLVMAddLoopVectorizePass(pass_manager);
+        (void) LLVMAddAlignmentFromAssumptionsPass(pass_manager);
+        (void) LLVMAddStripDeadPrototypesPass(pass_manager);
+        (void) LLVMAddEarlyCSEPass(pass_manager);
+        (void) LLVMAddLowerExpectIntrinsicPass(pass_manager);
+        if (('s' != optimization) && ('z' != optimization))
+        {
+            (void) LLVMAddSimplifyLibCallsPass(pass_manager);
+        }
+
+        if ('1' != optimization)
+        {
+            (void) LLVMAddGVNPass(pass_manager);
+            (void) LLVMAddMergedLoadStoreMotionPass(pass_manager);
+            if ('2' == optimization)
+            {
+                (void) LLVMAddSLPVectorizePass(pass_manager);
+            }
+            (void) LLVMAddConstantMergePass(pass_manager);
+        }
+
+
+        if (('2' != optimization) && ('s' != optimization) && ('z' != optimization))
+        {
+            (void) LLVMAddArgumentPromotionPass(pass_manager);
+        }
+
+
+        (void) LLVMAddConstantPropagationPass(pass_manager);
+        (void) LLVMAddPromoteMemoryToRegisterPass(pass_manager);
+
+    }
     (void) LLVMRunPassManager(pass_manager, module);
 
     if (verbosity > 0)
@@ -203,8 +272,8 @@ int main(int argc, char **argv)
         if (NULL != cmd) {
             (void) snprintf(cmd, CMD_LEN, "clang -o \"%s\" %s", output_path, BITCODE_FILENAME);
             (void) system(cmd);
-            (void) snprintf(cmd, CMD_LEN, "rm ./%s", BITCODE_FILENAME);
-            (void) system(cmd);
+            (void) snprintf(cmd, CMD_LEN, "./%s", BITCODE_FILENAME);
+            (void) unlink(cmd);
         }
     }
 

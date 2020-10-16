@@ -36,7 +36,7 @@ typedef enum
     LUKA_CODEGEN_ERROR,
 } t_return_code;
 
-#define NUMBER_OF_KEYWORDS 26
+#define NUMBER_OF_KEYWORDS 27
 extern const char *keywords[NUMBER_OF_KEYWORDS];
 
 typedef enum
@@ -50,6 +50,7 @@ typedef enum
     T_MUT,
     T_EXTERN,
     T_WHILE,
+    T_BREAK,
 
     T_INT_TYPE,
     T_CHAR_TYPE,
@@ -83,6 +84,7 @@ typedef enum
     T_MINUS,
     T_STAR,
     T_SLASH,
+    T_PERCENT,
     T_INTLIT,
 
     T_EQUALS,
@@ -128,7 +130,8 @@ typedef enum
     AST_TYPE_LET_STMT,
     AST_TYPE_ASSIGNMENT_EXPR,
     AST_TYPE_CALL_EXPR,
-    AST_TYPE_EXPRESSION_STMT
+    AST_TYPE_EXPRESSION_STMT,
+    AST_TYPE_BREAK_STMT
 } t_ast_node_type;
 
 typedef enum
@@ -137,6 +140,7 @@ typedef enum
     BINOP_SUBTRACT,
     BINOP_MULTIPLY,
     BINOP_DIVIDE,
+    BINOP_MODULOS,
     BINOP_LESSER,
     BINOP_GREATER,
     BINOP_EQUALS,

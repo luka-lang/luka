@@ -136,6 +136,9 @@ t_type *parse_type(t_parser *parser)
     case T_U16_TYPE:
         type->type = TYPE_UINT16;
         break;
+    case T_U32_TYPE:
+        type->type = TYPE_UINT32;
+        break;
     case T_U64_TYPE:
         type->type = TYPE_UINT64;
         break;
@@ -298,10 +301,9 @@ t_ast_binop_type parse_binop(t_token *token, t_logger *logger)
 t_ast_node *parse_paren_expr(t_parser *parser)
 {
     t_ast_node *expr;
-    ADVANCE(parser);
+    MATCH_ADVANCE(parser, T_OPEN_PAREN, "Expected '('");
     expr = parser_parse_expression(parser);
-    EXPECT_ADVANCE(parser, T_CLOSE_PAREN, "Expected ')'");
-    ADVANCE(parser);
+    MATCH_ADVANCE(parser, T_CLOSE_PAREN, "Expected ')'");
     return expr;
 }
 
@@ -492,6 +494,11 @@ t_ast_node *parser_parse_factor(t_parser *parser)
             operator = BINOP_MULTIPLY;
             break;
         }
+        case T_PERCENT:
+        {
+            operator = BINOP_MODULOS;
+            break;
+        }
         default:
         {
             return lhs;
@@ -660,6 +667,7 @@ t_ast_node *parser_parse_expression(t_parser *parser)
         {
             else_body = NULL;
         }
+        --parser->index;
         node = AST_new_if_expr(cond, then_body, else_body);
         ADVANCE(parser);
         return node;
@@ -744,6 +752,12 @@ t_ast_node *parse_statement(t_parser *parser)
         node = AST_new_let_stmt(var, expr);
         MATCH_ADVANCE(parser, T_SEMI_COLON, "Expected a ';' after let statement");
         return node;
+    }
+    case T_BREAK:
+    {
+        EXPECT_ADVANCE(parser, T_SEMI_COLON, "Expected a ';' after 'break'");
+        ADVANCE(parser);
+        return AST_new_break_stmt();
     }
     default:
     {

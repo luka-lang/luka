@@ -8,6 +8,7 @@
 const char *keywords[NUMBER_OF_KEYWORDS] = {
     "fn", "return", "if", "else",
     "let", "mut", "extern", "while",
+    "break",
 
     /* Builtin Types */
     "int", "char", "string", "void",
@@ -260,6 +261,12 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source, t_logg
             token->content = "*";
             break;
         }
+        case '%':
+        {
+            token->type = T_PERCENT;
+            token->content = "%";
+            break;
+        }
         case '&':
         {
             token->type = T_AMPERCENT;
@@ -330,6 +337,21 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source, t_logg
             {
                 token->type = T_CLOSE_ANG;
                 token->content = ">";
+            }
+            break;
+        }
+        case '!':
+        {
+            if ('=' == source[i + 1])
+            {
+                ++i;
+                token->type = T_NEQ;
+                token->content = "!=";
+            }
+            else
+            {
+                token->type = T_BANG;
+                token->content = "!";
             }
             break;
         }
