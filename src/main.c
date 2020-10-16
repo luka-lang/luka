@@ -48,11 +48,12 @@ void print_help(void)
         "USAGE: luka [options] file\n"
         "\n"
         "OPTIONS:\n"
-        "  -h/--help\tDisplay this help.\n"
-        "  -o/--output\tOutput file path (a.out by default)\n"
-        "  -v/--verbose\tIncrease verbosity level.\n"
-        "  -b/--bitcode\tDon't compile bitcode to native machine code.\n"
+        "  -h/--help\t\tDisplay this help.\n"
+        "  -o/--output\t\tOutput file path (a.out by default)\n"
+        "  -v/--verbose\t\tIncrease verbosity level.\n"
+        "  -b/--bitcode\t\tDon't compile bitcode to native machine code.\n"
         "  -O/--optimization\tOptimization level (-O0 for no optimization).\n"
+        "  \t\t\tOptimization levels: 0, 1, 2, 3, s (optimize for space)\n"
         "\n"
     );
 }
@@ -227,7 +228,7 @@ int main(int argc, char **argv)
         (void) LLVMAddStripDeadPrototypesPass(pass_manager);
         (void) LLVMAddEarlyCSEPass(pass_manager);
         (void) LLVMAddLowerExpectIntrinsicPass(pass_manager);
-        if (('s' != optimization) && ('z' != optimization))
+        if ('s' != optimization)
         {
             (void) LLVMAddSimplifyLibCallsPass(pass_manager);
         }
@@ -244,7 +245,7 @@ int main(int argc, char **argv)
         }
 
 
-        if (('2' != optimization) && ('s' != optimization) && ('z' != optimization))
+        if (('2' != optimization) && ('s' != optimization))
         {
             (void) LLVMAddArgumentPromotionPass(pass_manager);
         }
