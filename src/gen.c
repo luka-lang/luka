@@ -166,20 +166,86 @@ bool ttype_is_signed(t_type *type)
     }
 }
 
+LLVMOpcode gen_llvm_get_cast_op(LLVMTypeRef type, LLVMTypeRef dest_type, t_logger *logger)
+{
+    t_type *ttype = gen_llvm_type_to_ttype(type, logger), *dest_ttype = gen_llvm_type_to_ttype(dest_type, logger);
+    LLVMTypeKind type_kind = LLVMGetTypeKind(type), dtype_kind = LLVMGetTypeKind(dest_type);
+    LLVMOpcode opcode = LLVMBitCast;
+
+    if ((LLVMDoubleTypeKind == type_kind) || (LLVMFloatTypeKind == type_kind))
+    {
+        if (LLVMDoubleTypeKind == dtype_kind)
+        {
+            opcode = LLVMFPExt;
+        }
+        else if (LLVMFloatTypeKind == dtype_kind)
+        {
+            opcode = LLVMFPTrunc;
+        }
+        else if (ttype_is_signed(dest_ttype))
+        {
+            opcode = LLVMFPToSI;
+        }
+        else
+        {
+            opcode = LLVMFPToUI;
+        }
+    }
+    else if (LLVMIntegerTypeKind == dtype_kind)
+    {
+        if ((LLVMDoubleTypeKind == type_kind) || (LLVMFloatTypeKind == type_kind))
+        {
+            if (ttype_is_signed(ttype))
+            {
+                opcode = LLVMSIToFP;
+            }
+
+            opcode = LLVMUIToFP;
+        }
+
+        else if (LLVMGetIntTypeWidth(dest_type) > LLVMGetIntTypeWidth(type))
+        {
+            if (ttype_is_signed(dest_ttype))
+            {
+                opcode = LLVMSExt;
+            }
+
+            opcode = LLVMZExt;
+        }
+        else
+        {
+            opcode = LLVMTrunc;
+        }
+    }
+
+    if (NULL != ttype)
+    {
+        (void) free(ttype);
+        ttype = NULL;
+    }
+
+    if (NULL != dest_ttype)
+    {
+        (void) free(dest_ttype);
+        dest_ttype = NULL;
+    }
+
+    return opcode;
+}
+
 LLVMValueRef gen_codegen_cast(LLVMBuilderRef builder,
                               LLVMValueRef original_value,
                               LLVMTypeRef dest_type,
-                              t_type *dest_ttype)
+                              t_logger *logger)
 {
-    bool is_signed = ttype_is_signed(dest_ttype);
+    LLVMTypeRef type = LLVMTypeOf(original_value);
 
-    if ((dest_type == LLVMFloatType()) || (dest_type == LLVMDoubleType()))
+    if ((LLVMPointerTypeKind == LLVMGetTypeKind(type)) && (LLVMPointerTypeKind == LLVMGetTypeKind(dest_type)))
     {
-        return LLVMBuildFPCast(builder, original_value, dest_type, "fpcast");
+        return LLVMBuildPointerCast(builder, original_value, dest_type, "ptrcasttmp");
     }
 
-    original_value = LLVMConstIntCast(original_value, dest_type, is_signed);
-    return LLVMBuildIntCast2(builder, original_value, dest_type, is_signed, "intcast");
+    return LLVMBuildCast(builder, gen_llvm_get_cast_op(type, dest_type, logger), original_value, dest_type, "casttmp");
 }
 
 bool gen_is_cond_op(t_ast_binop_type op) {
@@ -381,6 +447,7 @@ LLVMValueRef gen_get_address(t_ast_node *node, t_logger *logger)
         }
     }
 }
+
 LLVMValueRef gen_codegen_unexpr(t_ast_node *n,
                                 LLVMModuleRef module,
                                 LLVMBuilderRef builder,
@@ -818,72 +885,11 @@ LLVMValueRef gen_codegen_cast_expr(t_ast_node *node,
 {
 
     LLVMValueRef expr = NULL;
-    LLVMTypeRef type = NULL, dest_type = NULL;
-    LLVMTypeKind type_kind = LLVMIntegerTypeKind, dtype_kind = LLVMIntegerTypeKind;
-    t_type *ttype = NULL;
-    t_type *dest_ttype = node->cast_expr.type;
+    LLVMTypeRef dest_type = NULL;
 
     expr = GEN_codegen(node->cast_expr.expr, module, builder, logger);
-    type = LLVMTypeOf(expr);
-    type_kind = LLVMGetTypeKind(type);
-    ttype = gen_llvm_type_to_ttype(LLVMTypeOf(expr), logger);
     dest_type = gen_type_to_llvm_type(node->cast_expr.type, logger);
-    dtype_kind = LLVMGetTypeKind(dest_type);
-
-    if ((LLVMPointerTypeKind == type_kind) && (LLVMPointerTypeKind == LLVMGetTypeKind(dest_type)))
-    {
-        return LLVMBuildPointerCast(builder, expr, dest_type, "ptrcasttmp");
-    }
-    else if ((LLVMDoubleTypeKind == type_kind) || (LLVMFloatTypeKind == type_kind))
-    {
-        if (LLVMDoubleTypeKind == dtype_kind)
-        {
-            return LLVMBuildFPExt(builder, expr, dest_type, "fpexttmp");
-        }
-        else if (LLVMFloatTypeKind == dtype_kind)
-        {
-            return LLVMBuildFPTrunc(builder, expr, dest_type, "fptrunctmp");
-        }
-        else
-        {
-            if (ttype_is_signed(dest_ttype))
-            {
-                return LLVMBuildFPToSI(builder, expr, dest_type, "fptosicast");
-            }
-
-            return LLVMBuildFPToUI(builder, expr, dest_type, "fptosicast");
-        }
-
-        return LLVMBuildFPCast(builder, expr, dest_type, "fpcast");
-    }
-    else if (LLVMIntegerTypeKind == LLVMGetTypeKind(LLVMTypeOf(expr)))
-    {
-        if ((LLVMDoubleTypeKind == type_kind) || (LLVMFloatTypeKind == type_kind))
-        {
-            if (ttype_is_signed(ttype))
-            {
-                return LLVMBuildSIToFP(builder, expr, dest_type, "sitofpcast");
-            }
-
-            return LLVMBuildUIToFP(builder, expr, dest_type, "uitofpcast");
-        }
-
-        if (LLVMGetIntTypeWidth(dest_type) > LLVMGetIntTypeWidth(type))
-        {
-            if (ttype_is_signed(dest_ttype))
-            {
-                return LLVMBuildSExt(builder, expr, dest_type, "sextcasttmp");
-            }
-
-            return LLVMBuildZExt(builder, expr, dest_type, "zextcasttmp");
-        }
-        else
-        {
-            return LLVMBuildTrunc(builder, expr, dest_type, "trunccasttmp");
-        }
-    }
-
-    return LLVMBuildBitCast(builder, expr, dest_type, "bitcasttmp");
+    return gen_codegen_cast(builder, expr, dest_type, logger);
 }
 
 LLVMValueRef gen_codegen_variable(t_ast_node *node,
@@ -928,7 +934,7 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node,
     val->alloca_inst = gen_create_entry_block_allca(LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder)), val->type, val->name);
     if (LLVMTypeOf(expr) != val->type)
     {
-        expr = gen_codegen_cast(builder, expr, val->type, val->ttype);
+        expr = gen_codegen_cast(builder, expr, val->type, logger);
     }
     LLVMBuildStore(builder, expr, val->alloca_inst);
     val->mutable = variable.mutable;
@@ -996,7 +1002,7 @@ LLVMValueRef gen_codegen_call(t_ast_node *node,
     LLVMValueRef func = NULL;
     LLVMValueRef *args = NULL;
     LLVMValueRef *varargs = NULL;
-    LLVMTypeRef func_type = NULL;
+    LLVMTypeRef func_type = NULL, type = NULL, dest_type = NULL;
     t_ast_node *arg = NULL;
     size_t i = 0;
     bool vararg = NULL;
@@ -1035,6 +1041,16 @@ LLVMValueRef gen_codegen_call(t_ast_node *node,
         if (NULL == args[i])
         {
             goto cleanup;
+        }
+
+        if (i < required_params_count)
+        {
+            type = LLVMTypeOf(args[i]);
+            dest_type = LLVMTypeOf(LLVMGetParam(func, i));
+            if (type != dest_type)
+            {
+                args[i] = gen_codegen_cast(builder, args[i], dest_type, logger);
+            }
         }
         ++i;
     }

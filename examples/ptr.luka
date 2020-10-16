@@ -12,17 +12,17 @@ fn main() {
     *p = 12;
     printf("Num %d %p.\n", num, p);
 
-    let ptr: s32* = malloc(4 as u64) as s32*;
+    let ptr: s32* = malloc(4) as s32*;
     free(ptr as any*);
 
    // Initial memory allocation
-   let mut str: u8* = malloc(15 as u64) as u8*;
+   let mut str: u8* = malloc(15) as u8*;
 
    strcpy(str, "luka is a nice");
    printf("String = %s\t\t\t\tAddress = %u\n", str, str);
 
    // Reallocating memory
-   str = realloc(str, 36 as u64) as char*;
+   str = realloc(str, 36) as u8*;
    strcat(str, " programming language");
    printf("String = %s\tAddress = %u\n", str, str);
 
