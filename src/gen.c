@@ -1077,7 +1077,7 @@ LLVMValueRef gen_codegen_expression_stmt(t_ast_node *n,
 }
 
 LLVMValueRef gen_codegen_break_stmt(t_ast_node *UNUSED(n),
-                                    LLVMModuleRef module,
+                                    LLVMModuleRef UNUSED(module),
                                     LLVMBuilderRef builder,
                                     t_logger *logger)
 {
@@ -1091,7 +1091,6 @@ LLVMValueRef gen_codegen_break_stmt(t_ast_node *UNUSED(n),
 
     dest_block = VECTOR_GET_AS(LLVMBasicBlockRef, loop_blocks, 0);
 
-    (void) LLVMDumpModule(module);
     (void) LLVMBuildBr(builder, dest_block);
     // TODO: Find if there's a better way to supress "Terminator found in the middle of a basic block"
     dest_block = LLVMAppendBasicBlock(LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder)), "unused_block");
