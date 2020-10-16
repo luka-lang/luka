@@ -150,6 +150,8 @@ int main(int argc, char **argv)
     LLVMDisposeMessage(triple);
     builder = LLVMCreateBuilder();
 
+    (void) GEN_codegen_initialize();
+
     VECTOR_FOR_EACH(functions, iterator)
     {
         function = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);

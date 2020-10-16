@@ -753,6 +753,12 @@ t_ast_node *parse_statement(t_parser *parser)
         MATCH_ADVANCE(parser, T_SEMI_COLON, "Expected a ';' after let statement");
         return node;
     }
+    case T_BREAK:
+    {
+        EXPECT_ADVANCE(parser, T_SEMI_COLON, "Expected a ';' after 'break'");
+        ADVANCE(parser);
+        return AST_new_break_stmt();
+    }
     default:
     {
         expr = parser_parse_expression(parser);

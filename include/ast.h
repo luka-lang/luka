@@ -30,6 +30,8 @@ t_ast_node *AST_new_call_expr(char *name, t_vector *args);
 
 t_ast_node *AST_new_expression_stmt(t_ast_node *expr);
 
+t_ast_node *AST_new_break_stmt();
+
 void AST_free_node(t_ast_node *node, t_logger *logger);
 
 void AST_print_functions(t_vector *functions, int offset, t_logger *logger);

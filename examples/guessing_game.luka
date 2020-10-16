@@ -1,0 +1,36 @@
+extern puts(str: string): s32;
+extern printf(format: string, ...: any): s32;
+extern scanf(format: string, ...: any): s32;
+extern rand(): s32;
+extern srand(seed: u32): void;
+extern time(tloc: u32): u32;
+
+fn main() {
+    let mut num = 0;
+    let mut guess = 101;
+    let mut res = 0;
+    let EOF = -1;
+
+    // Make sure we get a random number each time.
+    srand(time(0));
+    num = rand() % 100 + 1;
+
+    while num != guess {
+        printf("Guess a number: ");
+        if EOF == scanf("%d", &guess) {
+            break;
+        }
+
+        if num < guess {
+            puts("Your guess was higher than the number.\n");
+        } else {
+            puts("Your guess was lower than the number.\n");
+        }
+    }
+
+    if (num == guess) {
+        printf("You are right! The number was %d!\n", num);
+    }
+
+    0
+}

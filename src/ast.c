@@ -216,6 +216,13 @@ t_ast_node *AST_new_expression_stmt(t_ast_node *expr)
     return node;
 }
 
+t_ast_node *AST_new_break_stmt()
+{
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
+    node->type = AST_TYPE_BREAK_STMT;
+    return node;
+}
+
 void AST_free_node(t_ast_node *node, t_logger *logger)
 {
     if (NULL == node)
@@ -226,6 +233,7 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
     case AST_TYPE_NUMBER:
     case AST_TYPE_STRING:
     case AST_TYPE_VARIABLE:
+    case AST_TYPE_BREAK_STMT:
         break;
     case AST_TYPE_UNARY_EXPR:
     {
@@ -708,6 +716,11 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
         (void) LOGGER_log(logger, L_DEBUG, "%*c\b Expression statement\n", offset, ' ');
         if (NULL != node->expression_stmt.expr)
             (void) AST_print_ast(node->expression_stmt.expr, offset + 2, logger);
+        break;
+    }
+    case AST_TYPE_BREAK_STMT:
+    {
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Break statement\n", offset, ' ');
         break;
     }
     default:

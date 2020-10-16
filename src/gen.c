@@ -6,6 +6,7 @@
 #include "type.h"
 
 t_named_value *named_values = NULL;
+Vector *loop_blocks = NULL;
 
 LLVMTypeRef gen_type_to_llvm_type(t_type *type, t_logger *logger)
 {
@@ -671,12 +672,12 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n,
     func = LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder));
 
     cond_block = LLVMAppendBasicBlock(func, "if_cond");
-    then_block = LLVMAppendBasicBlock(func, "then");
+    then_block = LLVMCreateBasicBlockInContext(LLVMGetGlobalContext(), "then");
     if(NULL != n->if_expr.else_body)
     {
-        else_block = LLVMAppendBasicBlock(func, "else");
+        else_block = LLVMCreateBasicBlockInContext(LLVMGetGlobalContext(), "else");
     }
-    merge_block = LLVMAppendBasicBlock(func, "if_merge");
+    merge_block = LLVMCreateBasicBlockInContext(LLVMGetGlobalContext(), "if_merge");
 
     (void) LLVMBuildBr(builder, cond_block);
     (void) LLVMPositionBuilderAtEnd(builder, cond_block);
@@ -697,6 +698,7 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n,
         (void) LLVMBuildCondBr(builder, cond, then_block, merge_block);
     }
 
+    (void) LLVMAppendExistingBasicBlock(func, then_block);
     (void) LLVMPositionBuilderAtEnd(builder, then_block);
 
     then_value = gen_codegen_stmts(n->if_expr.then_body, module, builder, NULL, logger);
@@ -707,6 +709,7 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n,
 
     if (NULL != n->if_expr.else_body)
     {
+        (void) LLVMAppendExistingBasicBlock(func, else_block);
         (void) LLVMPositionBuilderAtEnd(builder, else_block);
         else_value = gen_codegen_stmts(n->if_expr.else_body, module, builder, NULL, logger);
         (void) LLVMBuildBr(builder, merge_block);
@@ -714,6 +717,7 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n,
 
     else_block = LLVMGetInsertBlock(builder);
 
+    (void) LLVMAppendExistingBasicBlock(func, merge_block);
     (void) LLVMPositionBuilderAtEnd(builder, merge_block);
 
     if ((NULL == then_value) && !((NULL != n->if_expr.else_body) && (NULL != else_value)))
@@ -762,7 +766,12 @@ LLVMValueRef gen_codegen_while_expr(t_ast_node *n,
 
     cond_block = LLVMAppendBasicBlock(func, "while_cond");
     body_block = LLVMAppendBasicBlock(func, "while_body");
-    end_block = LLVMAppendBasicBlock(func, "while_end");
+    end_block = LLVMCreateBasicBlockInContext(LLVMGetGlobalContext(), "while_end");
+
+    if (NULL != loop_blocks)
+    {
+        (void) vector_push_front(loop_blocks, &end_block);
+    }
 
     (void) LLVMBuildBr(builder, cond_block);
     (void) LLVMPositionBuilderAtEnd(builder, cond_block);
@@ -785,6 +794,13 @@ LLVMValueRef gen_codegen_while_expr(t_ast_node *n,
         (void) exit(LUKA_CODEGEN_ERROR);
     }
     (void) LLVMBuildCondBr(builder, cond, body_block, end_block);
+
+    if (NULL != loop_blocks)
+    {
+        (void) vector_pop_front(loop_blocks);
+    }
+
+    (void) LLVMAppendExistingBasicBlock(func, end_block);
     (void) LLVMPositionBuilderAtEnd(builder, end_block);
 
     return body_value;
@@ -980,6 +996,27 @@ LLVMValueRef gen_codegen_expression_stmt(t_ast_node *n,
     return NULL;
 }
 
+LLVMValueRef gen_codegen_break_stmt(t_ast_node *UNUSED(n),
+                                    LLVMModuleRef module,
+                                    LLVMBuilderRef builder,
+                                    t_logger *logger)
+{
+    LLVMBasicBlockRef dest_block = NULL;
+
+    if ((NULL == loop_blocks) || (0 == loop_blocks->size))
+    {
+        (void) LOGGER_log(logger, L_WARNING, "Cannot break when not inside a loop.\n");
+        return NULL;
+    }
+
+    (void) LLVMDumpModule(module);
+    (void) LLVMBuildBr(builder, dest_block);
+    // TODO: Find if there's a better way to supress "Terminator found in the middle of a basic block"
+    dest_block = LLVMAppendBasicBlock(LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder)), "unused_block");
+    (void) LLVMPositionBuilderAtEnd(builder, dest_block);
+    return NULL;
+}
+
 LLVMValueRef gen_codegen_number(t_ast_node *node, t_logger *logger)
 {
     LLVMTypeRef type = gen_type_to_llvm_type(&node->number.type, logger);
@@ -1046,6 +1083,8 @@ LLVMValueRef GEN_codegen(t_ast_node *node,
         return gen_codegen_call(node, module, builder, logger);
     case AST_TYPE_EXPRESSION_STMT:
         return gen_codegen_expression_stmt(node, module, builder, logger);
+    case AST_TYPE_BREAK_STMT:
+        return gen_codegen_break_stmt(node, module, builder, logger);
     default:
     {
         (void) LOGGER_log(logger, L_ERROR, "No codegen function was found for type - %d\n", node->type);
@@ -1054,9 +1093,15 @@ LLVMValueRef GEN_codegen(t_ast_node *node,
     }
 }
 
+void GEN_codegen_initialize()
+{
+    loop_blocks = calloc(1, sizeof(t_vector));
+    (void) vector_setup(loop_blocks, 6 , sizeof(LLVMBasicBlockRef));
+}
+
 void GEN_codegen_reset()
 {
-    t_named_value *named_value, *tmp;
+    t_named_value *named_value = NULL, *tmp = NULL;
 
     HASH_ITER(hh, named_values, named_value, tmp) {
         HASH_DEL(named_values, named_value);
@@ -1070,5 +1115,12 @@ void GEN_codegen_reset()
             (void) free(named_value);
             named_value = NULL;
         }
+    }
+
+    if (NULL != loop_blocks)
+    {
+        (void) vector_clear(loop_blocks);
+        (void) vector_destroy(loop_blocks);
+        (void) free(loop_blocks);
     }
 }

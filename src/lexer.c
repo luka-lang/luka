@@ -8,6 +8,7 @@
 const char *keywords[NUMBER_OF_KEYWORDS] = {
     "fn", "return", "if", "else",
     "let", "mut", "extern", "while",
+    "break",
 
     /* Builtin Types */
     "int", "char", "string", "void",
