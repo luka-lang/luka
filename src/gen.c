@@ -13,7 +13,7 @@ LLVMTypeRef gen_type_to_llvm_type(t_type *type, t_logger *logger)
     switch (type->type)
     {
     case TYPE_ANY:
-        return LLVMPointerType(LLVMVoidType(), 0);
+        return LLVMInt8Type();
     case TYPE_BOOL:
         return LLVMInt1Type();
     case TYPE_SINT8:

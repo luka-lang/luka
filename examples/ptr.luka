@@ -1,14 +1,32 @@
-extern printf(format: s8*, ...: any): s32;
+extern printf(format: s8*, ...: any*): s32;
+extern malloc(size: u64): any*;
+extern realloc(ptr: any*, size: u64): any*;
+extern strcpy(ptr: string, str: string): string;
+extern strcat(ptr: string, str: string): string;
+extern free(ptr: any*): void;
 
 fn main() {
     let num = 32;
     let mut p: s32* = &num;
-
     printf("Num %d %p.\n", num, p);
-
     *p = 12;
-
     printf("Num %d %p.\n", num, p);
+
+    let ptr: s32* = malloc(4 as u64) as s32*;
+    free(ptr as any*);
+
+   // Initial memory allocation
+   let mut str: u8* = malloc(15 as u64) as u8*;
+
+   strcpy(str, "luka is a nice");
+   printf("String = %s\t\t\t\tAddress = %u\n", str, str);
+
+   // Reallocating memory
+   str = realloc(str, 36 as u64) as char*;
+   strcat(str, " programming language");
+   printf("String = %s\tAddress = %u\n", str, str);
+
+   free(str);
 
     0
 }
