@@ -1009,6 +1009,8 @@ LLVMValueRef gen_codegen_break_stmt(t_ast_node *UNUSED(n),
         return NULL;
     }
 
+    dest_block = VECTOR_GET_AS(LLVMBasicBlockRef, loop_blocks, 0);
+
     (void) LLVMDumpModule(module);
     (void) LLVMBuildBr(builder, dest_block);
     // TODO: Find if there's a better way to supress "Terminator found in the middle of a basic block"
