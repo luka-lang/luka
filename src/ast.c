@@ -5,45 +5,64 @@
 
 #include "type.h"
 
-const char *ast_type_to_string(t_type *type, t_logger *logger)
+const char *ast_type_to_string(t_type *type, t_logger *logger, char *buffer, size_t buffer_size)
 {
     switch (type->type)
     {
     case TYPE_ANY:
-        return "any";
+        (void) snprintf(buffer, buffer_size, "any");
+        break;
     case TYPE_BOOL:
-        return "bool";
+        (void) snprintf(buffer, buffer_size, "bool");
+        break;
     case TYPE_SINT8:
-        return "s8";
+        (void) snprintf(buffer, buffer_size, "s8");
+        break;
     case TYPE_SINT16:
-        return "s16";
+        (void) snprintf(buffer, buffer_size, "s16");
+        break;
     case TYPE_SINT32:
-        return "s32";
+        (void) snprintf(buffer, buffer_size, "s32");
+        break;
     case TYPE_SINT64:
-        return "s64";
+        (void) snprintf(buffer, buffer_size, "s64");
+        break;
     case TYPE_UINT8:
-        return "u8";
+        (void) snprintf(buffer, buffer_size, "u8");
+        break;
     case TYPE_UINT16:
-        return "u16";
+        (void) snprintf(buffer, buffer_size, "u16");
+        break;
     case TYPE_UINT32:
-        return "u32";
+        (void) snprintf(buffer, buffer_size, "u32");
+        break;
     case TYPE_UINT64:
-        return "u64";
+        (void) snprintf(buffer, buffer_size, "u64");
+        break;
     case TYPE_F32:
-        return "float";
+        (void) snprintf(buffer, buffer_size, "float");
+        break;
     case TYPE_F64:
-        return "double";
+        (void) snprintf(buffer, buffer_size, "double");
+        break;
     case TYPE_STRING:
-        return "str";
+        (void) snprintf(buffer, buffer_size, "str");
+        break;
     case TYPE_VOID:
-        return "void";
+        (void) snprintf(buffer, buffer_size, "void");
+        break;
     case TYPE_PTR:
-        return "ptr";
+        (void) ast_type_to_string(type->inner_type, logger, buffer, buffer_size);
+        (void) snprintf(buffer + strlen(buffer), buffer_size, "*");
+        break;
     default:
         (void) LOGGER_log(logger, L_ERROR, "I don't know how to translate type %d to LLVM types.\n",
                 type);
-        return "int32";
+        (void) snprintf(buffer, buffer_size, "s32");
+        break;
     }
+
+    return buffer;
 }
 
 t_ast_node *AST_new_number(t_type *type, void *value)
@@ -168,6 +187,15 @@ t_ast_node *AST_new_while_expr(t_ast_node *cond, t_vector *body)
     node->type = AST_TYPE_WHILE_EXPR;
     node->while_expr.cond = cond;
     node->while_expr.body = body;
+    return node;
+}
+
+t_ast_node *AST_new_cast_expr(t_ast_node *expr, t_type *type)
+{
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
+    node->type = AST_TYPE_CAST_EXPR;
+    node->cast_expr.expr = expr;
+    node->cast_expr.type = type;
     return node;
 }
 
@@ -368,6 +396,20 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
         }
         break;
     }
+    case AST_TYPE_CAST_EXPR:
+    {
+        if (NULL != node->cast_expr.expr)
+        {
+            (void) AST_free_node(node->cast_expr.expr, logger);
+        }
+
+        if (NULL != node->cast_expr.type)
+        {
+            (void) free(node->cast_expr.type);
+            node->cast_expr.type = NULL;
+        }
+        break;
+    }
     case AST_TYPE_LET_STMT:
     {
         if (NULL != node->let_stmt.var)
@@ -510,6 +552,8 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
 {
     t_ast_node *arg = NULL;
     size_t i = 0;
+    char type_str[256] = {0};
+
     if (NULL == node)
         return;
 
@@ -570,8 +614,9 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
                               node->prototype.arity - 1);
             for (i = 0; i < node->prototype.arity - 1; ++i)
             {
-                (void) LOGGER_log(logger, L_DEBUG, "%*c\b %zu: (%s) %s\n", offset, '-', i,
-                    ast_type_to_string(node->prototype.types[i], logger), node->prototype.args[i]);
+                (void) memset(type_str, 0, sizeof(type_str));
+                (void) ast_type_to_string(node->prototype.types[i], logger, type_str, sizeof(type_str));
+                (void) LOGGER_log(logger, L_DEBUG, "%*c\b %zu: (%s) %s\n", offset, '-', i, type_str, node->prototype.args[i]);
             }
         }
         else
@@ -580,12 +625,16 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
                 node->prototype.arity);
             for (i = 0; i < node->prototype.arity; ++i)
             {
+                (void) memset(type_str, 0, sizeof(type_str));
+                (void) ast_type_to_string(node->prototype.types[i], logger, type_str, sizeof(type_str));
                 (void) LOGGER_log(logger, L_DEBUG, "%*c\b %zu: (%s) %s\n", offset, '-', i,
-                    ast_type_to_string(node->prototype.types[i], logger), node->prototype.args[i]);
+                    type_str, node->prototype.args[i]);
             }
         }
+        (void) memset(type_str, 0, sizeof(type_str));
+        (void) ast_type_to_string(node->prototype.return_type, logger, type_str, sizeof(type_str));
         (void) LOGGER_log(logger, L_DEBUG, "%*c\b Return Type -> %s\n", offset, '-',
-               ast_type_to_string(node->prototype.return_type, logger));
+               type_str);
         break;
     }
 
@@ -644,6 +693,22 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
         {
             (void) LOGGER_log(logger, L_DEBUG, "%*c\b Body\n", offset + 2, ' ');
             (void) ast_print_statements_block(node->while_expr.body, offset + 4, logger);
+        }
+        break;
+    }
+    case AST_TYPE_CAST_EXPR:
+    {
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Cast Expression\n", offset, ' ');
+        if (NULL != node->cast_expr.expr)
+        {
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Expression\n", offset + 2);
+            (void) AST_print_ast(node->cast_expr.expr, offset + 4, logger);
+        }
+        if (NULL != node->cast_expr.type)
+        {
+            (void) memset(type_str, 0, sizeof(type_str));
+            ast_type_to_string(node->cast_expr.type, logger, type_str, sizeof(type_str));
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Type: %s\n", offset + 2, ' ', type_str);
         }
         break;
     }

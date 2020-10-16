@@ -23,6 +23,7 @@ t_ast_node *AST_new_assignment_expr(t_ast_node *lhs, t_ast_node *rhs);
 
 t_ast_node *AST_new_if_expr(t_ast_node *cond, t_vector *then_body, t_vector *else_body);
 t_ast_node *AST_new_while_expr(t_ast_node *cond, t_vector *body);
+t_ast_node *AST_new_cast_expr(t_ast_node *expr, t_type *type);
 
 t_ast_node *AST_new_variable(char *name, t_type *type, bool mutable);
 
