@@ -196,7 +196,7 @@ typedef struct s_ast_node t_ast_node;
 
 typedef struct
 {
-    t_type type;
+    t_type *type;
     union {
         int8_t s8;
         uint8_t u8;

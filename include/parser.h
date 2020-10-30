@@ -27,4 +27,6 @@ t_ast_node *PARSER_parse_function(t_parser *parser);
 
 void PARSER_print_parser_tokens(t_parser *parser);
 
+void PARSER_free(t_parser *parser);
+
 #endif // __PARSER_H__

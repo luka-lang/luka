@@ -23,7 +23,7 @@ bool TYPE_is_floating_type(t_type *type)
 
 t_type *TYPE_initialize_type(t_base_type type)
 {
-    t_type *ttype = calloc(1, sizeof(type));
+    t_type *ttype = calloc(1, sizeof(t_type));
     if (NULL == ttype)
     {
         (void) exit(LUKA_CANT_ALLOC_MEMORY);
@@ -40,7 +40,7 @@ void TYPE_free_type(t_type *type)
 {
     if (NULL != type->payload)
     {
-        (void) TYPE_free_type(type->payload);
+        (void) free(type->payload);
         type->payload = NULL;
     }
 
