@@ -69,10 +69,8 @@ t_ast_node *AST_new_number(t_type *type, void *value)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_NUMBER;
-    node->number.type.type = type->type;
-    node->number.type.inner_type = NULL;
-    node->number.type.payload = NULL;
-    switch (type->type)
+    node->number.type = type;
+    switch (node->number.type->type)
     {
         case TYPE_F32:
             node->number.value.f32 = *(float *)value;
@@ -145,7 +143,7 @@ t_ast_node *AST_new_prototype(char *name, char **args, t_type **types, int arity
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_PROTOTYPE;
-    node->prototype.name = strdup(name);
+    node->prototype.name = name;
     node->prototype.args = args;
     node->prototype.types = types;
     node->prototype.return_type = return_type;
@@ -286,11 +284,41 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
 
     switch (node->type)
     {
-    case AST_TYPE_NUMBER:
-    case AST_TYPE_STRING:
-    case AST_TYPE_VARIABLE:
     case AST_TYPE_BREAK_STMT:
         break;
+    case AST_TYPE_STRING:
+    {
+        if (NULL != node->string.value)
+        {
+            (void) free(node->string.value);
+            node->string.value = NULL;
+        }
+        break;
+    }
+    case AST_TYPE_NUMBER:
+    {
+        if (NULL != node->number.type)
+        {
+            (void) TYPE_free_type(node->number.type);
+            node->number.type = NULL;
+        }
+        break;
+    }
+    case AST_TYPE_VARIABLE:
+    {
+        if (NULL != node->variable.name)
+        {
+            (void) free(node->variable.name);
+            node->variable.name = NULL;
+        }
+
+        if (NULL != node->variable.type)
+        {
+            (void) TYPE_free_type(node->variable.type);
+            node->variable.type = NULL;
+        }
+        break;
+    }
     case AST_TYPE_UNARY_EXPR:
     {
         if (NULL != node->unary_expr.rhs)
@@ -313,7 +341,6 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
             node->prototype.name = NULL;
         }
 
-
         if (NULL != node->prototype.args)
         {
             for (size_t i = 0; i < node->prototype.arity; ++i)
@@ -333,8 +360,25 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
 
         if (NULL != node->prototype.types)
         {
+            for (size_t i = 0; i < node->prototype.arity; ++i)
+            {
+                if (NULL != node->prototype.types[i])
+                {
+                    if (NULL != node->prototype.types[i])
+                    {
+                        (void) TYPE_free_type(node->prototype.types[i]);
+                        node->prototype.types[i] = NULL;
+                    }
+                }
+            }
             (void) free(node->prototype.types);
             node->prototype.types = NULL;
+        }
+
+        if (NULL != node->prototype.return_type)
+        {
+            (void) TYPE_free_type(node->prototype.return_type);
+            node->prototype.return_type = NULL;
         }
 
         break;
@@ -343,7 +387,9 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
     case AST_TYPE_FUNCTION:
     {
         if (NULL != node->function.prototype)
+        {
             (void) AST_free_node(node->function.prototype, logger);
+        }
 
         if (NULL != node->function.body)
         {
@@ -370,7 +416,10 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
     case AST_TYPE_IF_EXPR:
     {
         if (NULL != node->if_expr.cond)
+        {
             (void) AST_free_node(node->if_expr.cond, logger);
+        }
+
         if (node->if_expr.then_body)
         {
             t_ast_node *stmt = NULL;
@@ -467,6 +516,12 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
 
     case AST_TYPE_CALL_EXPR:
     {
+        if (NULL != node->call_expr.name)
+        {
+            (void) free(node->call_expr.name);
+            node->call_expr.name = NULL;
+        }
+
         if (NULL != node->call_expr.args)
         {
             t_ast_node *arg = NULL;
@@ -691,7 +746,7 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
     switch (node->type)
     {
     case AST_TYPE_NUMBER:
-        if (TYPE_is_floating_type(&node->number.type))
+        if (TYPE_is_floating_type(node->number.type))
         {
             (void) LOGGER_log(logger, L_DEBUG, "%*c\b AST number %lf\n", offset, ' ', node->number.value.f64);
         }

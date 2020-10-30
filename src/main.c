@@ -308,6 +308,7 @@ cleanup:
 
     if (NULL != parser)
     {
+        (void) PARSER_free(parser);
         (void) free(parser);
         parser = NULL;
     }

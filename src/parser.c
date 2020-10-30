@@ -167,7 +167,7 @@ t_type *parse_type(t_parser *parser, bool parse_prefix)
         type->type = TYPE_STRUCT;
         ADVANCE(parser);
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-        type->payload = (void *)token->content;
+        type->payload = (void *)strdup(token->content);
         break;
     default:
         (void) LOGGER_log(parser->logger, L_ERROR, "Unknown type %d %s. Fallbacking to s32.\n", token->type,
@@ -212,6 +212,18 @@ void PARSER_initialize(t_parser *parser,
     }
 
     (void) vector_setup(parser->struct_names, 1, sizeof(char *));
+}
+
+void PARSER_free(t_parser *parser)
+{
+    (void) assert(parser != NULL);
+    (void) assert(parser->struct_names != NULL);
+    (void) assert(vector_is_initialized(parser->struct_names));
+
+    (void) vector_clear(parser->struct_names);
+    (void) vector_destroy(parser->struct_names);
+    (void) free(parser->struct_names);
+    parser->struct_names = NULL;
 }
 
 t_vector *PARSER_parse_top_level(t_parser *parser)
@@ -354,7 +366,7 @@ t_ast_node *parse_ident_expr(t_parser *parser)
     t_struct_value_field *struct_value_field = NULL;
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-    ident_name = token->content;
+    ident_name = strdup(token->content);
 
     ADVANCE(parser);
 
@@ -365,7 +377,7 @@ t_ast_node *parse_ident_expr(t_parser *parser)
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
         ADVANCE(parser);
 
-        return AST_new_get_expr(ident_name, token->content);
+        return AST_new_get_expr(ident_name, strdup(token->content));
     }
     else if (MATCH(parser , T_OPEN_BRACKET) && parser_is_struct_name(parser, ident_name))
     {
@@ -382,7 +394,7 @@ t_ast_node *parse_ident_expr(t_parser *parser)
 
         while (true)
         {
-            struct_value_field = calloc(1, sizeof(t_struct_value_field *));
+            struct_value_field = calloc(1, sizeof(t_struct_value_field));
             if (NULL == struct_value_field)
             {
                 (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for struct_value_field.\n");
@@ -528,6 +540,12 @@ cleanup:
     {
         (void) AST_free_node(expr, parser->logger);
         expr = NULL;
+    }
+
+    if (NULL != ident_name)
+    {
+        (void) free(ident_name);
+        ident_name = NULL;
     }
 
     return NULL;
@@ -716,7 +734,7 @@ t_ast_node *parser_parse_primary(t_parser *parser)
 {
     t_ast_node *n;
     t_token *token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-    t_type *type = TYPE_initialize_type(TYPE_SINT32);
+    t_type *type = NULL;
     int32_t s32;
     double f64;
     float f32;
@@ -730,6 +748,7 @@ t_ast_node *parser_parse_primary(t_parser *parser)
     }
     case T_NUMBER:
     {
+        type = TYPE_initialize_type(TYPE_SINT32);
         if (TYPE_is_floating_point(token->content))
         {
             if ('f' == token->content[strlen(token->content) - 1])
@@ -759,7 +778,7 @@ t_ast_node *parser_parse_primary(t_parser *parser)
     }
     case T_STRING:
     {
-        n = AST_new_string(token->content);
+        n = AST_new_string(strdup(token->content));
         ADVANCE(parser);
         return n;
     }
@@ -930,7 +949,7 @@ t_ast_node *parse_statement(t_parser *parser)
                        "Expected a '=' after ident in variable declaration");
         ADVANCE(parser);
         expr = parser_parse_expression(parser);
-        var = AST_new_variable(token->content, type, mutable);
+        var = AST_new_variable(strdup(token->content), type, mutable);
         node = AST_new_let_stmt(var, expr);
         MATCH_ADVANCE(parser, T_SEMI_COLON, "Expected a ';' after let statement");
         return node;
@@ -1030,7 +1049,7 @@ t_ast_node *parse_prototype(t_parser *parser)
 
     EXPECT_ADVANCE(parser, T_IDENTIFIER,
                    "Expected an identifier after 'fn' keyword");
-    name = (VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index))->content;
+    name = strdup((VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index))->content);
 
     EXPECT_ADVANCE(parser, T_OPEN_PAREN, "Expected a '('");
 

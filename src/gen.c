@@ -1145,8 +1145,8 @@ LLVMValueRef gen_codegen_break_stmt(t_ast_node *UNUSED(n),
 
 LLVMValueRef gen_codegen_number(t_ast_node *node, t_logger *logger)
 {
-    LLVMTypeRef type = gen_type_to_llvm_type(&node->number.type, logger);
-    switch (node->number.type.type)
+    LLVMTypeRef type = gen_type_to_llvm_type(node->number.type, logger);
+    switch (node->number.type->type)
     {
         case TYPE_F32:
             return LLVMConstReal(type, node->number.value.f32);
@@ -1169,7 +1169,7 @@ LLVMValueRef gen_codegen_number(t_ast_node *node, t_logger *logger)
         case TYPE_UINT64:
             return LLVMConstInt(type, node->number.value.u64, false);
         default:
-            (void) fprintf(stderr, "%d is not a number type.\n", node->number.type.type);
+            (void) fprintf(stderr, "%d is not a number type.\n", node->number.type->type);
             (void) exit(LUKA_GENERAL_ERROR);
     }
 }
@@ -1183,6 +1183,7 @@ LLVMValueRef gen_codegen_struct_definition(t_ast_node *node,
     LLVMTypeRef struct_type = NULL;
     LLVMTypeRef *element_types = NULL;
     t_struct_info *struct_info = NULL;
+    bool error = true;
 
     element_types = calloc(elements_count, sizeof(LLVMTypeRef));
     if (NULL == element_types)
@@ -1222,13 +1223,18 @@ LLVMValueRef gen_codegen_struct_definition(t_ast_node *node,
     struct_info->struct_type = struct_type;
     HASH_ADD_KEYPTR(hh, struct_infos, struct_info->struct_name, strlen(struct_info->struct_name), struct_info);
 
-    return NULL;
+    error = false;
 
 cleanup:
     if (NULL != element_types)
     {
         (void) free(element_types);
         element_types = NULL;
+    }
+
+    if (!error)
+    {
+        return NULL;
     }
 
     if (NULL != struct_info)
@@ -1252,7 +1258,7 @@ LLVMValueRef gen_codegen_struct_value(t_ast_node *node,
                                       t_logger *logger)
 {
     size_t elements_count = node->struct_value.struct_values->size;
-    LLVMValueRef *element_values = calloc(elements_count, sizeof(LLVMValueRef));
+    LLVMValueRef struct_value = NULL, *element_values = calloc(elements_count, sizeof(LLVMValueRef));
     if (NULL == element_values)
     {
         return NULL;
@@ -1263,7 +1269,11 @@ LLVMValueRef gen_codegen_struct_value(t_ast_node *node,
         element_values[i] = GEN_codegen((VECTOR_GET_AS(t_struct_value_field_ptr, node->struct_value.struct_values, i))->expr, module, builder, logger);
     }
 
-    return LLVMConstStruct(element_values, elements_count, false);
+    struct_value = LLVMConstStruct(element_values, elements_count, false);
+
+    (void) free(element_values);
+
+    return struct_value;
 }
 
 
@@ -1418,6 +1428,14 @@ void GEN_codegen_reset()
 
             if (NULL != struct_info->struct_fields)
             {
+                for (size_t i = 0; i < struct_info->number_of_fields; ++i)
+                {
+                    if (NULL != struct_info->struct_fields[i])
+                    {
+                        (void) free(struct_info->struct_fields[i]);
+                        struct_info->struct_fields[i] = NULL;
+                    }
+                }
                 (void) free(struct_info->struct_fields);
                 struct_info->struct_fields = NULL;
             }
