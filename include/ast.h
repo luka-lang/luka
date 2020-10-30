@@ -36,6 +36,8 @@ t_ast_node *AST_new_break_stmt();
 t_ast_node *AST_new_struct_definition(char *name, t_vector *struct_fields);
 t_ast_node *AST_new_struct_value(char *name, t_vector *value_fields);
 
+t_ast_node *AST_new_get_expr(char *variable, char *key);
+
 void AST_free_node(t_ast_node *node, t_logger *logger);
 
 void AST_print_functions(t_vector *functions, int offset, t_logger *logger);

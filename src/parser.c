@@ -96,6 +96,7 @@ t_type *parse_type(t_parser *parser, bool parse_prefix)
         (void) exit(LUKA_CANT_ALLOC_MEMORY);
     }
     type->inner_type = NULL;
+    type->payload = NULL;
 
     if (parse_prefix)
     {
@@ -162,6 +163,12 @@ t_type *parse_type(t_parser *parser, bool parse_prefix)
     case T_VOID_TYPE:
         type->type = TYPE_VOID;
         break;
+    case T_STRUCT:
+        type->type = TYPE_STRUCT;
+        ADVANCE(parser);
+        token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+        type->payload = (void *)token->content;
+        break;
     default:
         (void) LOGGER_log(parser->logger, L_ERROR, "Unknown type %d %s. Fallbacking to s32.\n", token->type,
                         token->content);
@@ -197,6 +204,14 @@ void PARSER_initialize(t_parser *parser,
     parser->index = 0;
     parser->file_path = file_path;
     parser->logger = logger;
+    parser->struct_names = calloc(1, sizeof(t_vector));
+    if (NULL == parser->struct_names)
+    {
+        (void) LOGGER_log(parser->logger, L_ERROR, "Cannot allocate memory for struct names vector.\n");
+        (void) exit(LUKA_CANT_ALLOC_MEMORY);
+    }
+
+    (void) vector_setup(parser->struct_names, 1, sizeof(char *));
 }
 
 t_vector *PARSER_parse_top_level(t_parser *parser)
@@ -313,6 +328,21 @@ t_ast_node *parse_paren_expr(t_parser *parser)
     return expr;
 }
 
+bool parser_is_struct_name(t_parser *parser, const char *ident_name)
+{
+    char *value = NULL;
+    VECTOR_FOR_EACH(parser->struct_names, iterator)
+    {
+        value = ITERATOR_GET_AS(char *, &iterator);
+        if (0 == strcmp(value, ident_name))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 t_ast_node *parse_ident_expr(t_parser *parser)
 {
     t_token *token;
@@ -329,18 +359,16 @@ t_ast_node *parse_ident_expr(t_parser *parser)
     ADVANCE(parser);
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-    if (T_OPEN_PAREN != token->type)
+    if (MATCH(parser, T_DOT))
     {
-        if (T_OPEN_BRACKET != token->type)
-        {
-            if (MATCH(parser, T_MUT))
-            {
-                ADVANCE(parser);
-                mutable = true;
-            }
-            return AST_new_variable(ident_name, parse_type(parser, true), mutable);
-        }
+        ADVANCE(parser);
+        token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+        ADVANCE(parser);
 
+        return AST_new_get_expr(ident_name, token->content);
+    }
+    else if (MATCH(parser , T_OPEN_BRACKET) && parser_is_struct_name(parser, ident_name))
+    {
         ADVANCE(parser);
         struct_value_fields = calloc(1, sizeof(t_vector));
         if (NULL == struct_value_fields)
@@ -380,7 +408,16 @@ t_ast_node *parse_ident_expr(t_parser *parser)
         }
 
         return AST_new_struct_value(ident_name, struct_value_fields);
+    }
 
+    if (T_OPEN_PAREN != token->type)
+    {
+        if (MATCH(parser, T_MUT))
+        {
+            ADVANCE(parser);
+            mutable = true;
+        }
+        return AST_new_variable(ident_name, parse_type(parser, true), mutable);
     }
 
     ADVANCE(parser);
@@ -913,7 +950,9 @@ t_ast_node *parse_statement(t_parser *parser)
         ADVANCE(parser);
         fields = parser_parse_struct_fields(parser);
         MATCH_ADVANCE(parser, T_CLOSE_BRACKET, "Expected a '}' after struct fields in struct definition");
-        return AST_new_struct_definition(name, fields);
+        node = AST_new_struct_definition(name, fields);
+        (void) vector_push_front(parser->struct_names, &name);
+        return node;
     }
     default:
     {
@@ -1027,6 +1066,7 @@ t_ast_node *parse_prototype(t_parser *parser)
         {
             types[0]->type = TYPE_ANY;
             types[0]->inner_type = NULL;
+            types[0]->payload = NULL;
         }
         vararg = true;
     }
@@ -1077,6 +1117,7 @@ t_ast_node *parse_prototype(t_parser *parser)
             {
                 types[arity - 1]->type = TYPE_ANY;
                 types[arity - 1]->inner_type = NULL;
+                types[arity - 1]->payload = NULL;
             }
             vararg = true;
         }

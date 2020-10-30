@@ -138,6 +138,7 @@ typedef enum
     AST_TYPE_BREAK_STMT,
     AST_TYPE_STRUCT_DEFINITION,
     AST_TYPE_STRUCT_VALUE,
+    AST_TYPE_GET_EXPR,
 } t_ast_node_type;
 
 typedef enum
@@ -188,6 +189,7 @@ typedef struct s_type
 {
     t_base_type type;
     struct s_type *inner_type;
+    void *payload;
 } t_type;
 
 typedef struct s_ast_node t_ast_node;
@@ -311,6 +313,12 @@ typedef struct
     t_vector *struct_values;
 } t_ast_struct_value;
 
+typedef struct
+{
+    char *variable;
+    char *key;
+} t_ast_get_expr;
+
 typedef struct s_ast_node
 {
     t_ast_node_type type;
@@ -333,6 +341,7 @@ typedef struct s_ast_node
         t_ast_expr_stmt expression_stmt;
         t_ast_struct_definition struct_definition;
         t_ast_struct_value struct_value;
+        t_ast_get_expr get_expr;
     };
 } t_ast_node;
 

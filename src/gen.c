@@ -6,10 +6,13 @@
 #include "type.h"
 
 t_named_value *named_values = NULL;
+t_struct_info *struct_infos = NULL;
 Vector *loop_blocks = NULL;
 
 LLVMTypeRef gen_type_to_llvm_type(t_type *type, t_logger *logger)
 {
+    t_struct_info *struct_info = NULL;
+
     switch (type->type)
     {
     case TYPE_ANY:
@@ -42,6 +45,17 @@ LLVMTypeRef gen_type_to_llvm_type(t_type *type, t_logger *logger)
         return LLVMVoidType();
     case TYPE_PTR:
         return LLVMPointerType(gen_type_to_llvm_type(type->inner_type, logger), 0);
+    case TYPE_STRUCT:
+        HASH_FIND_STR(struct_infos, (char*)type->payload, struct_info);
+        if (NULL != struct_info)
+        {
+            return struct_info->struct_type;
+        }
+
+        (void) LOGGER_log(logger, L_ERROR, "I don't know how to translate struct named %s to LLVM types without a previous definition.\n",
+                          type);
+        (void) exit(LUKA_CODEGEN_ERROR);
+
     default:
         (void) LOGGER_log(logger, L_ERROR, "I don't know how to translate type %d to LLVM types.\n",
                           type);
@@ -57,6 +71,7 @@ t_type *gen_llvm_type_to_ttype(LLVMTypeRef type, t_logger *logger)
         (void) exit(LUKA_CANT_ALLOC_MEMORY);
     }
 
+    ttype->payload = NULL;
     ttype->inner_type = NULL;
     if (type == LLVMPointerType(LLVMVoidType(), 0))
     {
@@ -122,6 +137,7 @@ t_type *gen_llvm_type_to_ttype(LLVMTypeRef type, t_logger *logger)
     else if (LLVMStructTypeKind == LLVMGetTypeKind(type))
     {
         ttype->type = TYPE_STRUCT;
+        ttype->payload = (void *)LLVMGetStructName(type);
     }
     else
     {
@@ -948,7 +964,7 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node,
     {
         expr = gen_codegen_cast(builder, expr, val->type, logger);
     }
-    LLVMBuildStore(builder, expr, val->alloca_inst);
+    LLVMSetAlignment(LLVMBuildStore(builder, expr, val->alloca_inst), LLVMGetAlignment(val->alloca_inst) ? LLVMGetAlignment(val->alloca_inst) : 8);
     val->mutable = variable.mutable;
     HASH_ADD_KEYPTR(hh, named_values, val->name, strlen(val->name), val);
 
@@ -1023,7 +1039,8 @@ LLVMValueRef gen_codegen_call(t_ast_node *node,
     func = LLVMGetNamedFunction(module, node->call_expr.name);
     if (NULL == func)
     {
-        goto cleanup;
+        (void) LOGGER_log(logger, L_WARNING, "Couldn't find a function named `%s`, are you sure you defined it or wrote a proper extern line for it?\n", node->call_expr.name);
+        (void) exit(LUKA_CODEGEN_ERROR);
     }
 
     func_type = LLVMGetElementType(LLVMTypeOf(func));
@@ -1164,10 +1181,32 @@ LLVMValueRef gen_codegen_struct_definition(t_ast_node *node,
 {
     size_t elements_count = node->struct_definition.struct_fields->size;
     LLVMTypeRef struct_type = NULL;
-    LLVMTypeRef *element_types = calloc(elements_count, sizeof(LLVMTypeRef));
+    LLVMTypeRef *element_types = NULL;
+    t_struct_info *struct_info = NULL;
+
+    element_types = calloc(elements_count, sizeof(LLVMTypeRef));
     if (NULL == element_types)
     {
-        return NULL;
+        goto cleanup;
+    }
+
+    struct_info = calloc(1, sizeof(t_struct_info));
+    if (NULL == struct_info)
+    {
+        goto cleanup;
+    }
+
+    struct_info->struct_name = strdup(node->struct_definition.name);
+    struct_info->number_of_fields = elements_count;
+    struct_info->struct_fields = calloc(elements_count, sizeof(char**));
+    if (NULL == struct_info->struct_fields)
+    {
+        goto cleanup;
+    }
+
+    for (size_t i = 0; i < elements_count; ++i)
+    {
+        struct_info->struct_fields[i] = NULL;
     }
 
     struct_type = LLVMStructCreateNamed(LLVMGetGlobalContext(), node->struct_definition.name);
@@ -1175,9 +1214,34 @@ LLVMValueRef gen_codegen_struct_definition(t_ast_node *node,
     for (size_t i = 0; i < elements_count; ++i)
     {
         element_types[i] = gen_type_to_llvm_type((VECTOR_GET_AS(t_struct_field_ptr, node->struct_definition.struct_fields, i))->type, logger);
+        struct_info->struct_fields[i] = strdup((VECTOR_GET_AS(t_struct_field_ptr, node->struct_definition.struct_fields, i))->name);
     }
 
     LLVMStructSetBody(struct_type, element_types, elements_count, false);
+
+    struct_info->struct_type = struct_type;
+    HASH_ADD_KEYPTR(hh, struct_infos, struct_info->struct_name, strlen(struct_info->struct_name), struct_info);
+
+    return NULL;
+
+cleanup:
+    if (NULL != element_types)
+    {
+        (void) free(element_types);
+        element_types = NULL;
+    }
+
+    if (NULL != struct_info)
+    {
+        if (NULL != struct_info->struct_fields)
+        {
+            (void) free(struct_info->struct_fields);
+            struct_info->struct_fields = NULL;
+        }
+
+        (void) free(struct_info);
+        struct_info = NULL;
+    }
 
     return NULL;
 }
@@ -1200,6 +1264,68 @@ LLVMValueRef gen_codegen_struct_value(t_ast_node *node,
     }
 
     return LLVMConstStruct(element_values, elements_count, false);
+}
+
+
+LLVMValueRef gen_get_struct_field_pointer(t_named_value *variable,
+                                          char *key,
+                                          LLVMBuilderRef builder,
+                                          t_logger *logger)
+{
+    LLVMValueRef indices[2] = { LLVMConstInt(LLVMInt32Type(), 0, 0), NULL };
+    t_struct_info *struct_info = NULL;
+
+    HASH_FIND_STR(struct_infos, (char*)variable->ttype->payload, struct_info);
+
+    if (NULL == struct_info)
+    {
+        (void) LOGGER_log(logger, L_ERROR, "Couldn't find struct info.\n");
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
+
+    for (size_t i = 0; i < struct_info->number_of_fields; ++i)
+    {
+        if ((NULL != struct_info->struct_fields) && (0 == strcmp(key, struct_info->struct_fields[i])))
+        {
+            indices[1] = LLVMConstInt(LLVMInt32Type(), i, 0);
+        }
+    }
+
+    if (NULL == indices[1])
+    {
+        (void) LOGGER_log(logger, L_ERROR, "`%s` is not a field in struct `%s`.\n", key, struct_info->struct_name);
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
+
+    return LLVMBuildGEP(builder, variable->alloca_inst, indices, 2, "geptmp");
+}
+
+LLVMValueRef gen_codegen_get_expr(t_ast_node *node,
+                                  LLVMModuleRef UNUSED(module),
+                                  LLVMBuilderRef builder,
+                                  t_logger *logger)
+{
+    t_named_value *variable = NULL;
+    LLVMValueRef field_pointer = NULL;
+
+    if (NULL == node->get_expr.variable)
+    {
+        (void) LOGGER_log(logger, L_WARNING, "Get expr variable name is null.\n");
+        goto cleanup;
+    }
+
+    HASH_FIND_STR(named_values, node->get_expr.variable, variable);
+    if (NULL == variable)
+    {
+        (void) LOGGER_log(logger, L_ERROR, "Couldn't find a variable named `%s`.\n", node->get_expr.variable);
+        goto cleanup;
+    }
+
+    field_pointer = gen_get_struct_field_pointer(variable, node->get_expr.key, builder, logger);
+    return LLVMBuildLoad2(builder, LLVMGetElementType(LLVMTypeOf(field_pointer)), field_pointer, "loadtmp"); // LLVMBuildStructGEP(builder, field_pointer, 0, "getexprtmp");
+
+cleanup:
+    return NULL;
 }
 
 LLVMValueRef GEN_codegen(t_ast_node *node,
@@ -1245,6 +1371,8 @@ LLVMValueRef GEN_codegen(t_ast_node *node,
         return gen_codegen_struct_definition(node, module, builder, logger);
     case AST_TYPE_STRUCT_VALUE:
         return gen_codegen_struct_value(node, module, builder, logger);
+    case AST_TYPE_GET_EXPR:
+        return gen_codegen_get_expr(node, module, builder, logger);
     default:
     {
         (void) LOGGER_log(logger, L_ERROR, "No codegen function was found for type - %d\n", node->type);
@@ -1261,9 +1389,10 @@ void GEN_codegen_initialize()
 
 void GEN_codegen_reset()
 {
-    t_named_value *named_value = NULL, *tmp = NULL;
+    t_named_value *named_value = NULL, *named_value_iter = NULL;
+    t_struct_info *struct_info = NULL, *struct_info_iter = NULL;
 
-    HASH_ITER(hh, named_values, named_value, tmp) {
+    HASH_ITER(hh, named_values, named_value, named_value_iter) {
         HASH_DEL(named_values, named_value);
         if (NULL != named_value)
         {
@@ -1274,6 +1403,26 @@ void GEN_codegen_reset()
             }
             (void) free(named_value);
             named_value = NULL;
+        }
+    }
+
+    HASH_ITER(hh, struct_infos, struct_info, struct_info_iter) {
+        HASH_DEL(struct_infos, struct_info);
+        if (NULL != struct_info)
+        {
+            if (NULL != struct_info->struct_name)
+            {
+                (void) free((char *) struct_info->struct_name);
+                struct_info->struct_name = NULL;
+            }
+
+            if (NULL != struct_info->struct_fields)
+            {
+                (void) free(struct_info->struct_fields);
+                struct_info->struct_fields = NULL;
+            }
+            (void) free(struct_info);
+            struct_info = NULL;
         }
     }
 

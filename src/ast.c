@@ -71,6 +71,7 @@ t_ast_node *AST_new_number(t_type *type, void *value)
     node->type = AST_TYPE_NUMBER;
     node->number.type.type = type->type;
     node->number.type.inner_type = NULL;
+    node->number.type.payload = NULL;
     switch (type->type)
     {
         case TYPE_F32:
@@ -266,6 +267,15 @@ t_ast_node *AST_new_struct_value(char *name, t_vector *struct_values)
     node->type = AST_TYPE_STRUCT_VALUE;
     node->struct_value.name = name;
     node->struct_value.struct_values = struct_values;
+    return node;
+}
+
+t_ast_node *AST_new_get_expr(char *variable, char *key)
+{
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
+    node->type = AST_TYPE_GET_EXPR;
+    node->get_expr.variable = variable;
+    node->get_expr.key = key;
     return node;
 }
 
@@ -557,6 +567,22 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
             (void) vector_destroy(node->struct_value.struct_values);
             (void) free(node->struct_value.struct_values);
             node->struct_value.struct_values = NULL;
+        }
+        break;
+    }
+
+    case AST_TYPE_GET_EXPR:
+    {
+        if (NULL != node->get_expr.variable)
+        {
+            (void) free(node->get_expr.variable);
+            node->get_expr.variable = NULL;
+        }
+
+        if (NULL != node->get_expr.key)
+        {
+            (void) free(node->get_expr.key);
+            node->get_expr.key = NULL;
         }
         break;
     }
@@ -961,6 +987,22 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
         }
         break;
     }
+
+    case AST_TYPE_GET_EXPR:
+    {
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Get expr\n", offset, ' ');
+        if (NULL != node->get_expr.variable)
+        {
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Variable - %s\n", offset + 2, ' ', node->get_expr.variable);
+        }
+
+        if (NULL != node->get_expr.key)
+        {
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Key\n", offset + 2, ' ', node->get_expr.key);
+        }
+        break;
+    }
+
     default:
     {
         (void) LOGGER_log(logger, L_DEBUG, "I don't know how to print type - %d\n", node->type);
