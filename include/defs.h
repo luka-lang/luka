@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "vector.h"
+#include "uthash.h"
 
 /* Taken from https://stackoverflow.com/questions/3599160/how-to-suppress-unused-parameter-warnings-in-c */
 #ifdef __GNUC__
@@ -36,7 +37,7 @@ typedef enum
     LUKA_CODEGEN_ERROR,
 } t_return_code;
 
-#define NUMBER_OF_KEYWORDS 28
+#define NUMBER_OF_KEYWORDS 29
 extern const char *keywords[NUMBER_OF_KEYWORDS];
 
 typedef enum
@@ -52,6 +53,7 @@ typedef enum
     T_WHILE,
     T_BREAK,
     T_AS,
+    T_STRUCT,
 
     T_INT_TYPE,
     T_CHAR_TYPE,
@@ -133,7 +135,10 @@ typedef enum
     AST_TYPE_ASSIGNMENT_EXPR,
     AST_TYPE_CALL_EXPR,
     AST_TYPE_EXPRESSION_STMT,
-    AST_TYPE_BREAK_STMT
+    AST_TYPE_BREAK_STMT,
+    AST_TYPE_STRUCT_DEFINITION,
+    AST_TYPE_STRUCT_VALUE,
+    AST_TYPE_GET_EXPR,
 } t_ast_node_type;
 
 typedef enum
@@ -176,13 +181,15 @@ typedef enum
     TYPE_F64,
     TYPE_STRING,
     TYPE_VOID,
-    TYPE_PTR
+    TYPE_PTR,
+    TYPE_STRUCT,
 } t_base_type;
 
 typedef struct s_type
 {
     t_base_type type;
     struct s_type *inner_type;
+    void *payload;
 } t_type;
 
 typedef struct s_ast_node t_ast_node;
@@ -294,6 +301,24 @@ typedef struct
     t_ast_node *expr;
 } t_ast_expr_stmt;
 
+typedef struct
+{
+    char *name;
+    t_vector *struct_fields;
+} t_ast_struct_definition;
+
+typedef struct
+{
+    char *name;
+    t_vector *struct_values;
+} t_ast_struct_value;
+
+typedef struct
+{
+    char *variable;
+    char *key;
+} t_ast_get_expr;
+
 typedef struct s_ast_node
 {
     t_ast_node_type type;
@@ -314,9 +339,27 @@ typedef struct s_ast_node
         t_ast_let_stmt let_stmt;
         t_ast_call_expr call_expr;
         t_ast_expr_stmt expression_stmt;
+        t_ast_struct_definition struct_definition;
+        t_ast_struct_value struct_value;
+        t_ast_get_expr get_expr;
     };
 } t_ast_node;
 
 typedef t_ast_node *t_ast_node_ptr;
+
+typedef struct {
+    char *name;
+    t_type *type;
+    UT_hash_handle hh;
+} t_struct_field;
+
+typedef struct {
+    char *name;
+    t_ast_node *expr;
+    UT_hash_handle hh;
+} t_struct_value_field;
+
+typedef t_struct_field* t_struct_field_ptr;
+typedef t_struct_value_field* t_struct_value_field_ptr;
 
 #endif // __DEFS_H__

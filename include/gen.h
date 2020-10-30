@@ -18,6 +18,15 @@ typedef struct
     UT_hash_handle hh;
 } t_named_value;
 
+typedef struct
+{
+    LLVMTypeRef struct_type;
+    char *struct_name;
+    char **struct_fields;
+    size_t number_of_fields;
+    UT_hash_handle hh;
+} t_struct_info;
+
 LLVMValueRef GEN_codegen(t_ast_node *n, LLVMModuleRef module, LLVMBuilderRef builder, t_logger *logger);
 
 void GEN_codegen_initialize();

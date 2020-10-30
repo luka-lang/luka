@@ -1,0 +1,12 @@
+extern printf(format: string, ...: any): s32;
+
+fn main() {
+    struct Person {
+        name: u8*,
+        age: u8
+    }
+
+    let bob: struct Person = Person { name: "Bob", age: 14 };
+
+    printf("Person\n\tName: %s\n\tAge: %d\n", bob.name, bob.age);
+}

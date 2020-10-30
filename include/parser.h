@@ -14,6 +14,7 @@ typedef struct
 {
     t_vector *tokens;
     size_t index;
+    t_vector *struct_names;
     const char *file_path;
     t_logger *logger;
 } t_parser;
