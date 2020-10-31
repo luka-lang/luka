@@ -28,6 +28,7 @@
 
 
 #define BITCODE_FILENAME ("a.out.bc")
+#define OBJECT_FILENAME ("a.out.o")
 #define CMD_LEN          (20 + 256)
 
 static struct option long_options[] =
@@ -77,6 +78,9 @@ int main(int argc, char **argv)
     LLVMBuilderRef builder = NULL;
     LLVMPassManagerRef pass_manager = NULL;
     LLVMValueRef value = NULL;
+    LLVMTargetMachineRef target_machine = NULL;
+    LLVMTargetRef target = NULL;
+    LLVMTargetDataRef target_data = NULL;
     char *triple = NULL;
     char *error = NULL;
 
@@ -155,11 +159,27 @@ int main(int argc, char **argv)
     (void) AST_print_functions(functions, 0, logger);
 
     (void) LLVMInitializeCore(LLVMGetGlobalPassRegistry());
+    (void) LLVMInitializeNativeTarget();
+    (void) LLVMInitializeNativeAsmPrinter();
 
     module = LLVMModuleCreateWithName(file_path);
     triple = LLVMGetDefaultTargetTriple();
+    if (LLVMGetTargetFromTriple(triple, &target, &error))
+    {
+        (void) LOGGER_log(logger, L_ERROR, "Getting target from triple failed:\n%s\n", error);
+        (void) LLVMDisposeMessage(error);
+        goto cleanup;
+    }
+
+    if (NULL != error)
+    {
+        (void) LLVMDisposeMessage(error);
+    }
+
+    target_machine = LLVMCreateTargetMachine(target, triple, "", "", LLVMCodeGenLevelDefault, LLVMRelocDefault, LLVMCodeModelDefault);
     (void) LLVMSetTarget(module, triple);
-    (void) LLVMSetDataLayout(module, "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128");
+    target_data = LLVMCreateTargetDataLayout(target_machine);
+    (void) LLVMSetModuleDataLayout(module, target_data);
     LLVMDisposeMessage(triple);
     builder = LLVMCreateBuilder();
 
@@ -169,7 +189,7 @@ int main(int argc, char **argv)
     {
         function = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
         value = GEN_codegen(function, module, builder, logger);
-        if (NULL == value)
+        if ((NULL == value) && (AST_TYPE_STRUCT_DEFINITION != function->type))
         {
             (void) LOGGER_log(logger,
                               L_ERROR,
@@ -190,7 +210,12 @@ int main(int argc, char **argv)
     (void) GEN_codegen_reset();
 
     (void) LLVMVerifyModule(module, LLVMAbortProcessAction, &error);
-    (void) LLVMDisposeMessage(error);
+    if ((NULL != error) && (0 != strcmp("", error)))
+    {
+        (void) LOGGER_log(logger, L_ERROR, "Couldn't verify module:\n%s\n", error);
+        (void) LLVMDisposeMessage(error);
+        goto cleanup;
+    }
 
     pass_manager = LLVMCreatePassManager();
     (void) LLVMAddVerifierPass(pass_manager);
@@ -269,7 +294,7 @@ int main(int argc, char **argv)
     }
     else
     {
-        (void) LLVMWriteBitcodeToFile(module, "a.out.bc");
+        (void) LLVMWriteBitcodeToFile(module, BITCODE_FILENAME);
         cmd = malloc(CMD_LEN);
         if (NULL != cmd) {
             (void) snprintf(cmd, CMD_LEN, "clang -o \"%s\" %s", output_path, BITCODE_FILENAME);
@@ -313,19 +338,28 @@ cleanup:
         parser = NULL;
     }
 
+    if (NULL != target_machine)
+    {
+        (void) LLVMDisposeTargetMachine(target_machine);
+        target_machine = NULL;
+    }
+
     if (NULL != pass_manager)
     {
         (void) LLVMDisposePassManager(pass_manager);
+        pass_manager = NULL;
     }
 
     if (NULL != builder)
     {
         (void) LLVMDisposeBuilder(builder);
+        builder = NULL;
     }
 
     if (NULL != module)
     {
         (void) LLVMDisposeModule(module);
+        module = NULL;
     }
 
     (void) LLVMResetFatalErrorHandler();

@@ -1,8 +1,11 @@
-program =  { ( function_declaration | function_definition ) } ;
+program =  { ( function_declaration | function_definition | struct_definition ) } ;
 
 function_prototype = identifier "(" argument_list ")" [ type ] ;
 function_declration = "extern" function_prototype ;
 function_definition = "fn" function_prototype block ;
+struct_definition = "struct" identifier "{" struct_fields "}" ;
+struct_fields = struct_fields "," struct_field | struct_field ;
+struct_field = identifier type ;
 
 block = "{" { statements } "}" ;
 
@@ -13,9 +16,6 @@ return_statement = "return" expression ";" ;
 let_statement = "let" [ "mut" ] identifier [ type ] "=" expression ";" ;
 expression_statement = expression ";" ;
 break_statement = "break" ";"
-struct_definition = "struct" identifier "{" struct_fields "}" ;
-struct_fields = struct_fields "," struct_field | struct_field ;
-struct_field = identifier type ;
 
 expression = if_expression | while_expression | cast_expression | assignment ;
 if_expression = "if" expression block [ "else" block ] ;

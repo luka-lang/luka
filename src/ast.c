@@ -727,6 +727,67 @@ char *binop_to_str(t_ast_binop_type op, t_logger *logger)
     }
 }
 
+char *ast_stringify(const char* source, size_t source_length, t_logger *logger)
+{
+    size_t i = 0;
+    size_t char_count = source_length;
+    for (i = 0; i < source_length; ++i)
+    {
+        switch (source[i])
+        {
+        case '\n':
+        case '\t':
+        case '\\':
+        case '\"':
+            ++char_count;
+            break;
+        default:
+            break;
+        }
+    }
+
+    ++i;
+
+    char *str = calloc(sizeof(char), char_count + 1);
+    if (NULL == str)
+    {
+        (void) LOGGER_log(logger, L_ERROR, "Couldn't allocate memory for string in ast_stringify.\n");
+        return NULL;
+    }
+
+    for (i = 0; i < char_count; ++i)
+    {
+        switch (source[i])
+        {
+        case '\n':
+            str[i] = '\\';
+            str[i + 1] = 'n';
+            ++i;
+            break;
+        case '\t':
+            str[i] = '\\';
+            str[i + 1] = 't';
+            ++i;
+            break;
+        case '\\':
+            str[i] = '\\';
+            str[i + 1] = '\\';
+            ++i;
+            break;
+        case '\"':
+            str[i] = '\\';
+            str[i + 1] = '"';
+            ++i;
+            break;
+        default:
+            str[i] = source[i];
+        }
+    }
+
+    str[char_count] = '\0';
+    return str;
+}
+
 void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
 {
     t_ast_node *arg = NULL;
@@ -756,8 +817,12 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
         }
         break;
     case AST_TYPE_STRING:
-        (void) LOGGER_log(logger, L_DEBUG, "%*c\b AST string \"%s\"\n", offset, ' ', node->string.value);
+    {
+        char *stringified = ast_stringify(node->string.value, node->string.length, logger);
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b AST string \"%s\"\n", offset, ' ', stringified);
+        (void) free(stringified);
         break;
+    }
     case AST_TYPE_UNARY_EXPR:
     {
         (void) LOGGER_log(logger, L_DEBUG, "%*c\b Unary Expression\n", offset, ' ');
@@ -1053,7 +1118,7 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
 
         if (NULL != node->get_expr.key)
         {
-            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Key\n", offset + 2, ' ', node->get_expr.key);
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Key - %s\n", offset + 2, ' ', node->get_expr.key);
         }
         break;
     }
