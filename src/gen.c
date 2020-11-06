@@ -311,9 +311,15 @@ bool gen_llvm_cast_to_fp_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBui
         }
 
         (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
+
+        (void) TYPE_free_type(lhs_t);
+        (void) TYPE_free_type(rhs_t);
+
         return true;
     }
 
+    (void) TYPE_free_type(lhs_t);
+    (void) TYPE_free_type(rhs_t);
     return false;
 }
 
@@ -329,9 +335,14 @@ bool gen_llvm_cast_to_signed_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLV
         }
 
         (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
+
+        (void) TYPE_free_type(lhs_t);
+        (void) TYPE_free_type(rhs_t);
         return true;
     }
 
+    (void) TYPE_free_type(lhs_t);
+    (void) TYPE_free_type(rhs_t);
     return false;
 }
 
@@ -364,9 +375,13 @@ bool gen_llvm_cast_sizes_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBui
         }
 
 
+        (void) TYPE_free_type(lhs_t);
+        (void) TYPE_free_type(rhs_t);
         return true;
     }
 
+    (void) TYPE_free_type(lhs_t);
+    (void) TYPE_free_type(rhs_t);
     return false;
 }
 

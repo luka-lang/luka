@@ -214,8 +214,11 @@ int main(int argc, char **argv)
     {
         (void) LOGGER_log(logger, L_ERROR, "Couldn't verify module:\n%s\n", error);
         (void) LLVMDisposeMessage(error);
+        error = NULL;
         goto cleanup;
     }
+    (void) LLVMDisposeMessage(error);
+    error = NULL;
 
     pass_manager = LLVMCreatePassManager();
     (void) LLVMAddVerifierPass(pass_manager);
@@ -336,6 +339,12 @@ cleanup:
         (void) PARSER_free(parser);
         (void) free(parser);
         parser = NULL;
+    }
+
+    if (NULL != target_data)
+    {
+        (void) LLVMDisposeTargetData(target_data);
+        target_data = NULL;
     }
 
     if (NULL != target_machine)

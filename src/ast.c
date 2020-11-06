@@ -781,6 +781,7 @@ char *ast_stringify(const char* source, size_t source_length, t_logger *logger)
 {
     size_t i = 0;
     size_t char_count = source_length;
+    size_t off = 0;
     for (i = 0; i < source_length; ++i)
     {
         switch (source[i])
@@ -805,32 +806,32 @@ char *ast_stringify(const char* source, size_t source_length, t_logger *logger)
         return NULL;
     }
 
-    for (i = 0; i < char_count; ++i)
+    for (i = 0; i < source_length && i + off < char_count; ++i)
     {
         switch (source[i])
         {
         case '\n':
-            str[i] = '\\';
-            str[i + 1] = 'n';
-            ++i;
+            str[i + off] = '\\';
+            str[i + off + 1] = 'n';
+            ++off;
             break;
         case '\t':
-            str[i] = '\\';
-            str[i + 1] = 't';
-            ++i;
+            str[i + off] = '\\';
+            str[i + off + 1] = 't';
+            ++off;
             break;
         case '\\':
-            str[i] = '\\';
-            str[i + 1] = '\\';
-            ++i;
+            str[i + off] = '\\';
+            str[i + off + 1] = '\\';
+            ++off;
             break;
         case '\"':
-            str[i] = '\\';
-            str[i + 1] = '"';
-            ++i;
+            str[i + off] = '\\';
+            str[i + off + 1] = '"';
+            ++off;
             break;
         default:
-            str[i] = source[i];
+            str[i + off] = source[i];
         }
     }
 
