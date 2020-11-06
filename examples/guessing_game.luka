@@ -3,7 +3,7 @@ extern printf(format: string, ...: any): s32;
 extern scanf(format: string, ...: any): s32;
 extern rand(): s32;
 extern srand(seed: u32): void;
-extern time(tloc: u32): u32;
+extern time(tloc: s64): u32;
 
 fn main() {
     let mut num = 0;
