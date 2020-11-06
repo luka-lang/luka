@@ -128,6 +128,7 @@ char *lexer_lex_string(const char *source, size_t *index, t_logger *logger)
     char *str = calloc(sizeof(char), char_count + 1);
     if (NULL == str)
     {
+        (void) LOGGER_log(logger, L_ERROR, "Couldn't allocate memory for string in lexer_lex_string.\n");
         return NULL;
     }
 

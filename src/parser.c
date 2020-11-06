@@ -15,6 +15,7 @@ t_ast_node *parser_parse_primary(t_parser *parser);
 t_vector *parse_statements(t_parser *parser);
 t_vector *parser_parse_struct_fields(t_parser *parser);
 t_struct_field *parser_parse_struct_field(t_parser *parser);
+bool parser_is_struct_name(t_parser *parser, const char *ident_name);
 
 t_ast_node *parse_prototype(t_parser *parser);
 t_ast_node *parser_parse_assignment(t_parser *parser);
@@ -170,6 +171,13 @@ t_type *parse_type(t_parser *parser, bool parse_prefix)
         type->payload = (void *)strdup(token->content);
         break;
     default:
+        if (parser_is_struct_name(parser, token->content))
+        {
+            type->type = TYPE_STRUCT;
+            type->payload = (void *)strdup(token->content);
+            break;
+        }
+
         (void) LOGGER_log(parser->logger, L_ERROR, "Unknown type %d %s. Fallbacking to s32.\n", token->type,
                         token->content);
         type->type = TYPE_SINT32;
@@ -230,7 +238,9 @@ t_vector *PARSER_parse_top_level(t_parser *parser)
 {
     t_vector *functions = NULL;
     t_token *token = NULL;
-    t_ast_node *function, *prototype;
+    t_ast_node *function = NULL, *prototype = NULL, *node = NULL;
+    char *name = NULL;
+    t_vector *fields = NULL;
 
     functions = calloc(1, sizeof(t_vector));
     if (NULL == functions)
@@ -260,6 +270,21 @@ t_vector *PARSER_parse_top_level(t_parser *parser)
             (void) vector_push_back(functions, &function);
             EXPECT_ADVANCE(parser, T_SEMI_COLON,
                            "Expected a `;` at the end of an extern statement.");
+            break;
+        }
+        case T_STRUCT:
+        {
+            EXPECT_ADVANCE(parser, T_IDENTIFIER, "Expected an identifier after keyword 'struct'");
+            token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+            name = strdup(token->content);
+            EXPECT_ADVANCE(parser, T_OPEN_BRACKET, "Expected a '{' after identifier in struct definition");
+            ADVANCE(parser);
+            fields = parser_parse_struct_fields(parser);
+            MATCH_ADVANCE(parser, T_CLOSE_BRACKET, "Expected a '}' after struct fields in struct definition");
+            node = AST_new_struct_definition(name, fields);
+            (void) vector_push_front(parser->struct_names, &name);
+            (void) vector_push_front(functions, &node);
+            parser->index -= 1;
             break;
         }
         case T_EOF:
@@ -898,7 +923,7 @@ t_ast_node *parser_parse_assignment(t_parser *parser)
         ADVANCE(parser);
         rhs = parser_parse_assignment(parser);
 
-        if ((AST_TYPE_VARIABLE == lhs->type) || ((AST_TYPE_UNARY_EXPR == lhs->type) && (UNOP_DEREF == lhs->unary_expr.operator)))
+        if ((AST_TYPE_VARIABLE == lhs->type) || ((AST_TYPE_UNARY_EXPR == lhs->type) && (UNOP_DEREF == lhs->unary_expr.operator)) || (AST_TYPE_GET_EXPR == lhs->type))
         {
             return AST_new_assignment_expr(lhs, rhs);
         }
