@@ -17,6 +17,10 @@ t_vector *parser_parse_struct_fields(t_parser *parser);
 t_struct_field *parser_parse_struct_field(t_parser *parser);
 bool parser_is_struct_name(t_parser *parser, const char *ident_name);
 
+t_vector *parser_parse_enum_fields(t_parser *parser);
+t_enum_field *parser_parse_enum_field(t_parser *parser);
+bool parser_is_enum_name(t_parser *parser, const char *ident_name);
+
 t_ast_node *parse_prototype(t_parser *parser);
 t_ast_node *parser_parse_assignment(t_parser *parser);
 t_ast_node *parse_unary_expr(t_parser *parser);
@@ -170,10 +174,23 @@ t_type *parse_type(t_parser *parser, bool parse_prefix)
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
         type->payload = (void *)strdup(token->content);
         break;
+    case T_ENUM:
+        type->type = TYPE_ENUM,
+        ADVANCE(parser);
+        token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+        type->payload = (void *)strdup(token->content);
+        break;
     default:
         if (parser_is_struct_name(parser, token->content))
         {
             type->type = TYPE_STRUCT;
+            type->payload = (void *)strdup(token->content);
+            break;
+        }
+
+        if (parser_is_enum_name(parser, token->content))
+        {
+            type->type = TYPE_ENUM;
             type->payload = (void *)strdup(token->content);
             break;
         }
@@ -220,6 +237,15 @@ void PARSER_initialize(t_parser *parser,
     }
 
     (void) vector_setup(parser->struct_names, 1, sizeof(char *));
+
+    parser->enum_names = calloc(1, sizeof(t_vector));
+    if (NULL == parser->enum_names)
+    {
+        (void) LOGGER_log(parser->logger, L_ERROR, "Cannot allocate memory for enum names vector.\n");
+        (void) exit(LUKA_CANT_ALLOC_MEMORY);
+    }
+
+    (void) vector_setup(parser->enum_names, 1, sizeof(char *));
 }
 
 void PARSER_free(t_parser *parser)
@@ -232,6 +258,11 @@ void PARSER_free(t_parser *parser)
     (void) vector_destroy(parser->struct_names);
     (void) free(parser->struct_names);
     parser->struct_names = NULL;
+
+    (void) vector_clear(parser->enum_names);
+    (void) vector_destroy(parser->enum_names);
+    (void) free(parser->enum_names);
+    parser->enum_names = NULL;
 }
 
 t_vector *PARSER_parse_top_level(t_parser *parser)
@@ -287,12 +318,28 @@ t_vector *PARSER_parse_top_level(t_parser *parser)
             parser->index -= 1;
             break;
         }
+        case T_ENUM:
+        {
+            EXPECT_ADVANCE(parser, T_IDENTIFIER, "Expected an identifier after keywork 'enum'");
+            token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+            name = strdup(token->content);
+            EXPECT_ADVANCE(parser, T_OPEN_BRACKET, "Expected a '{' after identifier in enum definition");
+            ADVANCE(parser);
+            fields = parser_parse_enum_fields(parser);
+            MATCH_ADVANCE(parser, T_CLOSE_BRACKET, "Expected a '}' after enum fields in enum definition");
+            node = AST_new_enum_definition(name, fields);
+            (void) vector_push_front(parser->enum_names, &name);
+            (void) vector_push_front(functions, &node);
+            parser->index -= 1;
+            break;
+        }
         case T_EOF:
             break;
         default:
         {
             (void) LOGGER_log(parser->logger, L_ERROR, "Syntax error at %s %ld:%ld - %s\n", parser->file_path,
                               token->line, token->offset, token->content);
+            break;
         }
         }
         parser->index += 1;
@@ -380,6 +427,21 @@ bool parser_is_struct_name(t_parser *parser, const char *ident_name)
     return false;
 }
 
+bool parser_is_enum_name(t_parser *parser, const char *ident_name)
+{
+    char *value = NULL;
+    VECTOR_FOR_EACH(parser->enum_names, iterator)
+    {
+        value = ITERATOR_GET_AS(char *, &iterator);
+        if (0 == strcmp(value, ident_name))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 t_ast_node *parse_ident_expr(t_parser *parser)
 {
     t_token *token;
@@ -389,6 +451,7 @@ t_ast_node *parse_ident_expr(t_parser *parser)
     bool mutable = false;
     t_vector *struct_value_fields = NULL;
     t_struct_value_field *struct_value_field = NULL;
+    bool is_enum = false;
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     ident_name = strdup(token->content);
@@ -396,13 +459,14 @@ t_ast_node *parse_ident_expr(t_parser *parser)
     ADVANCE(parser);
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-    if (MATCH(parser, T_DOT))
+    is_enum = MATCH(parser, T_DOUBLE_COLON);
+    if (MATCH(parser, T_DOT) || MATCH(parser, T_DOUBLE_COLON))
     {
         ADVANCE(parser);
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
         ADVANCE(parser);
 
-        return AST_new_get_expr(ident_name, strdup(token->content));
+        return AST_new_get_expr(ident_name, strdup(token->content), is_enum);
     }
     else if (MATCH(parser , T_OPEN_BRACKET) && parser_is_struct_name(parser, ident_name))
     {
@@ -1318,6 +1382,143 @@ cleanup:
         }
         (void) free(struct_field);
         struct_field = NULL;
+    }
+
+    return NULL;
+}
+
+t_vector *parser_parse_enum_fields(t_parser *parser)
+{
+    t_vector *fields = NULL;
+    t_enum_field *enum_field = NULL;
+    t_token *token = NULL;
+    int value = 0;
+
+    fields = calloc(1, sizeof(t_vector));
+    if (NULL == fields)
+    {
+        (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for enum fields vector.\n");
+        goto cleanup;
+    }
+
+    vector_setup(fields, 5, sizeof(t_enum_field_ptr));
+
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    if (T_CLOSE_BRACKET != token->type)
+    {
+        while (true)
+        {
+            enum_field = parser_parse_enum_field(parser);
+            if (NULL == enum_field)
+            {
+                goto cleanup;
+            }
+
+            if (NULL == enum_field->expr)
+            {
+                enum_field->expr = AST_new_number(TYPE_initialize_type(TYPE_SINT32), &value);
+            }
+            else
+            {
+                value = enum_field->expr->number.value.s32;
+            }
+
+            vector_push_back(fields, &enum_field);
+            ++value;
+
+            token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+            if (T_CLOSE_BRACKET == token->type)
+            {
+                break;
+            }
+
+            MATCH_ADVANCE(parser, T_COMMA, "Expected '}' or ',' after a enum field.");
+
+        }
+    }
+
+    vector_shrink_to_fit(fields);
+    return fields;
+
+cleanup:
+
+    VECTOR_FOR_EACH(fields, field) {
+        enum_field = ITERATOR_GET_AS(t_enum_field_ptr, &field);
+        if (NULL != enum_field)
+        {
+            if (NULL != enum_field->name)
+            {
+                (void) free(enum_field->name);
+                enum_field->name = NULL;
+            }
+
+            if (NULL != enum_field->expr)
+            {
+                (void) AST_free_node(enum_field->expr, parser->logger);
+                enum_field->expr = NULL;
+            }
+            (void) free(enum_field);
+            enum_field = NULL;
+        }
+
+    }
+    (void) vector_clear(fields);
+    (void) vector_destroy(fields);
+    (void) free(fields);
+    fields = NULL;
+    return NULL;
+}
+
+t_enum_field *parser_parse_enum_field(t_parser *parser)
+{
+    t_token *token = NULL;
+    t_enum_field *enum_field = calloc(1, sizeof(t_enum_field));
+    if (NULL == enum_field)
+    {
+        goto cleanup;
+    }
+
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    MATCH_ADVANCE(parser, T_IDENTIFIER, "Expected an identifier as a enum field name");
+    enum_field->name = strdup(token->content);
+    if (MATCH(parser, T_EQUALS))
+    {
+        ADVANCE(parser);
+        enum_field->expr = parser_parse_primary(parser);
+        if (AST_TYPE_NUMBER != enum_field->expr->type) {
+            (void) LOGGER_log(parser->logger, L_ERROR, "Enum values must be numbers.");
+            goto cleanup;
+        }
+
+        if (TYPE_is_floating_type(enum_field->expr->number.type))
+        {
+            (void) LOGGER_log(parser->logger, L_ERROR, "Enum values must be integer numbers.");
+            goto cleanup;
+        }
+    }
+    else
+    {
+        enum_field->expr = NULL;
+    }
+
+    return enum_field;
+
+cleanup:
+    if (NULL != enum_field)
+    {
+        if (NULL != enum_field->name)
+        {
+            (void) free(enum_field->name);
+            enum_field->name = NULL;
+        }
+
+        if (NULL != enum_field->expr)
+        {
+            (void) AST_free_node(enum_field->expr, parser->logger);
+            enum_field->expr = NULL;
+        }
+        (void) free(enum_field);
+        enum_field = NULL;
     }
 
     return NULL;

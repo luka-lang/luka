@@ -7,6 +7,7 @@
 
 t_named_value *named_values = NULL;
 t_struct_info *struct_infos = NULL;
+t_enum_info *enum_infos = NULL;
 Vector *loop_blocks = NULL;
 
 LLVMValueRef gen_get_struct_field_pointer(t_named_value *variable,
@@ -1396,12 +1397,117 @@ LLVMValueRef gen_get_struct_field_pointer(t_named_value *variable,
     return LLVMBuildGEP(builder, variable->alloca_inst, indices, 2, "geptmp");
 }
 
+LLVMValueRef gen_codegen_enum_definition(t_ast_node *node,
+                                           LLVMModuleRef UNUSED(module),
+                                           LLVMBuilderRef UNUSED(builder),
+                                           t_logger *UNUSED(logger))
+{
+    size_t elements_count = node->enum_definition.enum_fields->size;
+    t_enum_info *enum_info = NULL;
+    bool error = true;
+
+    enum_info = calloc(1, sizeof(t_enum_info));
+    if (NULL == enum_info)
+    {
+        goto cleanup;
+    }
+
+    enum_info->enum_name = strdup(node->enum_definition.name);
+    enum_info->number_of_fields = elements_count;
+    enum_info->enum_field_names = calloc(elements_count, sizeof(char**));
+    if (NULL == enum_info->enum_field_names)
+    {
+        goto cleanup;
+    }
+
+    enum_info->enum_field_values = calloc(elements_count, sizeof(int));
+    if (NULL == enum_info->enum_field_values)
+    {
+        goto cleanup;
+    }
+
+    for (size_t i = 0; i < elements_count; ++i)
+    {
+        enum_info->enum_field_names[i] = NULL;
+        enum_info->enum_field_values[i] = 0;
+    }
+
+
+    for (size_t i = 0; i < elements_count; ++i)
+    {
+        enum_info->enum_field_names[i] = strdup((VECTOR_GET_AS(t_enum_field_ptr, node->enum_definition.enum_fields, i))->name);
+        enum_info->enum_field_values[i] = (VECTOR_GET_AS(t_enum_field_ptr, node->enum_definition.enum_fields, i))->expr->number.value.s32;
+    }
+
+    HASH_ADD_KEYPTR(hh, enum_infos, enum_info->enum_name, strlen(enum_info->enum_name), enum_info);
+
+    error = false;
+
+cleanup:
+    if (!error)
+    {
+        return NULL;
+    }
+
+    if (NULL != enum_info)
+    {
+        if (NULL != enum_info->enum_field_names)
+        {
+            for (size_t i = 0; i < elements_count; ++i)
+            {
+                if (NULL != enum_info->enum_field_names[i])
+                {
+                    (void) free(enum_info->enum_field_names[i]);
+                    enum_info->enum_field_names[i] = NULL;
+                }
+            }
+            (void) free(enum_info->enum_field_names);
+            enum_info->enum_field_names = NULL;
+        }
+
+        if (NULL != enum_info->enum_field_values)
+        {
+            (void) free(enum_info->enum_field_values);
+            enum_info->enum_field_values = NULL;
+        }
+
+        (void) free(enum_info);
+        enum_info = NULL;
+    }
+
+    return NULL;
+}
+
 LLVMValueRef gen_codegen_get_expr(t_ast_node *node,
                                   LLVMModuleRef UNUSED(module),
                                   LLVMBuilderRef builder,
                                   t_logger *logger)
 {
     LLVMValueRef field_pointer = NULL;
+    t_enum_info *enum_info = NULL;
+    char *key = node->get_expr.key;
+
+    if (node->get_expr.is_enum)
+    {
+        HASH_FIND_STR(enum_infos, (char*)node->get_expr.variable, enum_info);
+
+        if (NULL == enum_info)
+        {
+            (void) LOGGER_log(logger, L_ERROR, "Couldn't find enum info.\n");
+            (void) exit(LUKA_CODEGEN_ERROR);
+        }
+
+        for (size_t i = 0; i < enum_info->number_of_fields; ++i)
+        {
+            if ((NULL != enum_info->enum_field_names) && (0 == strcmp(key, enum_info->enum_field_names[i])))
+            {
+                return LLVMConstInt(LLVMInt32Type(), enum_info->enum_field_values[i], true);
+            }
+        }
+
+        (void) LOGGER_log(logger, L_ERROR, "Enum %s has no member %s.\n", enum_info->enum_name, key);
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
 
     field_pointer = gen_get_address(node, builder, logger);
     return LLVMBuildLoad2(builder, LLVMGetElementType(LLVMTypeOf(field_pointer)), field_pointer, "loadtmp"); // LLVMBuildStructGEP(builder, field_pointer, 0, "getexprtmp");
@@ -1450,6 +1556,8 @@ LLVMValueRef GEN_codegen(t_ast_node *node,
         return gen_codegen_struct_definition(node, module, builder, logger);
     case AST_TYPE_STRUCT_VALUE:
         return gen_codegen_struct_value(node, module, builder, logger);
+    case AST_TYPE_ENUM_DEFINITION:
+        return gen_codegen_enum_definition(node, module, builder, logger);
     case AST_TYPE_GET_EXPR:
         return gen_codegen_get_expr(node, module, builder, logger);
     default:
@@ -1470,6 +1578,7 @@ void GEN_codegen_reset()
 {
     t_named_value *named_value = NULL, *named_value_iter = NULL;
     t_struct_info *struct_info = NULL, *struct_info_iter = NULL;
+    t_enum_info *enum_info = NULL, *enum_info_iter = NULL;
 
     HASH_ITER(hh, named_values, named_value, named_value_iter) {
         HASH_DEL(named_values, named_value);
@@ -1510,6 +1619,40 @@ void GEN_codegen_reset()
             }
             (void) free(struct_info);
             struct_info = NULL;
+        }
+    }
+
+    HASH_ITER(hh, enum_infos, enum_info, enum_info_iter) {
+        HASH_DEL(enum_infos, enum_info);
+        if (NULL != enum_info)
+        {
+            if (NULL != enum_info->enum_name)
+            {
+                (void) free((char *) enum_info->enum_name);
+                enum_info->enum_name = NULL;
+            }
+
+            if (NULL != enum_info->enum_field_names)
+            {
+                for (size_t i = 0; i < enum_info->number_of_fields; ++i)
+                {
+                    if (NULL != enum_info->enum_field_names[i])
+                    {
+                        (void) free(enum_info->enum_field_names[i]);
+                        enum_info->enum_field_names[i] = NULL;
+                    }
+                }
+                (void) free(enum_info->enum_field_names);
+                enum_info->enum_field_names = NULL;
+            }
+
+            if (NULL != enum_info->enum_field_values)
+            {
+                (void) free(enum_info->enum_field_values);
+                enum_info->enum_field_values = NULL;
+            }
+            (void) free(enum_info);
+            enum_info = NULL;
         }
     }
 

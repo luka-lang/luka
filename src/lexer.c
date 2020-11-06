@@ -8,7 +8,7 @@
 const char *keywords[NUMBER_OF_KEYWORDS] = {
     "fn", "return", "if", "else",
     "let", "mut", "extern", "while",
-    "break", "as", "struct",
+    "break", "as", "struct", "enum",
 
     /* Builtin Types */
     "int", "char", "string", "void",
@@ -276,10 +276,21 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source, t_logg
         }
         case ':':
         {
-            token->type = T_COLON;
-            token->content = ":";
-            break;
+            if (':' == source[i + 1])
+            {
+                ++i;
+                token->type = T_DOUBLE_COLON;
+                token->content = "::";
+                break;
+            }
+            else
+            {
+                token->type = T_COLON;
+                token->content = ":";
+                break;
         }
+            }
+            break;
         case '/':
         {
             if ('/' == source[i + 1])

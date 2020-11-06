@@ -37,7 +37,7 @@ typedef enum
     LUKA_CODEGEN_ERROR,
 } t_return_code;
 
-#define NUMBER_OF_KEYWORDS 29
+#define NUMBER_OF_KEYWORDS 30
 extern const char *keywords[NUMBER_OF_KEYWORDS];
 
 typedef enum
@@ -54,6 +54,7 @@ typedef enum
     T_BREAK,
     T_AS,
     T_STRUCT,
+    T_ENUM,
 
     T_INT_TYPE,
     T_CHAR_TYPE,
@@ -102,6 +103,7 @@ typedef enum
     T_AMPERCENT,
 
     T_COLON,
+    T_DOUBLE_COLON,
     T_DOT,
     T_THREE_DOTS,
 
@@ -138,6 +140,8 @@ typedef enum
     AST_TYPE_BREAK_STMT,
     AST_TYPE_STRUCT_DEFINITION,
     AST_TYPE_STRUCT_VALUE,
+    AST_TYPE_ENUM_DEFINITION,
+    AST_TYPE_ENUM_VALUE,
     AST_TYPE_GET_EXPR,
 } t_ast_node_type;
 
@@ -183,6 +187,7 @@ typedef enum
     TYPE_VOID,
     TYPE_PTR,
     TYPE_STRUCT,
+    TYPE_ENUM,
 } t_base_type;
 
 typedef struct s_type
@@ -315,8 +320,15 @@ typedef struct
 
 typedef struct
 {
+    char *name;
+    t_vector *enum_fields;
+} t_ast_enum_definition;
+
+typedef struct
+{
     char *variable;
     char *key;
+    bool is_enum;
 } t_ast_get_expr;
 
 typedef struct s_ast_node
@@ -341,6 +353,7 @@ typedef struct s_ast_node
         t_ast_expr_stmt expression_stmt;
         t_ast_struct_definition struct_definition;
         t_ast_struct_value struct_value;
+        t_ast_enum_definition enum_definition;
         t_ast_get_expr get_expr;
     };
 } t_ast_node;
@@ -361,5 +374,13 @@ typedef struct {
 
 typedef t_struct_field* t_struct_field_ptr;
 typedef t_struct_value_field* t_struct_value_field_ptr;
+
+typedef struct {
+    char *name;
+    t_ast_node *expr;
+    UT_hash_handle hh;
+} t_enum_field;
+
+typedef t_enum_field* t_enum_field_ptr;
 
 #endif // __DEFS_H__

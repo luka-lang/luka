@@ -268,12 +268,22 @@ t_ast_node *AST_new_struct_value(char *name, t_vector *struct_values)
     return node;
 }
 
-t_ast_node *AST_new_get_expr(char *variable, char *key)
+t_ast_node *AST_new_enum_definition(char *name, t_vector *enum_fields)
+{
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
+    node->type = AST_TYPE_ENUM_DEFINITION;
+    node->enum_definition.name = name;
+    node->enum_definition.enum_fields = enum_fields;
+    return node;
+}
+
+t_ast_node *AST_new_get_expr(char *variable, char *key, bool is_enum)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_GET_EXPR;
     node->get_expr.variable = variable;
     node->get_expr.key = key;
+    node->get_expr.is_enum = is_enum;
     return node;
 }
 
@@ -626,6 +636,46 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
         break;
     }
 
+    case AST_TYPE_ENUM_DEFINITION:
+    {
+        if (NULL != node->enum_definition.name)
+        {
+            (void) free(node->enum_definition.name);
+            node->enum_definition.name = NULL;
+        }
+        if (NULL != node->enum_definition.enum_fields)
+        {
+            t_enum_field *enum_field = NULL;
+            VECTOR_FOR_EACH(node->enum_definition.enum_fields, enum_fields)
+            {
+                enum_field = ITERATOR_GET_AS(t_enum_field_ptr, &enum_fields);
+                if (NULL != enum_field)
+                {
+                    if (NULL != enum_field->name)
+                    {
+                        (void) free(enum_field->name);
+                        enum_field->name = NULL;
+                    }
+
+                    if (NULL != enum_field->expr)
+                    {
+                        (void) AST_free_node(enum_field->expr, logger);
+                        enum_field->expr = NULL;
+                    }
+
+                    (void) free(enum_field);
+                    enum_field = NULL;
+                }
+            }
+
+            (void) vector_clear(node->enum_definition.enum_fields);
+            (void) vector_destroy(node->enum_definition.enum_fields);
+            (void) free(node->enum_definition.enum_fields);
+            node->enum_definition.enum_fields = NULL;
+        }
+        break;
+    }
+
     case AST_TYPE_GET_EXPR:
     {
         if (NULL != node->get_expr.variable)
@@ -795,6 +845,7 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
     t_struct_value_field *value_field = NULL;
     size_t i = 0;
     char type_str[256] = {0};
+    t_enum_field *enum_field = NULL;
 
     if (NULL == node)
         return;
@@ -1108,12 +1159,49 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
         break;
     }
 
+    case AST_TYPE_ENUM_DEFINITION:
+    {
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Enum Definition\n", offset, ' ');
+        if (NULL != node->enum_definition.name)
+        {
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Name - %s\n", offset + 2, ' ', node->enum_definition.name);
+        }
+
+        if (NULL != node->enum_definition.enum_fields)
+        {
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Fields\n", offset + 2, ' ', node->enum_definition.name);
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Count - %d\n", offset + 4, ' ', node->enum_definition.enum_fields->size);
+
+            VECTOR_FOR_EACH(node->enum_definition.enum_fields, enum_fields)
+            {
+                enum_field = ITERATOR_GET_AS(t_enum_field_ptr, &enum_fields);
+                if (NULL != enum_field)
+                {
+                    (void) LOGGER_log(logger, L_DEBUG, "%*c\b Enum Field\n", offset + 4, ' ');
+
+                    if (NULL != enum_field->name)
+                    {
+                        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Name - %s\n", offset + 6, ' ', enum_field->name);
+                    }
+
+                    if (NULL != enum_field->expr)
+                    {
+                        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Expr\n", offset + 6, ' ');
+                        (void) AST_print_ast(enum_field->expr, offset + 8, logger);
+                    }
+                }
+
+            }
+        }
+        break;
+    }
+
     case AST_TYPE_GET_EXPR:
     {
         (void) LOGGER_log(logger, L_DEBUG, "%*c\b Get expr\n", offset, ' ');
         if (NULL != node->get_expr.variable)
         {
-            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Variable - %s\n", offset + 2, ' ', node->get_expr.variable);
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b %s - %s\n", offset + 2, ' ', node->get_expr.is_enum ? "Enum" : "Variable", node->get_expr.variable);
         }
 
         if (NULL != node->get_expr.key)

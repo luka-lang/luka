@@ -3,9 +3,14 @@ program =  { ( function_declaration | function_definition | struct_definition ) 
 function_prototype = identifier "(" argument_list ")" [ type ] ;
 function_declration = "extern" function_prototype ;
 function_definition = "fn" function_prototype block ;
+
 struct_definition = "struct" identifier "{" struct_fields "}" ;
 struct_fields = struct_fields "," struct_field | struct_field ;
 struct_field = identifier type ;
+
+enum_definition = "enum" identifier "{" enum_fields "}" ;
+enum_fields = enum_fields "," enum_field | enum_field ;
+enum_field = identifier | identifier "=" number ;
 
 block = "{" { statements } "}" ;
 

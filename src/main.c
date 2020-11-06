@@ -189,7 +189,7 @@ int main(int argc, char **argv)
     {
         function = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
         value = GEN_codegen(function, module, builder, logger);
-        if ((NULL == value) && (AST_TYPE_STRUCT_DEFINITION != function->type))
+        if ((NULL == value) && (AST_TYPE_STRUCT_DEFINITION != function->type) && (AST_TYPE_ENUM_DEFINITION != function->type))
         {
             (void) LOGGER_log(logger,
                               L_ERROR,
