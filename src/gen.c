@@ -1065,10 +1065,25 @@ LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node,
                 (void) exit(LUKA_CODEGEN_ERROR);
             }
 
-            lhs = val->alloca_inst;
+            lhs = gen_get_address(node->assignment_expr.lhs, builder, logger);
         }
         else if (AST_TYPE_GET_EXPR == node->assignment_expr.lhs->type)
         {
+
+            variable = node->assignment_expr.lhs;
+            HASH_FIND_STR(named_values, variable->get_expr.variable, val);
+            if (NULL == val)
+            {
+                (void) LOGGER_log(logger, L_ERROR, "Cannot assign to undeclared variable '%s'.\n", val->name);
+                (void) exit(LUKA_CODEGEN_ERROR);
+            }
+
+            if (!val->mutable)
+            {
+                (void) LOGGER_log(logger, L_ERROR, "Trying to assign to immutable variable '%s'.\n", val->name);
+                (void) exit(LUKA_CODEGEN_ERROR);
+            }
+
             lhs = gen_get_address(node->assignment_expr.lhs, builder, logger);
         }
         else
