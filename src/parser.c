@@ -211,6 +211,7 @@ t_type *parse_type(t_parser *parser, bool parse_prefix)
         }
         type->type = TYPE_PTR;
         type->inner_type = inner_type;
+        type->payload = NULL;
         ADVANCE(parser);
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
     }
@@ -1173,7 +1174,7 @@ t_ast_node *parse_prototype(t_parser *parser)
         (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for args.\n");
         goto cleanup;
     }
-    types = calloc(allocated, sizeof(t_type));
+    types = calloc(allocated, sizeof(t_type *));
     if (NULL == types)
     {
         (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for types.\n");
@@ -1222,7 +1223,7 @@ t_ast_node *parse_prototype(t_parser *parser)
             }
             args = new_args;
 
-            new_types = realloc(types, sizeof(t_type) * allocated);
+            new_types = realloc(types, sizeof(t_type *) * allocated);
             if (NULL == new_types)
             {
                 (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for types.\n");
@@ -1237,7 +1238,16 @@ t_ast_node *parse_prototype(t_parser *parser)
             if (TYPE_ANY != types[arity - 1])
             {
                 types[arity - 1]->type = TYPE_ANY;
+                if (NULL != types[arity - 1]->inner_type)
+                {
+                    (void) TYPE_free_type(types[arity - 1]->inner_type);
+                }
                 types[arity - 1]->inner_type = NULL;
+
+                if (NULL != types[arity - 1]->payload)
+                {
+                    (void) free(types[arity - 1]->payload);
+                }
                 types[arity - 1]->payload = NULL;
             }
             vararg = true;
@@ -1263,7 +1273,7 @@ t_ast_node *parse_prototype(t_parser *parser)
         }
         args = new_args;
 
-        new_types = realloc(types, sizeof(t_type) * arity);
+        new_types = realloc(types, sizeof(t_type *) * arity);
         if (NULL == new_types)
         {
             (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for types.\n");
@@ -1277,12 +1287,28 @@ t_ast_node *parse_prototype(t_parser *parser)
 cleanup:
     if (NULL != args)
     {
+        for (size_t i = 0; i < arity; ++i)
+        {
+            if (NULL != args[i])
+            {
+                (void) free(args[i]);
+                args[i] = NULL;
+            }
+        }
         (void) free(args);
         args = NULL;
     }
 
     if (NULL != types)
     {
+        for (size_t i = 0; i < arity; ++i)
+        {
+            if (NULL != types[i])
+            {
+                (void) TYPE_free_type(types[i]);
+                types[i] = NULL;
+            }
+        }
         (void) free(types);
         types = NULL;
     }

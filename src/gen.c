@@ -313,13 +313,17 @@ bool gen_llvm_cast_to_fp_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBui
         (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
 
         (void) TYPE_free_type(lhs_t);
+        lhs_t = NULL;
         (void) TYPE_free_type(rhs_t);
+        rhs_t = NULL;
 
         return true;
     }
 
     (void) TYPE_free_type(lhs_t);
+    lhs_t = NULL;
     (void) TYPE_free_type(rhs_t);
+    rhs_t = NULL;
     return false;
 }
 
@@ -337,12 +341,17 @@ bool gen_llvm_cast_to_signed_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLV
         (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
 
         (void) TYPE_free_type(lhs_t);
+        lhs_t = NULL;
         (void) TYPE_free_type(rhs_t);
+        rhs_t = NULL;
+
         return true;
     }
 
     (void) TYPE_free_type(lhs_t);
+    lhs_t = NULL;
     (void) TYPE_free_type(rhs_t);
+    rhs_t = NULL;
     return false;
 }
 
@@ -376,12 +385,17 @@ bool gen_llvm_cast_sizes_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBui
 
 
         (void) TYPE_free_type(lhs_t);
+        lhs_t = NULL;
         (void) TYPE_free_type(rhs_t);
+        rhs_t = NULL;
+
         return true;
     }
 
     (void) TYPE_free_type(lhs_t);
+    lhs_t = NULL;
     (void) TYPE_free_type(rhs_t);
+    rhs_t = NULL;
     return false;
 }
 
@@ -442,7 +456,14 @@ LLVMOpcode gen_get_llvm_opcode(t_ast_binop_type op, LLVMValueRef *lhs, LLVMValue
 bool gen_is_icmp(LLVMValueRef lhs, LLVMValueRef rhs, t_logger *logger) {
     t_type *lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(lhs), logger);
     t_type *rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(rhs), logger);
-    return !TYPE_is_floating_type(lhs_t) && !TYPE_is_floating_type(rhs_t);
+    bool is_icmp = !TYPE_is_floating_type(lhs_t) && !TYPE_is_floating_type(rhs_t);
+
+    (void) TYPE_free_type(lhs_t);
+    lhs_t = NULL;
+    (void) TYPE_free_type(rhs_t);
+    rhs_t = NULL;
+
+    return is_icmp;
 }
 
 LLVMIntPredicate gen_llvm_get_int_predicate(t_ast_binop_type op, LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBuilderRef builder, t_logger *logger) {
@@ -557,6 +578,7 @@ LLVMValueRef gen_codegen_unexpr(t_ast_node *n,
                                 t_logger *logger)
 {
     LLVMValueRef rhs = NULL;
+    t_type *type = NULL;
     if (NULL != n->unary_expr.rhs)
     {
         rhs = GEN_codegen(n->unary_expr.rhs, module, builder, logger);
@@ -576,11 +598,16 @@ LLVMValueRef gen_codegen_unexpr(t_ast_node *n,
         }
         case UNOP_MINUS:
         {
-            if (TYPE_is_floating_type(gen_llvm_type_to_ttype(LLVMTypeOf(rhs), logger)))
+            type = gen_llvm_type_to_ttype(LLVMTypeOf(rhs), logger);
+            if (TYPE_is_floating_type(type))
             {
+                (void) TYPE_free_type(type);
+                type = NULL;
                 return LLVMBuildFNeg(builder, rhs, "negtmp");
             }
 
+            (void) TYPE_free_type(type);
+            type = NULL;
             return LLVMBuildNeg(builder, rhs, "negtmp");
         }
         case UNOP_REF:
@@ -681,7 +708,7 @@ LLVMValueRef gen_codegen_prototype(t_ast_node *n,
         val->name = strdup(n->prototype.args[i]);
         val->alloca_inst = NULL;
         val->type = params[i];
-        val->ttype = n->prototype.types[i];
+        val->ttype = TYPE_dup_type(n->prototype.types[i]);
         HASH_ADD_KEYPTR(hh, named_values, val->name, strlen(val->name), val);
     }
 
@@ -1039,7 +1066,7 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node,
     }
     else
     {
-        val->ttype = variable.type;
+        val->ttype = TYPE_dup_type(variable.type);
         val->type = gen_type_to_llvm_type(val->ttype, logger);
     }
     val->alloca_inst = gen_create_entry_block_allca(LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder)), val->type, val->name);
@@ -1604,6 +1631,13 @@ void GEN_codegen_reset()
                 (void) free((char *) named_value->name);
                 named_value->name = NULL;
             }
+
+            if (NULL != named_value->ttype)
+            {
+                (void) TYPE_free_type(named_value->ttype);
+                named_value->ttype = NULL;
+            }
+
             (void) free(named_value);
             named_value = NULL;
         }

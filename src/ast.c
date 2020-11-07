@@ -357,11 +357,8 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
             {
                 if (NULL != node->prototype.args[i])
                 {
-                    if (NULL != node->prototype.args[i])
-                    {
-                        (void) free(node->prototype.args[i]);
-                        node->prototype.args[i] = NULL;
-                    }
+                    (void) free(node->prototype.args[i]);
+                    node->prototype.args[i] = NULL;
                 }
             }
             (void) free(node->prototype.args);
@@ -374,11 +371,8 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
             {
                 if (NULL != node->prototype.types[i])
                 {
-                    if (NULL != node->prototype.types[i])
-                    {
-                        (void) TYPE_free_type(node->prototype.types[i]);
-                        node->prototype.types[i] = NULL;
-                    }
+                    (void) TYPE_free_type(node->prototype.types[i]);
+                    node->prototype.types[i] = NULL;
                 }
             }
             (void) free(node->prototype.types);
@@ -492,7 +486,7 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
 
         if (NULL != node->cast_expr.type)
         {
-            (void) free(node->cast_expr.type);
+            (void) TYPE_free_type(node->cast_expr.type);
             node->cast_expr.type = NULL;
         }
         break;
