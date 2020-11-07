@@ -35,21 +35,41 @@ t_type *TYPE_initialize_type(t_base_type type)
     return ttype;
 }
 
+t_type *TYPE_dup_type(t_type *type)
+{
+    t_type *res = NULL;
+
+    if (NULL != type)
+    {
+        res = TYPE_initialize_type(type->type);
+        res->inner_type = TYPE_dup_type(type->inner_type);
+        res->payload = NULL;
+        if (NULL != type->payload)
+        {
+            res->payload = (void *)strdup(type->payload);
+        }
+    }
+
+    return res;
+}
 
 void TYPE_free_type(t_type *type)
 {
-    if (NULL != type->payload)
+    if (NULL != type)
     {
-        (void) free(type->payload);
-        type->payload = NULL;
-    }
+        if (NULL != type->payload)
+        {
+            (void) free(type->payload);
+            type->payload = NULL;
+        }
 
-    if (NULL != type->inner_type)
-    {
-        (void) TYPE_free_type(type->inner_type);
-        type->inner_type = NULL;
-    }
+        if (NULL != type->inner_type)
+        {
+            (void) TYPE_free_type(type->inner_type);
+            type->inner_type = NULL;
+        }
 
-    (void) free(type);
-    type = NULL;
+        (void) free(type);
+        type = NULL;
+    }
 }

@@ -1,0 +1,21 @@
+extern printf(format: string, ...: any);
+
+enum Weekday {
+    Sunday = 1,
+    Monday,
+    Tuesday,
+    Wednesday,
+    Thursday,
+    Friday,
+    Saturday
+}
+
+fn main() {
+    let mut day = Weekday::Sunday;
+    while day <= Weekday::Saturday {
+        printf("Day of the week: %d\n", day);
+        day = day + 1;
+    }
+
+    0
+}

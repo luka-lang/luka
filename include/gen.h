@@ -27,6 +27,15 @@ typedef struct
     UT_hash_handle hh;
 } t_struct_info;
 
+typedef struct
+{
+    char *enum_name;
+    char **enum_field_names;
+    int *enum_field_values;
+    size_t number_of_fields;
+    UT_hash_handle hh;
+} t_enum_info;
+
 LLVMValueRef GEN_codegen(t_ast_node *n, LLVMModuleRef module, LLVMBuilderRef builder, t_logger *logger);
 
 void GEN_codegen_initialize();
