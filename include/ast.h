@@ -40,6 +40,9 @@ t_ast_node *AST_new_enum_definition(char *name, t_vector *enum_fields);
 
 t_ast_node *AST_new_get_expr(char *variable, char *key, bool is_enum);
 
+t_ast_node *AST_fix_function_last_expression_stmt(t_ast_node *node);
+bool AST_is_expression(t_ast_node *node);
+
 void AST_free_node(t_ast_node *node, t_logger *logger);
 
 void AST_print_functions(t_vector *functions, int offset, t_logger *logger);

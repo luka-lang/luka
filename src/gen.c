@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "ast.h"
 #include "type.h"
 
 t_named_value *named_values = NULL;
@@ -374,7 +375,7 @@ bool gen_llvm_cast_sizes_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBui
             }
 
         }
-        else if (LLVMGetIntTypeWidth(LLVMTypeOf(*lhs)) > LLVMGetIntTypeWidth(LLVMTypeOf(*rhs)))
+        else if (LLVMGetIntTypeWidth(LLVMTypeOf(*lhs)) < LLVMGetIntTypeWidth(LLVMTypeOf(*rhs)))
         {
             *lhs = LLVMBuildIntCast2(builder, *lhs, LLVMTypeOf(*rhs), ttype_is_signed(rhs_t), "intcasttmp");
         }
@@ -470,31 +471,41 @@ LLVMIntPredicate gen_llvm_get_int_predicate(t_ast_binop_type op, LLVMValueRef *l
     switch (op) {
     case BINOP_LESSER:
         if (gen_llvm_cast_to_signed_if_needed(lhs, rhs, builder, logger)) {
+            (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
             return LLVMIntSLE;
         }
 
+        (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
         return LLVMIntULE;
     case BINOP_GREATER:
         if (gen_llvm_cast_to_signed_if_needed(lhs, rhs, builder, logger)) {
+            (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
             return LLVMIntSGT;
         }
 
+        (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
         return LLVMIntUGT;
     case BINOP_EQUALS:
+        (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
         return LLVMIntEQ;
     case BINOP_NEQ:
+        (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
         return LLVMIntNE;
     case BINOP_LEQ:
         if (gen_llvm_cast_to_signed_if_needed(lhs, rhs, builder, logger)) {
+            (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
             return LLVMIntSLE;
         }
 
+        (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
         return LLVMIntULE;
     case BINOP_GEQ:
         if (gen_llvm_cast_to_signed_if_needed(lhs, rhs, builder, logger)) {
+            (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
             return LLVMIntSGE;
         }
 
+        (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
         return LLVMIntUGE;
     default:
     {
@@ -759,7 +770,8 @@ LLVMValueRef gen_codegen_function(t_ast_node *n,
     LLVMBasicBlockRef block = NULL;
     t_ast_node *proto = NULL;
     bool has_return_stmt = false;
-    t_type *return_type;
+    t_type *return_ttype;
+    LLVMTypeRef return_type;
     size_t i = 0, arity = 0;
     t_named_value *val = NULL;
     char **args = NULL;
@@ -801,35 +813,50 @@ LLVMValueRef gen_codegen_function(t_ast_node *n,
     }
 
     ret_val = gen_codegen_stmts(n->function.body, module, builder, &has_return_stmt, logger);
-    return_type = n->function.prototype->prototype.return_type;
+    return_ttype = n->function.prototype->prototype.return_type;
+    return_type = gen_type_to_llvm_type(return_ttype, logger);
 
-    if (false == has_return_stmt)
+    if (!AST_is_expression(VECTOR_GET_AS(t_ast_node_ptr, n->function.body, n->function.body->size - 1)))
     {
-        switch (return_type->type)
+        if ((false == has_return_stmt))
         {
-        case TYPE_VOID:
-            ret_val = NULL;
-            break;
-        case TYPE_F32:
-        case TYPE_F64:
-            ret_val = LLVMConstReal(gen_type_to_llvm_type(return_type, logger), 0.0);
-            break;
-        case TYPE_ANY:
-        case TYPE_STRING:
-            ret_val = LLVMConstPointerNull(gen_type_to_llvm_type(return_type, logger));
-            break;
-        case TYPE_SINT8:
-        case TYPE_SINT16:
-        case TYPE_SINT32:
-        case TYPE_SINT64:
-            ret_val = LLVMConstInt(gen_type_to_llvm_type(return_type, logger), 0, true);
-            break;
-        default:
-            ret_val = LLVMConstInt(gen_type_to_llvm_type(return_type, logger), 0, false);
-            break;
+            switch (return_ttype->type)
+            {
+            case TYPE_VOID:
+                ret_val = NULL;
+                break;
+            case TYPE_F32:
+            case TYPE_F64:
+                ret_val = LLVMConstReal(return_type, 0.0);
+                break;
+            case TYPE_ANY:
+            case TYPE_STRING:
+                ret_val = LLVMConstPointerNull(return_type);
+                break;
+            case TYPE_SINT8:
+            case TYPE_SINT16:
+            case TYPE_SINT32:
+            case TYPE_SINT64:
+                ret_val = LLVMConstInt(return_type, 0, true);
+                break;
+            case TYPE_UINT8:
+            case TYPE_UINT16:
+            case TYPE_UINT32:
+            case TYPE_UINT64:
+                ret_val = LLVMConstInt(return_type, 0, false);
+                break;
+            default:
+                ret_val = LLVMConstInt(return_type, 0, false);
+                break;
+            }
         }
-        (void) LLVMBuildRet(builder, ret_val);
     }
+    else if (LLVMTypeOf(ret_val) != return_type)
+    {
+        ret_val = gen_codegen_cast(builder, ret_val, return_type, logger);
+    }
+
+    (void) LLVMBuildRet(builder, ret_val);
 
     if (1 == LLVMVerifyFunction(func, LLVMPrintMessageAction))
     {
