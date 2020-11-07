@@ -1062,6 +1062,19 @@ t_ast_node *parse_statement(t_parser *parser)
         (void) vector_push_front(parser->struct_names, &name);
         return node;
     }
+    case T_ENUM:
+    {
+        EXPECT_ADVANCE(parser, T_IDENTIFIER, "Expected an identifier after keywork 'enum'");
+        token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+        name = strdup(token->content);
+        EXPECT_ADVANCE(parser, T_OPEN_BRACKET, "Expected a '{' after identifier in enum definition");
+        ADVANCE(parser);
+        fields = parser_parse_enum_fields(parser);
+        MATCH_ADVANCE(parser, T_CLOSE_BRACKET, "Expected a '}' after enum fields in enum definition");
+        node = AST_new_enum_definition(name, fields);
+        (void) vector_push_front(parser->enum_names, &name);
+        return node;
+    }
     default:
     {
         expr = parser_parse_expression(parser);

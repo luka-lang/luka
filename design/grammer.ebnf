@@ -15,7 +15,12 @@ enum_field = identifier | identifier "=" number ;
 block = "{" { statements } "}" ;
 
 statements = statements statement | statement ;
-statement = return_statement | let_statement | expression_statement | break_statement ;
+statement = return_statement
+          | let_statement
+          | expression_statement
+          | break_statement
+          | struct_definition
+          | enum_definition ;
 
 return_statement = "return" expression ";" ;
 let_statement = "let" [ "mut" ] identifier [ type ] "=" expression ";" ;
