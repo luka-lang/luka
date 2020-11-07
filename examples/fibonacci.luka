@@ -1,0 +1,18 @@
+extern printf(format: string, ...: any): s32;
+
+fn fib(n: u64): u64 {
+    if n <= 0 {
+        0 as u64
+    } else {
+       if n == 1 {
+           1 as u64
+       } else {
+           fib(n - 1) + fib(n - 2)
+       }
+    }
+}
+
+fn main() {
+    let index = 12;
+    printf("Fibonacci(%d): %d\n", index, fib(index));
+}

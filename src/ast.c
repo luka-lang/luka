@@ -287,6 +287,87 @@ t_ast_node *AST_new_get_expr(char *variable, char *key, bool is_enum)
     return node;
 }
 
+t_ast_node *AST_fix_function_last_expression_stmt(t_ast_node *node)
+{
+    t_ast_node *last_stmt = NULL;
+    if (AST_TYPE_FUNCTION == node->type)
+    {
+        if (NULL != node->function.body)
+        {
+           last_stmt = VECTOR_GET_AS(t_ast_node_ptr, node->function.body, node->function.body->size - 1);
+           if (AST_TYPE_EXPRESSION_STMT == last_stmt->type)
+           {
+               if ((AST_TYPE_IF_EXPR == last_stmt->expression_stmt.expr->type) || (AST_TYPE_WHILE_EXPR == last_stmt->expression_stmt.expr->type))
+               {
+                   last_stmt->expression_stmt.expr = AST_fix_function_last_expression_stmt(last_stmt->expression_stmt.expr);
+                   vector_assign(node->function.body, node->function.body->size - 1, &last_stmt->expression_stmt.expr);
+               }
+           }
+        }
+    }
+    else if (AST_TYPE_IF_EXPR == node->type)
+    {
+        if (NULL != node->if_expr.then_body)
+        {
+           last_stmt = VECTOR_GET_AS(t_ast_node_ptr, node->if_expr.then_body, node->if_expr.then_body->size - 1);
+           if (AST_TYPE_EXPRESSION_STMT == last_stmt->type)
+           {
+               if ((AST_TYPE_IF_EXPR == last_stmt->expression_stmt.expr->type) || (AST_TYPE_WHILE_EXPR == last_stmt->expression_stmt.expr->type))
+               {
+                   last_stmt->expression_stmt.expr = AST_fix_function_last_expression_stmt(last_stmt->expression_stmt.expr);
+                   vector_assign(node->if_expr.then_body, node->if_expr.then_body->size - 1, &last_stmt->expression_stmt.expr);
+               }
+           }
+        }
+
+        if (NULL != node->if_expr.else_body)
+        {
+           last_stmt = VECTOR_GET_AS(t_ast_node_ptr, node->if_expr.else_body, node->if_expr.else_body->size - 1);
+           if (AST_TYPE_EXPRESSION_STMT == last_stmt->type)
+           {
+               if ((AST_TYPE_IF_EXPR == last_stmt->expression_stmt.expr->type) || (AST_TYPE_WHILE_EXPR == last_stmt->expression_stmt.expr->type))
+               {
+                   last_stmt->expression_stmt.expr = AST_fix_function_last_expression_stmt(last_stmt->expression_stmt.expr);
+                   vector_assign(node->if_expr.else_body, node->if_expr.else_body->size - 1, &last_stmt->expression_stmt.expr);
+               }
+           }
+        }
+    }
+    else if (AST_TYPE_WHILE_EXPR == node->type)
+    {
+        if (NULL != node->while_expr.body)
+        {
+           last_stmt = VECTOR_GET_AS(t_ast_node_ptr, node->while_expr.body, node->while_expr.body->size - 1);
+           if (AST_TYPE_EXPRESSION_STMT == last_stmt->type)
+           {
+               if ((AST_TYPE_WHILE_EXPR == last_stmt->expression_stmt.expr->type) || (AST_TYPE_WHILE_EXPR == last_stmt->expression_stmt.expr->type))
+               {
+                   last_stmt->expression_stmt.expr = AST_fix_function_last_expression_stmt(last_stmt->expression_stmt.expr);
+                   vector_assign(node->while_expr.body, node->while_expr.body->size - 1, &last_stmt->expression_stmt.expr);
+               }
+           }
+        }
+    }
+
+   return node;
+}
+
+bool AST_is_expression(t_ast_node *node)
+{
+    return ((AST_TYPE_NUMBER == node->type)
+            || (AST_TYPE_STRING == node->type)
+            || (AST_TYPE_UNARY_EXPR == node->type)
+            || (AST_TYPE_BINARY_EXPR == node->type)
+            || (AST_TYPE_IF_EXPR == node->type)
+            || (AST_TYPE_WHILE_EXPR == node->type)
+            || (AST_TYPE_CAST_EXPR == node->type)
+            || (AST_TYPE_ASSIGNMENT_EXPR == node->type)
+            || (AST_TYPE_VARIABLE == node->type)
+            || (AST_TYPE_CALL_EXPR == node->type)
+            || (AST_TYPE_STRUCT_VALUE == node->type)
+            || (AST_TYPE_GET_EXPR == node->type));
+}
+
 void AST_free_node(t_ast_node *node, t_logger *logger)
 {
     if (NULL == node)

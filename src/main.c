@@ -155,6 +155,11 @@ int main(int argc, char **argv)
     (void) PARSER_print_parser_tokens(parser);
 
     functions = PARSER_parse_top_level(parser);
+    VECTOR_FOR_EACH(functions, iterator)
+    {
+        function = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
+        function = AST_fix_function_last_expression_stmt(function);
+    }
 
     (void) AST_print_functions(functions, 0, logger);
 
