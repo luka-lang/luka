@@ -78,6 +78,8 @@ typedef enum
     T_IDENTIFIER = NUMBER_OF_KEYWORDS,
     T_OPEN_PAREN,
     T_CLOSE_PAREN,
+    T_OPEN_BRACE,
+    T_CLOSE_BRACE,
     T_OPEN_BRACKET,
     T_CLOSE_BRACKET,
     T_SEMI_COLON,
@@ -143,6 +145,7 @@ typedef enum
     AST_TYPE_ENUM_DEFINITION,
     AST_TYPE_ENUM_VALUE,
     AST_TYPE_GET_EXPR,
+    AST_TYPE_ARRAY_DEREF,
 } t_ast_node_type;
 
 typedef enum
@@ -188,6 +191,7 @@ typedef enum
     TYPE_PTR,
     TYPE_STRUCT,
     TYPE_ENUM,
+    TYPE_ARRAY,
 } t_base_type;
 
 typedef struct s_type
@@ -195,6 +199,7 @@ typedef struct s_type
     t_base_type type;
     struct s_type *inner_type;
     void *payload;
+    bool mutable;
 } t_type;
 
 typedef struct s_ast_node t_ast_node;
@@ -331,6 +336,12 @@ typedef struct
     bool is_enum;
 } t_ast_get_expr;
 
+typedef struct
+{
+    char *variable;
+    t_ast_node *index;
+} t_ast_array_deref;
+
 typedef struct s_ast_node
 {
     t_ast_node_type type;
@@ -355,6 +366,7 @@ typedef struct s_ast_node
         t_ast_struct_value struct_value;
         t_ast_enum_definition enum_definition;
         t_ast_get_expr get_expr;
+        t_ast_array_deref array_deref;
     };
 } t_ast_node;
 

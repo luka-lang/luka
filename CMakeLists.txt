@@ -4,6 +4,10 @@ project(luka)
 
 add_compile_options(-Wall -Wextra -pedantic -Werror)
 
+if (CMAKE_C_COMPILER_ID MATCHES "Clang")
+	add_compile_options("-fuse-ld=lld")
+endif()
+
 # find_package(LLVM REQUIRED analysis bitwriter core mcjit executionengine interpreter native)
 
 # message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")

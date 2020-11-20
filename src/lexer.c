@@ -222,14 +222,26 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source, t_logg
         }
         case '{':
         {
-            token->type = T_OPEN_BRACKET;
+            token->type = T_OPEN_BRACE;
             token->content = "{";
             break;
         }
         case '}':
         {
-            token->type = T_CLOSE_BRACKET;
+            token->type = T_CLOSE_BRACE;
             token->content = "}";
+            break;
+        }
+        case '[':
+        {
+            token->type = T_OPEN_BRACKET;
+            token->content = "[";
+            break;
+        }
+        case ']':
+        {
+            token->type = T_CLOSE_BRACKET;
+            token->content = "]";
             break;
         }
         case ';':

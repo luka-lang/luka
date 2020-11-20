@@ -29,7 +29,7 @@
 
 #define BITCODE_FILENAME ("a.out.bc")
 #define OBJECT_FILENAME ("a.out.o")
-#define CMD_LEN          (20 + 256)
+#define CMD_LEN          (33 + 256)
 
 static struct option long_options[] =
 {
@@ -305,7 +305,7 @@ int main(int argc, char **argv)
         (void) LLVMWriteBitcodeToFile(module, BITCODE_FILENAME);
         cmd = malloc(CMD_LEN);
         if (NULL != cmd) {
-            (void) snprintf(cmd, CMD_LEN, "clang -o \"%s\" %s", output_path, BITCODE_FILENAME);
+            (void) snprintf(cmd, CMD_LEN, "clang -fuse-ld=lld -o \"%s\" %s", output_path, BITCODE_FILENAME);
             (void) system(cmd);
             (void) snprintf(cmd, CMD_LEN, "./%s", BITCODE_FILENAME);
             (void) unlink(cmd);

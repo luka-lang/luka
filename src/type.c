@@ -32,6 +32,7 @@ t_type *TYPE_initialize_type(t_base_type type)
     ttype->type = type;
     ttype->inner_type = NULL;
     ttype->payload = NULL;
+    ttype->mutable = false;
     return ttype;
 }
 
@@ -44,6 +45,7 @@ t_type *TYPE_dup_type(t_type *type)
         res = TYPE_initialize_type(type->type);
         res->inner_type = TYPE_dup_type(type->inner_type);
         res->payload = NULL;
+        res->mutable = type->mutable;
         if (NULL != type->payload)
         {
             res->payload = (void *)strdup(type->payload);
