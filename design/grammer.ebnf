@@ -59,6 +59,8 @@ struct_value_field = identifier ":" expression ;
 
 get_expr = identifier "." identifier
 
+literal = "true" | "false" | "null" ;
+
 number = digits [ "."  digits ] ;
 digits = digit [ { digit } ] ;
 

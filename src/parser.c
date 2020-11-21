@@ -911,6 +911,24 @@ t_ast_node *parser_parse_primary(t_parser *parser)
         ADVANCE(parser);
         return n;
     }
+    case T_NULL:
+    {
+        n = AST_new_literal(AST_LITERAL_NULL);
+        ADVANCE(parser);
+        return n;
+    }
+    case T_TRUE:
+    {
+        n = AST_new_literal(AST_LITERAL_TRUE);
+        ADVANCE(parser);
+        return n;
+    }
+    case T_FALSE:
+    {
+        n = AST_new_literal(AST_LITERAL_FALSE);
+        ADVANCE(parser);
+        return n;
+    }
 
     default:
         (void) LOGGER_log(parser->logger, L_ERROR, "parse_primary: Syntax error at %ld:%ld - %s\n",

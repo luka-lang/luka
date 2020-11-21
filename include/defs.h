@@ -37,7 +37,7 @@ typedef enum
     LUKA_CODEGEN_ERROR,
 } t_return_code;
 
-#define NUMBER_OF_KEYWORDS 30
+#define NUMBER_OF_KEYWORDS 33
 extern const char *keywords[NUMBER_OF_KEYWORDS];
 
 typedef enum
@@ -55,6 +55,9 @@ typedef enum
     T_AS,
     T_STRUCT,
     T_ENUM,
+    T_NULL,
+    T_TRUE,
+    T_FALSE,
 
     T_INT_TYPE,
     T_CHAR_TYPE,
@@ -146,6 +149,7 @@ typedef enum
     AST_TYPE_ENUM_VALUE,
     AST_TYPE_GET_EXPR,
     AST_TYPE_ARRAY_DEREF,
+    AST_TYPE_LITERAL,
 } t_ast_node_type;
 
 typedef enum
@@ -342,6 +346,18 @@ typedef struct
     t_ast_node *index;
 } t_ast_array_deref;
 
+typedef enum
+{
+    AST_LITERAL_NULL,
+    AST_LITERAL_TRUE,
+    AST_LITERAL_FALSE,
+} t_ast_literal_type;
+
+typedef struct
+{
+    t_ast_literal_type type;
+} t_ast_literal;
+
 typedef struct s_ast_node
 {
     t_ast_node_type type;
@@ -367,6 +383,7 @@ typedef struct s_ast_node
         t_ast_enum_definition enum_definition;
         t_ast_get_expr get_expr;
         t_ast_array_deref array_deref;
+        t_ast_literal literal;
     };
 } t_ast_node;
 

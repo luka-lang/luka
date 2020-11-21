@@ -311,6 +311,14 @@ t_ast_node *AST_new_array_deref(char *variable, t_ast_node *index)
     return node;
 }
 
+t_ast_node *AST_new_literal(t_ast_literal_type type)
+{
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
+    node->type = AST_TYPE_LITERAL;
+    node->literal.type = type;
+    return node;
+}
+
 t_ast_node *AST_fix_function_last_expression_stmt(t_ast_node *node)
 {
     t_ast_node *last_stmt = NULL;
@@ -400,6 +408,7 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
     switch (node->type)
     {
     case AST_TYPE_BREAK_STMT:
+    case AST_TYPE_LITERAL:
         break;
     case AST_TYPE_STRING:
     {
@@ -954,6 +963,21 @@ char *ast_stringify(const char* source, size_t source_length, t_logger *logger)
     return str;
 }
 
+char *ast_stringify_literal(t_ast_literal_type type)
+{
+    switch (type)
+    {
+        case AST_LITERAL_NULL:
+            return "null";
+        case AST_LITERAL_TRUE:
+            return "true";
+        case AST_LITERAL_FALSE:
+            return "false";
+        default:
+            return "literal not handled";
+    }
+}
+
 void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
 {
     t_ast_node *arg = NULL;
@@ -1342,6 +1366,9 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
         }
         break;
     }
+    case AST_TYPE_LITERAL:
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Literal: %s\n", offset, ' ', ast_stringify_literal(node->literal.type));
+        break;
 
     default:
     {

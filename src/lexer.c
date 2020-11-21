@@ -9,6 +9,7 @@ const char *keywords[NUMBER_OF_KEYWORDS] = {
     "fn", "return", "if", "else",
     "let", "mut", "extern", "while",
     "break", "as", "struct", "enum",
+    "null", "true", "false",
 
     /* Builtin Types */
     "int", "char", "string", "void",

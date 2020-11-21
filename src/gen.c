@@ -1653,6 +1653,29 @@ LLVMValueRef gen_codegen_array_deref(t_ast_node *node,
     return LLVMBuildLoad(builder, gen_get_address(node, module, builder, logger), "loadtmp");
 }
 
+LLVMValueRef gen_codegen_literal(t_ast_node *node,
+                                 LLVMModuleRef UNUSED(module),
+                                 LLVMBuilderRef UNUSED(builder),
+                                 t_logger *logger)
+{
+    switch (node->literal.type)
+    {
+        case AST_LITERAL_NULL:
+            return LLVMConstPointerNull(LLVMVoidType());
+        case AST_LITERAL_TRUE:
+            return LLVMConstInt(LLVMInt1Type(), 1, false);
+        case AST_LITERAL_FALSE:
+            return LLVMConstInt(LLVMInt1Type(), 0, false);
+        default:
+            (void) LOGGER_log(logger,
+                              L_ERROR,
+                              "gen_codegen_literal: literal not handled %d.\n",
+                              node->literal.type);
+            (void) exit(LUKA_CODEGEN_ERROR);
+
+    }
+}
+
 LLVMValueRef GEN_codegen(t_ast_node *node,
                          LLVMModuleRef module,
                          LLVMBuilderRef builder,
@@ -1702,6 +1725,8 @@ LLVMValueRef GEN_codegen(t_ast_node *node,
         return gen_codegen_get_expr(node, module, builder, logger);
     case AST_TYPE_ARRAY_DEREF:
         return gen_codegen_array_deref(node, module, builder, logger);
+    case AST_TYPE_LITERAL:
+        return gen_codegen_literal(node, module, builder, logger);
     default:
     {
         (void) LOGGER_log(logger, L_ERROR, "No codegen function was found for type - %d\n", node->type);
