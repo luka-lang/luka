@@ -1,7 +1,7 @@
 extern puts(s: string);
 extern printf(s: string, ...);
 
-fn main(): void {
+fn main(): s32 {
     let a: u8 = 3;
     let b: u8 = 5;
     puts("Hello World!");
