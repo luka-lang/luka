@@ -78,7 +78,7 @@ base_type = "any"  | "bool" | "int"   | "string"
           | "void" | "char" | base_type_ptr
           | base_type_array | base_type_mut ;
 base_type_ptr = base_type "*" ;
-base_type_array = base_type "[" [ expression ] "]" ;
+base_type_array = base_type "[" "]" ;
 base_type_mut = "mut" base_type ;
 
 identifier = ( letter | "_" ) [ { ( letter | digit | "_" ) } ] ;
