@@ -7,6 +7,12 @@
 
 const char *ast_type_to_string(t_type *type, t_logger *logger, char *buffer, size_t buffer_size)
 {
+    if (type->mutable)
+    {
+        (void) snprintf(buffer, buffer_size, "mut ");
+        buffer = buffer + strlen("mut ");
+    }
+
     switch (type->type)
     {
     case TYPE_ANY:
@@ -40,13 +46,13 @@ const char *ast_type_to_string(t_type *type, t_logger *logger, char *buffer, siz
         (void) snprintf(buffer, buffer_size, "u64");
         break;
     case TYPE_F32:
-        (void) snprintf(buffer, buffer_size, "float");
+        (void) snprintf(buffer, buffer_size, "f32");
         break;
     case TYPE_F64:
-        (void) snprintf(buffer, buffer_size, "double");
+        (void) snprintf(buffer, buffer_size, "f64");
         break;
     case TYPE_STRING:
-        (void) snprintf(buffer, buffer_size, "str");
+        (void) snprintf(buffer, buffer_size, "string");
         break;
     case TYPE_VOID:
         (void) snprintf(buffer, buffer_size, "void");
@@ -55,11 +61,20 @@ const char *ast_type_to_string(t_type *type, t_logger *logger, char *buffer, siz
         (void) ast_type_to_string(type->inner_type, logger, buffer, buffer_size);
         (void) snprintf(buffer + strlen(buffer), buffer_size, "*");
         break;
+    case TYPE_ARRAY:
+        (void) ast_type_to_string(type->inner_type, logger, buffer, buffer_size);
+        (void) snprintf(buffer + strlen(buffer), buffer_size, "[]");
+        break;
     default:
-        (void) LOGGER_log(logger, L_ERROR, "I don't know how to translate type %d to LLVM types.\n",
+        (void) LOGGER_log(logger, L_ERROR, "ast_type_to_string: I don't know how to translate type %d to LLVM types.\n",
                 type);
         (void) snprintf(buffer, buffer_size, "s32");
         break;
+    }
+
+    if (type->mutable)
+    {
+        buffer = buffer - strlen("mut ");
     }
 
     return buffer;
@@ -287,6 +302,23 @@ t_ast_node *AST_new_get_expr(char *variable, char *key, bool is_enum)
     return node;
 }
 
+t_ast_node *AST_new_array_deref(char *variable, t_ast_node *index)
+{
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
+    node->type = AST_TYPE_ARRAY_DEREF;
+    node->array_deref.variable = variable;
+    node->array_deref.index = index;
+    return node;
+}
+
+t_ast_node *AST_new_literal(t_ast_literal_type type)
+{
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
+    node->type = AST_TYPE_LITERAL;
+    node->literal.type = type;
+    return node;
+}
+
 t_ast_node *AST_fix_function_last_expression_stmt(t_ast_node *node)
 {
     t_ast_node *last_stmt = NULL;
@@ -376,6 +408,7 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
     switch (node->type)
     {
     case AST_TYPE_BREAK_STMT:
+    case AST_TYPE_LITERAL:
         break;
     case AST_TYPE_STRING:
     {
@@ -767,6 +800,22 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
         break;
     }
 
+    case AST_TYPE_ARRAY_DEREF:
+    {
+        if (NULL != node->array_deref.variable)
+        {
+            (void) free(node->array_deref.variable);
+            node->array_deref.variable = NULL;
+        }
+
+        if (NULL != node->array_deref.index)
+        {
+            (void) AST_free_node(node->array_deref.index, logger);
+            node->array_deref.index = NULL;
+        }
+        break;
+    }
+
     default:
     {
         (void) LOGGER_log(logger, L_ERROR, "I don't now how to free type - %d\n", node->type);
@@ -912,6 +961,21 @@ char *ast_stringify(const char* source, size_t source_length, t_logger *logger)
 
     str[char_count] = '\0';
     return str;
+}
+
+char *ast_stringify_literal(t_ast_literal_type type)
+{
+    switch (type)
+    {
+        case AST_LITERAL_NULL:
+            return "null";
+        case AST_LITERAL_TRUE:
+            return "true";
+        case AST_LITERAL_FALSE:
+            return "false";
+        default:
+            return "literal not handled";
+    }
 }
 
 void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
@@ -1286,6 +1350,25 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
         }
         break;
     }
+
+    case AST_TYPE_ARRAY_DEREF:
+    {
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Array deref\n", offset, ' ');
+        if (NULL != node->array_deref.variable)
+        {
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Variable - %s\n", offset + 2, ' ', node->array_deref.variable);
+        }
+
+        if (NULL != node->array_deref.index)
+        {
+            (void) LOGGER_log(logger, L_DEBUG, "%*c\b Index\n", offset + 2, ' ');
+            (void) AST_print_ast(node->array_deref.index, offset + 4, logger);
+        }
+        break;
+    }
+    case AST_TYPE_LITERAL:
+        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Literal: %s\n", offset, ' ', ast_stringify_literal(node->literal.type));
+        break;
 
     default:
     {

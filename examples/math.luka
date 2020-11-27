@@ -1,15 +1,15 @@
 extern printf(format: string, ...: any): s32;
 
 fn add(a: s32, b: s32): s32 {
-    return a + b;
+    a + b
 }
 
 fn sub(a: s32, b: s32): s32 {
-    return a - b;
+    a - b
 }
 
 fn mul(a: s32, b: s32): s32 {
-    return a * b;
+    a * b
 }
 
 fn div(a: s32, b: s32): s32 {
@@ -25,5 +25,4 @@ fn main() {
     printf("10 - 2 = %d\n", sub(10, 2));
     printf("10 * 2 = %d\n", mul(10, 2));
     printf("10 / 2 = %d\n", div(10, 2));
-    0
 }

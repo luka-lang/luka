@@ -23,7 +23,7 @@ statement = return_statement
           | enum_definition ;
 
 return_statement = "return" expression ";" ;
-let_statement = "let" [ "mut" ] identifier [ type ] "=" expression ";" ;
+let_statement = "let" [ "mut" ] identifier [ "[" [ expression ] "]" ] [ type ] "=" expression ";" ;
 expression_statement = expression ";" ;
 break_statement = "break" ";"
 
@@ -33,6 +33,7 @@ while_expression = "while" expression block ;
 cast_expression = expression "as" type ;
 assignment = identifier "=" assignment
            | "*" identifier "=" assignment
+           | array_deref "=" assignment
            | equality ;
 equality = comparison [ ( "!=" | "==" ) comparison ] ;
 comparison = term [ ( ">" | ">=" | "<" | "<=" ) term ] ;
@@ -46,14 +47,19 @@ primary = number
         | get_expr
         | function_call
         | literal
+        | array_deref
         | "(" expression ")" ;
 function_call = identifier "(" argument_list ")"
+
+array_deref = identifier "[" expression "]" ;
 
 struct_value = identifier "{" struct_value_fields "}" ;
 struct_value_fields = struct_value_fields "," struct_value_field | struct_value_field | %empty ;
 struct_value_field = identifier ":" expression ;
 
 get_expr = identifier "." identifier
+
+literal = "true" | "false" | "null" ;
 
 number = digits [ "."  digits ] ;
 digits = digit [ { digit } ] ;
@@ -69,8 +75,11 @@ base_type = "any"  | "bool" | "int"   | "string"
           | "u8"   | "u16"  | "u32"   | "u64"
           | "s8"   | "s16"  | "s32"   | "s64"
           | "f32"  | "f64"  | "float" | "double"
-          | "void" | "char" | base_type_ptr ;
+          | "void" | "char" | base_type_ptr
+          | base_type_array | base_type_mut ;
 base_type_ptr = base_type "*" ;
+base_type_array = base_type "[" "]" ;
+base_type_mut = "mut" base_type ;
 
 identifier = ( letter | "_" ) [ { ( letter | digit | "_" ) } ] ;
 letter = "A" | "B" | "C" | "D" | "E" | "F" | "G"

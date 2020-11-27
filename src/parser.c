@@ -95,6 +95,7 @@ t_type *parse_type(t_parser *parser, bool parse_prefix)
     t_token *token = NULL;
     t_type *type = NULL;
     t_type *inner_type = NULL;
+
     type = calloc(1, sizeof(t_type));
     if (NULL == type)
     {
@@ -102,6 +103,7 @@ t_type *parse_type(t_parser *parser, bool parse_prefix)
     }
     type->inner_type = NULL;
     type->payload = NULL;
+    type->mutable = false;
 
     if (parse_prefix)
     {
@@ -118,7 +120,15 @@ t_type *parse_type(t_parser *parser, bool parse_prefix)
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
 
+    if (T_MUT == token->type)
+    {
+        type->mutable = true;
+        ADVANCE(parser);
+        token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
+    }
+
     ADVANCE(parser);
+
 
     switch (token->type)
     {
@@ -201,7 +211,9 @@ t_type *parse_type(t_parser *parser, bool parse_prefix)
     }
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
-    while (T_STAR == token->type)
+    while ((T_STAR == token->type)
+           || (T_OPEN_BRACKET == token->type)
+           || (T_MUT == token->type))
     {
         inner_type = type;
         type = calloc(1, sizeof(t_type));
@@ -209,12 +221,33 @@ t_type *parse_type(t_parser *parser, bool parse_prefix)
         {
             (void) exit(LUKA_CANT_ALLOC_MEMORY);
         }
-        type->type = TYPE_PTR;
+
         type->inner_type = inner_type;
         type->payload = NULL;
-        ADVANCE(parser);
-        token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
+        type->mutable = false;
+
+        if (T_MUT == token->type)
+        {
+            type->mutable = true;
+            ADVANCE(parser);
+            token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
+        }
+
+        if (T_OPEN_BRACKET == token->type)
+        {
+            ADVANCE(parser);
+            EXPECT_ADVANCE(parser, T_CLOSE_BRACKET, "Expected ']' after '[' in type definition.");
+            type->type = TYPE_ARRAY;
+            token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
+        }
+        else
+        {
+            type->type = TYPE_PTR;
+            ADVANCE(parser);
+            token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
+        }
     }
+
 
     return type;
 }
@@ -309,10 +342,10 @@ t_vector *PARSER_parse_top_level(t_parser *parser)
             EXPECT_ADVANCE(parser, T_IDENTIFIER, "Expected an identifier after keyword 'struct'");
             token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
             name = strdup(token->content);
-            EXPECT_ADVANCE(parser, T_OPEN_BRACKET, "Expected a '{' after identifier in struct definition");
+            EXPECT_ADVANCE(parser, T_OPEN_BRACE, "Expected a '{' after identifier in struct definition");
             ADVANCE(parser);
             fields = parser_parse_struct_fields(parser);
-            MATCH_ADVANCE(parser, T_CLOSE_BRACKET, "Expected a '}' after struct fields in struct definition");
+            MATCH_ADVANCE(parser, T_CLOSE_BRACE, "Expected a '}' after struct fields in struct definition");
             node = AST_new_struct_definition(name, fields);
             (void) vector_push_front(parser->struct_names, &name);
             (void) vector_push_front(functions, &node);
@@ -324,10 +357,10 @@ t_vector *PARSER_parse_top_level(t_parser *parser)
             EXPECT_ADVANCE(parser, T_IDENTIFIER, "Expected an identifier after keywork 'enum'");
             token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
             name = strdup(token->content);
-            EXPECT_ADVANCE(parser, T_OPEN_BRACKET, "Expected a '{' after identifier in enum definition");
+            EXPECT_ADVANCE(parser, T_OPEN_BRACE, "Expected a '{' after identifier in enum definition");
             ADVANCE(parser);
             fields = parser_parse_enum_fields(parser);
-            MATCH_ADVANCE(parser, T_CLOSE_BRACKET, "Expected a '}' after enum fields in enum definition");
+            MATCH_ADVANCE(parser, T_CLOSE_BRACE, "Expected a '}' after enum fields in enum definition");
             node = AST_new_enum_definition(name, fields);
             (void) vector_push_front(parser->enum_names, &name);
             (void) vector_push_front(functions, &node);
@@ -469,7 +502,7 @@ t_ast_node *parse_ident_expr(t_parser *parser)
 
         return AST_new_get_expr(ident_name, strdup(token->content), is_enum);
     }
-    else if (MATCH(parser , T_OPEN_BRACKET) && parser_is_struct_name(parser, ident_name))
+    else if (MATCH(parser , T_OPEN_BRACE) && parser_is_struct_name(parser, ident_name))
     {
         ADVANCE(parser);
         struct_value_fields = calloc(1, sizeof(t_vector));
@@ -500,7 +533,7 @@ t_ast_node *parse_ident_expr(t_parser *parser)
 
             vector_push_back(struct_value_fields, &struct_value_field);
 
-            if (MATCH(parser, T_CLOSE_BRACKET))
+            if (MATCH(parser, T_CLOSE_BRACE))
             {
                 ADVANCE(parser);
                 break;
@@ -511,8 +544,15 @@ t_ast_node *parse_ident_expr(t_parser *parser)
 
         return AST_new_struct_value(ident_name, struct_value_fields);
     }
+    else if (MATCH(parser, T_OPEN_BRACKET))
+    {
+        ADVANCE(parser);
+        expr = parser_parse_expression(parser);
+        MATCH_ADVANCE(parser, T_CLOSE_BRACKET, "Expected ']' after index in array dereference.\n");
 
-    if (T_OPEN_PAREN != token->type)
+        return AST_new_array_deref(ident_name, expr);
+    }
+    else if (T_OPEN_PAREN != token->type)
     {
         if (MATCH(parser, T_MUT))
         {
@@ -872,6 +912,24 @@ t_ast_node *parser_parse_primary(t_parser *parser)
         ADVANCE(parser);
         return n;
     }
+    case T_NULL:
+    {
+        n = AST_new_literal(AST_LITERAL_NULL);
+        ADVANCE(parser);
+        return n;
+    }
+    case T_TRUE:
+    {
+        n = AST_new_literal(AST_LITERAL_TRUE);
+        ADVANCE(parser);
+        return n;
+    }
+    case T_FALSE:
+    {
+        n = AST_new_literal(AST_LITERAL_FALSE);
+        ADVANCE(parser);
+        return n;
+    }
 
     default:
         (void) LOGGER_log(parser->logger, L_ERROR, "parse_primary: Syntax error at %ld:%ld - %s\n",
@@ -882,12 +940,12 @@ t_ast_node *parser_parse_primary(t_parser *parser)
 
 bool should_finish_expression(t_token *token)
 {
-    if (T_OPEN_BRACKET == token->type)
+    if (T_OPEN_BRACE == token->type)
     {
         return true;
     }
 
-    if (T_CLOSE_BRACKET == token->type)
+    if (T_CLOSE_BRACE == token->type)
     {
         return true;
     }
@@ -988,12 +1046,15 @@ t_ast_node *parser_parse_assignment(t_parser *parser)
         ADVANCE(parser);
         rhs = parser_parse_assignment(parser);
 
-        if ((AST_TYPE_VARIABLE == lhs->type) || ((AST_TYPE_UNARY_EXPR == lhs->type) && (UNOP_DEREF == lhs->unary_expr.operator)) || (AST_TYPE_GET_EXPR == lhs->type))
+        if ((AST_TYPE_VARIABLE == lhs->type)
+            || ((AST_TYPE_UNARY_EXPR == lhs->type) && (UNOP_DEREF == lhs->unary_expr.operator))
+            || (AST_TYPE_GET_EXPR == lhs->type)
+            || (AST_TYPE_ARRAY_DEREF == lhs->type))
         {
             return AST_new_assignment_expr(lhs, rhs);
         }
 
-        (void) LOGGER_log(parser->logger, L_ERROR, "Invalid assignment target.");
+        (void) LOGGER_log(parser->logger, L_ERROR, "Invalid assignment target.\n");
         (void) exit(LUKA_GENERAL_ERROR);
     }
 
@@ -1055,10 +1116,10 @@ t_ast_node *parse_statement(t_parser *parser)
         EXPECT_ADVANCE(parser, T_IDENTIFIER, "Expected an identifier after keyword 'struct'");
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
         name = strdup(token->content);
-        EXPECT_ADVANCE(parser, T_OPEN_BRACKET, "Expected a '{' after identifier in struct definition");
+        EXPECT_ADVANCE(parser, T_OPEN_BRACE, "Expected a '{' after identifier in struct definition");
         ADVANCE(parser);
         fields = parser_parse_struct_fields(parser);
-        MATCH_ADVANCE(parser, T_CLOSE_BRACKET, "Expected a '}' after struct fields in struct definition");
+        MATCH_ADVANCE(parser, T_CLOSE_BRACE, "Expected a '}' after struct fields in struct definition");
         node = AST_new_struct_definition(name, fields);
         (void) vector_push_front(parser->struct_names, &name);
         return node;
@@ -1068,10 +1129,10 @@ t_ast_node *parse_statement(t_parser *parser)
         EXPECT_ADVANCE(parser, T_IDENTIFIER, "Expected an identifier after keywork 'enum'");
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
         name = strdup(token->content);
-        EXPECT_ADVANCE(parser, T_OPEN_BRACKET, "Expected a '{' after identifier in enum definition");
+        EXPECT_ADVANCE(parser, T_OPEN_BRACE, "Expected a '{' after identifier in enum definition");
         ADVANCE(parser);
         fields = parser_parse_enum_fields(parser);
-        MATCH_ADVANCE(parser, T_CLOSE_BRACKET, "Expected a '}' after enum fields in enum definition");
+        MATCH_ADVANCE(parser, T_CLOSE_BRACE, "Expected a '}' after enum fields in enum definition");
         node = AST_new_enum_definition(name, fields);
         (void) vector_push_front(parser->enum_names, &name);
         return node;
@@ -1118,11 +1179,11 @@ t_vector *parse_statements(t_parser *parser)
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
 
-    EXPECT_ADVANCE(parser, T_OPEN_BRACKET,
+    EXPECT_ADVANCE(parser, T_OPEN_BRACE,
                     "Expected '{' to open a body of statements");
 
     while (
-        T_CLOSE_BRACKET !=
+        T_CLOSE_BRACE !=
         (token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1))
             ->type)
     {
@@ -1189,6 +1250,7 @@ t_ast_node *parse_prototype(t_parser *parser)
             types[0]->type = TYPE_ANY;
             types[0]->inner_type = NULL;
             types[0]->payload = NULL;
+            types[0]->mutable = false;
         }
         vararg = true;
     }
@@ -1249,6 +1311,7 @@ t_ast_node *parse_prototype(t_parser *parser)
                     (void) free(types[arity - 1]->payload);
                 }
                 types[arity - 1]->payload = NULL;
+                types[arity - 1]->mutable = false;
             }
             vararg = true;
         }
@@ -1333,7 +1396,7 @@ t_vector *parser_parse_struct_fields(t_parser *parser)
     vector_setup(fields, 5, sizeof(t_struct_field_ptr));
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-    if (T_CLOSE_BRACKET != token->type)
+    if (T_CLOSE_BRACE != token->type)
     {
         while (true)
         {
@@ -1345,7 +1408,7 @@ t_vector *parser_parse_struct_fields(t_parser *parser)
             vector_push_back(fields, &struct_field);
 
             token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-            if (T_CLOSE_BRACKET == token->type)
+            if (T_CLOSE_BRACE == token->type)
             {
                 break;
             }
@@ -1443,7 +1506,7 @@ t_vector *parser_parse_enum_fields(t_parser *parser)
     vector_setup(fields, 5, sizeof(t_enum_field_ptr));
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-    if (T_CLOSE_BRACKET != token->type)
+    if (T_CLOSE_BRACE != token->type)
     {
         while (true)
         {
@@ -1466,7 +1529,7 @@ t_vector *parser_parse_enum_fields(t_parser *parser)
             ++value;
 
             token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-            if (T_CLOSE_BRACKET == token->type)
+            if (T_CLOSE_BRACE == token->type)
             {
                 break;
             }
