@@ -1189,8 +1189,9 @@ LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node,
                                          LLVMBuilderRef builder,
                                          t_logger *logger)
 {
-    LLVMValueRef lhs = NULL, rhs = NULL;
+    LLVMValueRef lhs = NULL, rhs = NULL, store = NULL;
     LLVMTypeRef dest_type = NULL;
+    size_t alignment = 0;
     t_ast_node *variable = NULL;
     t_named_value *val = NULL;
 
@@ -1269,7 +1270,12 @@ LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node,
 
     dest_type = LLVMGetElementType(LLVMTypeOf(lhs));
     rhs = LLVMBuildCast(builder, gen_llvm_get_cast_op(LLVMTypeOf(rhs), dest_type, logger), rhs, dest_type, "casttmp");
-    (void) LLVMBuildStore(builder, rhs, lhs);
+    store = LLVMBuildStore(builder, rhs, lhs);
+    alignment = TYPE_sizeof(gen_llvm_type_to_ttype(LLVMTypeOf(lhs), logger));
+    if (0 != alignment)
+    {
+        (void) LLVMSetAlignment(store, alignment);
+    }
     return rhs;
 }
 
@@ -1648,9 +1654,10 @@ LLVMValueRef gen_codegen_get_expr(t_ast_node *node,
                                   LLVMBuilderRef builder,
                                   t_logger *logger)
 {
-    LLVMValueRef field_pointer = NULL;
+    LLVMValueRef field_pointer = NULL, load = NULL;
     t_enum_info *enum_info = NULL;
     char *key = node->get_expr.key;
+    size_t alignment = 0;
 
     if (node->get_expr.is_enum)
     {
@@ -1675,7 +1682,14 @@ LLVMValueRef gen_codegen_get_expr(t_ast_node *node,
     }
 
     field_pointer = gen_get_address(node, module, builder, logger);
-    return LLVMBuildLoad2(builder, LLVMGetElementType(LLVMTypeOf(field_pointer)), field_pointer, "loadtmp"); // LLVMBuildStructGEP(builder, field_pointer, 0, "getexprtmp");
+    load = LLVMBuildLoad2(builder, LLVMGetElementType(LLVMTypeOf(field_pointer)), field_pointer, "loadtmp");
+
+    alignment = TYPE_sizeof(gen_llvm_type_to_ttype(LLVMTypeOf(field_pointer), logger));
+    if (0 != alignment)
+    {
+        (void) LLVMSetAlignment(load, alignment);
+    }
+    return load;
 }
 
 LLVMValueRef gen_codegen_array_deref(t_ast_node *node,
