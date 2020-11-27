@@ -1,3 +1,4 @@
+/** @file lexer.c */
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -5,6 +6,7 @@
 
 #include "lexer.h"
 
+/** A string representation of the keywords in the Luka programming language */
 const char *keywords[NUMBER_OF_KEYWORDS] = {
     "fn", "return", "if", "else",
     "let", "mut", "extern", "while",
@@ -19,6 +21,13 @@ const char *keywords[NUMBER_OF_KEYWORDS] = {
     "f32", "f64"
 };
 
+/**
+ * @brief Check if an identifier is a predefined keyword.
+ *
+ * @param[in] identifier the identifier to check.
+ *
+ * @return -1 if the identifier is not a keyword or the index of the keyword in the #keywords arrays.
+ */
 int lexer_is_keyword(const char *identifier)
 {
     for (int i = 0; i < NUMBER_OF_KEYWORDS; ++i)
@@ -36,6 +45,15 @@ int lexer_is_keyword(const char *identifier)
     return -1;
 }
 
+/**
+ * @brief Tokenize a number in the @p source from @p index.
+ *
+ * @param[in] source the source code.
+ * @param[in,out] index the index to start from, will point at the next character after the number when the function returns.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the string representation of the number.
+ */
 char * lexer_lex_number(const char *source, size_t *index, t_logger *logger)
 {
     bool is_floating = false;
@@ -77,6 +95,14 @@ char * lexer_lex_number(const char *source, size_t *index, t_logger *logger)
     return substring;
 }
 
+/**
+ * @brief Tokenize an identifier in the @p source from @p index.
+ *
+ * @param[in] source the source code.
+ * @param[in,out] index the index to start from, will point at the next character after the identifier when the function returns.
+ *
+ * @return the string representation of the identifier.
+ */
 char *lexer_lex_identifier(const char *source, size_t *index)
 {
     size_t i = (*index) + 1;
@@ -98,6 +124,21 @@ char *lexer_lex_identifier(const char *source, size_t *index)
     return ident;
 }
 
+/**
+ * @brief Tokenize a string in the @p source from @p index.
+ *
+ * @details strings are enclosed in `"` and can have the following escape characters:
+ * - `\n` is a newline
+ * - `\t` is a tab
+ * - `\\` is a backslash
+ * - `\"` is a quotation mark
+ *
+ * @param[in] source the source code.
+ * @param[in,out] index the index to start from, will point at the next character after the string when the function returns.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the string representation of the string.
+ */
 char *lexer_lex_string(const char *source, size_t *index, t_logger *logger)
 {
     size_t i = *index;
