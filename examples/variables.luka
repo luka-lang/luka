@@ -13,6 +13,4 @@ fn main() {
 
     putchar(48 + c);
     putchar(10);
-
-    return 0;
 }
