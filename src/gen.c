@@ -10,7 +10,123 @@
 t_named_value *named_values = NULL;
 t_struct_info *struct_infos = NULL;
 t_enum_info *enum_infos = NULL;
-Vector *loop_blocks = NULL;
+t_vector *loop_blocks = NULL;
+
+/**
+ * @brief Check if a Luka type is signed.
+ *
+ * @param[in] type the type to check.
+ *
+ * @return whether the type is signed.
+ */
+bool gen_ttype_is_signed(t_type *type)
+{
+    switch (type->type)
+    {
+    case TYPE_SINT8:
+    case TYPE_SINT16:
+    case TYPE_SINT32:
+    case TYPE_SINT64:
+        return true;
+    default:
+        return false;
+    }
+}
+
+/**
+ * @brief Converting a LLVM type to Luka type.
+ *
+ * @param[in] type the LLVM type.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the Luka type.
+ */
+t_type *gen_llvm_type_to_ttype(LLVMTypeRef type, t_logger *logger)
+{
+    t_type *ttype = calloc(1, sizeof(t_type));
+    if (NULL == type)
+    {
+        (void) exit(LUKA_CANT_ALLOC_MEMORY);
+    }
+
+    ttype->payload = NULL;
+    ttype->inner_type = NULL;
+    if (type == LLVMPointerType(LLVMVoidType(), 0))
+    {
+        ttype->type = TYPE_ANY;
+    }
+    else if (type == LLVMInt1Type())
+    {
+        ttype->type = TYPE_BOOL;
+    }
+    else if (type == LLVMInt8Type())
+    {
+        ttype->type = TYPE_SINT8;
+    }
+    else if (type == LLVMInt16Type())
+    {
+        ttype->type = TYPE_SINT16;
+    }
+    else if (type == LLVMInt32Type())
+    {
+        ttype->type = TYPE_SINT32;
+    }
+    else if (type == LLVMInt64Type())
+    {
+        ttype->type = TYPE_SINT64;
+    }
+    else if (type == LLVMInt8Type())
+    {
+        ttype->type = TYPE_UINT8;
+    }
+    else if (type == LLVMInt16Type())
+    {
+        ttype->type = TYPE_UINT16;
+    }
+    else if (type == LLVMInt32Type())
+    {
+        ttype->type = TYPE_UINT32;
+    }
+    else if (type == LLVMInt64Type())
+    {
+        ttype->type = TYPE_UINT64;
+    }
+    else if (type == LLVMFloatType())
+    {
+        ttype->type = TYPE_F32;
+    }
+    else if (type == LLVMDoubleType())
+    {
+        ttype->type = TYPE_F64;
+    }
+    else if (type == LLVMPointerType(LLVMInt8Type(), 0))
+    {
+        ttype->type = TYPE_STRING;
+    }
+    else if (type == LLVMVoidType())
+    {
+        ttype->type = TYPE_VOID;
+    }
+    else if (LLVMGetTypeKind(type) == LLVMPointerTypeKind)
+    {
+        ttype->type = TYPE_PTR;
+        ttype->inner_type = gen_llvm_type_to_ttype(LLVMGetElementType(type), logger);
+    }
+    else if (LLVMStructTypeKind == LLVMGetTypeKind(type))
+    {
+        ttype->type = TYPE_STRUCT;
+        ttype->payload = (void *)LLVMGetStructName(type);
+    }
+    else
+    {
+        (void) LLVMDumpType(type);
+        (void) LOGGER_log(logger, L_ERROR, "I don't know how to translate LLVM type %d to t_type.\n",
+                            type);
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
+
+    return ttype;
+}
 
 /**
  * @brief Getting a field out of a struct.
@@ -25,7 +141,7 @@ Vector *loop_blocks = NULL;
 LLVMValueRef gen_get_struct_field_pointer(t_named_value *variable,
                                           char *key,
                                           LLVMBuilderRef builder,
-                                          t_logger *logger);
+                                          t_logger *logger)
 {
     LLVMValueRef indices[2] = { LLVMConstInt(LLVMInt32Type(), 0, 0), NULL };
     t_struct_info *struct_info = NULL;
@@ -211,101 +327,6 @@ LLVMTypeRef gen_type_to_llvm_type(t_type *type, t_logger *logger)
 }
 
 /**
- * @brief Converting a LLVM type to Luka type.
- *
- * @param[in] type the LLVM type.
- * @param[in] logger a logger that can be used to log messages.
- *
- * @return the Luka type.
- */
-t_type *gen_llvm_type_to_ttype(LLVMTypeRef type, t_logger *logger)
-{
-    t_type *ttype = calloc(1, sizeof(t_type));
-    if (NULL == type)
-    {
-        (void) exit(LUKA_CANT_ALLOC_MEMORY);
-    }
-
-    ttype->payload = NULL;
-    ttype->inner_type = NULL;
-    if (type == LLVMPointerType(LLVMVoidType(), 0))
-    {
-        ttype->type = TYPE_ANY;
-    }
-    else if (type == LLVMInt1Type())
-    {
-        ttype->type = TYPE_BOOL;
-    }
-    else if (type == LLVMInt8Type())
-    {
-        ttype->type = TYPE_SINT8;
-    }
-    else if (type == LLVMInt16Type())
-    {
-        ttype->type = TYPE_SINT16;
-    }
-    else if (type == LLVMInt32Type())
-    {
-        ttype->type = TYPE_SINT32;
-    }
-    else if (type == LLVMInt64Type())
-    {
-        ttype->type = TYPE_SINT64;
-    }
-    else if (type == LLVMInt8Type())
-    {
-        ttype->type = TYPE_UINT8;
-    }
-    else if (type == LLVMInt16Type())
-    {
-        ttype->type = TYPE_UINT16;
-    }
-    else if (type == LLVMInt32Type())
-    {
-        ttype->type = TYPE_UINT32;
-    }
-    else if (type == LLVMInt64Type())
-    {
-        ttype->type = TYPE_UINT64;
-    }
-    else if (type == LLVMFloatType())
-    {
-        ttype->type = TYPE_F32;
-    }
-    else if (type == LLVMDoubleType())
-    {
-        ttype->type = TYPE_F64;
-    }
-    else if (type == LLVMPointerType(LLVMInt8Type(), 0))
-    {
-        ttype->type = TYPE_STRING;
-    }
-    else if (type == LLVMVoidType())
-    {
-        ttype->type = TYPE_VOID;
-    }
-    else if (LLVMGetTypeKind(type) == LLVMPointerTypeKind)
-    {
-        ttype->type = TYPE_PTR;
-        ttype->inner_type = gen_llvm_type_to_ttype(LLVMGetElementType(type), logger);
-    }
-    else if (LLVMStructTypeKind == LLVMGetTypeKind(type))
-    {
-        ttype->type = TYPE_STRUCT;
-        ttype->payload = (void *)LLVMGetStructName(type);
-    }
-    else
-    {
-        (void) LLVMDumpType(type);
-        (void) LOGGER_log(logger, L_ERROR, "I don't know how to translate LLVM type %d to t_type.\n",
-                            type);
-        (void) exit(LUKA_CODEGEN_ERROR);
-    }
-
-    return ttype;
-}
-
-/**
  * @brief Create an alloca in the entry block of a function for a new named_value.
  *
  * @param[in] function the function to create the alloca inside.
@@ -334,27 +355,6 @@ LLVMValueRef gen_create_entry_block_allca(LLVMValueRef function,
     alloca_inst = LLVMBuildAlloca(builder, type, var_name);
     LLVMDisposeBuilder(builder);
     return alloca_inst;
-}
-
-/**
- * @brief Check if a Luka type is signed.
- *
- * @param[in] type the type to check.
- *
- * @return whether the type is signed.
- */
-bool gen_ttype_is_signed(t_type *type)
-{
-    switch (type->type)
-    {
-    case TYPE_SINT8:
-    case TYPE_SINT16:
-    case TYPE_SINT32:
-    case TYPE_SINT64:
-        return true;
-    default:
-        return false;
-    }
 }
 
 /**
