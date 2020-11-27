@@ -95,6 +95,7 @@ t_type *parse_type(t_parser *parser, bool parse_prefix)
     t_token *token = NULL;
     t_type *type = NULL;
     t_type *inner_type = NULL;
+
     type = calloc(1, sizeof(t_type));
     if (NULL == type)
     {
@@ -212,7 +213,7 @@ t_type *parse_type(t_parser *parser, bool parse_prefix)
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
     while ((T_STAR == token->type)
            || (T_OPEN_BRACKET == token->type)
-           || ((T_MUT == token->type) && (NULL == inner_type)))
+           || (T_MUT == token->type))
     {
         inner_type = type;
         type = calloc(1, sizeof(t_type));
