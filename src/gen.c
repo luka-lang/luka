@@ -255,7 +255,7 @@ LLVMOpcode gen_llvm_get_cast_op(LLVMTypeRef type, LLVMTypeRef dest_type, t_logge
 
     if (NULL != ttype)
     {
-        (void) free(ttype);
+        (void) TYPE_free_type(ttype);
         ttype = NULL;
     }
 
@@ -363,6 +363,35 @@ bool gen_llvm_cast_to_signed_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLV
     return false;
 }
 
+bool gen_llvm_cast_null_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, t_logger *logger) {
+    t_type *lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*lhs), logger);
+    t_type *rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*rhs), logger);
+    bool lhs_null = LLVMIsAConstantPointerNull(*lhs);
+    bool rhs_null = LLVMIsAConstantPointerNull(*rhs);
+
+    if (lhs_null || rhs_null) {
+        if (lhs_null && !rhs_null) {
+            *lhs = LLVMConstPointerNull(LLVMTypeOf(*rhs));
+        } else if (!lhs_null && rhs_null) {
+            *rhs = LLVMConstPointerNull(LLVMTypeOf(*lhs));
+        } else {
+            *lhs = LLVMConstPointerNull(LLVMTypeOf(*rhs));
+        }
+
+        (void) TYPE_free_type(lhs_t);
+        lhs_t = NULL;
+        (void) TYPE_free_type(rhs_t);
+        rhs_t = NULL;
+
+        return true;
+    }
+
+    (void) TYPE_free_type(lhs_t);
+    lhs_t = NULL;
+    (void) TYPE_free_type(rhs_t);
+    rhs_t = NULL;
+    return false;
+}
 bool gen_llvm_cast_sizes_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBuilderRef builder, t_logger *logger) {
     t_type *lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*lhs), logger);
     t_type *rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*rhs), logger);
@@ -710,6 +739,7 @@ LLVMValueRef gen_codegen_binexpr(t_ast_node *n,
 
     if (gen_is_cond_op(n->binary_expr.operator))
     {
+        (void) gen_llvm_cast_null_if_needed(&lhs, &rhs, logger);
         if (gen_is_icmp(lhs, rhs, logger))
         {
             int_predicate = gen_llvm_get_int_predicate(n->binary_expr.operator, &lhs, &rhs, builder, logger);
@@ -1160,6 +1190,7 @@ LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node,
                                          t_logger *logger)
 {
     LLVMValueRef lhs = NULL, rhs = NULL;
+    LLVMTypeRef dest_type = NULL;
     t_ast_node *variable = NULL;
     t_named_value *val = NULL;
 
@@ -1236,6 +1267,8 @@ LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node,
         (void) exit(LUKA_CODEGEN_ERROR);
     }
 
+    dest_type = LLVMGetElementType(LLVMTypeOf(lhs));
+    rhs = LLVMBuildCast(builder, gen_llvm_get_cast_op(LLVMTypeOf(rhs), dest_type, logger), rhs, dest_type, "casttmp");
     (void) LLVMBuildStore(builder, rhs, lhs);
     return rhs;
 }
