@@ -1,3 +1,4 @@
+/** @file ast.c */
 #include "ast.h"
 
 #include <stdio.h>
@@ -5,6 +6,16 @@
 
 #include "type.h"
 
+/**
+ * @brief Dumps a type into a string representation.
+ *
+ * @param[in] type the type to dump.
+ * @param[in] logger a logger that can be used to log messages.
+ * @param[out] buffer the buffer to which the string representation will be written
+ * @param[in] buffer_size the size of the buffer.
+ *
+ * @return the buffer with the written string representation of the type.
+ */
 const char *ast_type_to_string(t_type *type, t_logger *logger, char *buffer, size_t buffer_size)
 {
     if (type->mutable)
@@ -827,6 +838,13 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
     node = NULL;
 }
 
+/**
+ * @brief Helper function to print a statements block.
+ *
+ * @param[in] statements the vector of statement AST nodes to print.
+ * @param[in] offset the offset to print at.
+ * @param[in] logger a logger that can be used to log messages.
+ */
 void ast_print_statements_block(t_vector *statements, int offset, t_logger *logger)
 {
     t_ast_node *stmt = NULL;
@@ -849,7 +867,15 @@ void AST_print_functions(t_vector *functions, int offset, t_logger *logger)
     }
 }
 
-char *unop_to_str(t_ast_unop_type op, t_logger *logger)
+/**
+ * @brief Getting the string representation of a unary operator.
+ *
+ * @param[in] op the operator.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return a string representation of the operator.
+ */
+char *ast_unop_to_str(t_ast_unop_type op, t_logger *logger)
 {
     switch (op)
     {
@@ -869,7 +895,15 @@ char *unop_to_str(t_ast_unop_type op, t_logger *logger)
     }
 }
 
-char *binop_to_str(t_ast_binop_type op, t_logger *logger)
+/**
+ * @brief Getting the string representation of a binary operator.
+ *
+ * @param[in] op the operator.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return a string representation of the operator.
+ */
+char *ast_binop_to_str(t_ast_binop_type op, t_logger *logger)
 {
     switch (op)
     {
@@ -901,6 +935,15 @@ char *binop_to_str(t_ast_binop_type op, t_logger *logger)
     }
 }
 
+/**
+ * @brief Stringifying a string value.
+ *
+ * @param[in] source the string value.
+ * @param[in] source_length the length of the source string.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return an escaped string.
+ */
 char *ast_stringify(const char* source, size_t source_length, t_logger *logger)
 {
     size_t i = 0;
@@ -963,6 +1006,13 @@ char *ast_stringify(const char* source, size_t source_length, t_logger *logger)
     return str;
 }
 
+/**
+ * @brief Getting a string representation of a literal.
+ *
+ * @param type the type of the literal.
+ *
+ * @return the string representation of the literal.
+ */
 char *ast_stringify_literal(t_ast_literal_type type)
 {
     switch (type)
@@ -1018,7 +1068,7 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
     {
         (void) LOGGER_log(logger, L_DEBUG, "%*c\b Unary Expression\n", offset, ' ');
         (void) LOGGER_log(logger, L_DEBUG, "%*c\b Operator: %s\n", offset + 2, ' ',
-                          unop_to_str(node->unary_expr.operator, logger));
+                          ast_unop_to_str(node->unary_expr.operator, logger));
 
         (void) LOGGER_log(logger, L_DEBUG, "%*c\b Expression:\n", offset + 2, ' ');
         if (NULL != node->unary_expr.rhs)
@@ -1031,7 +1081,7 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
     {
         (void) LOGGER_log(logger, L_DEBUG, "%*c\b Binary Expression\n", offset, ' ');
         (void) LOGGER_log(logger, L_DEBUG, "%*c\b Operator: %s\n", offset + 2, ' ',
-                          binop_to_str(node->binary_expr.operator, logger));
+                          ast_binop_to_str(node->binary_expr.operator, logger));
         if (NULL != node->binary_expr.lhs)
             (void) AST_print_ast(node->binary_expr.lhs, offset + 4, logger);
         if (NULL != node->binary_expr.rhs)

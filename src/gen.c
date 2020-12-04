@@ -1,3 +1,4 @@
+/** @file gen.c */
 #include "gen.h"
 
 #include <stdio.h>
@@ -9,75 +10,37 @@
 t_named_value *named_values = NULL;
 t_struct_info *struct_infos = NULL;
 t_enum_info *enum_infos = NULL;
-Vector *loop_blocks = NULL;
+t_vector *loop_blocks = NULL;
 
-LLVMValueRef gen_get_struct_field_pointer(t_named_value *variable,
-                                          char *key,
-                                          LLVMBuilderRef builder,
-                                          t_logger *logger);
-bool gen_llvm_cast_sizes_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBuilderRef builder, t_logger *logger);
-void gen_named_values_clear();
-
-LLVMTypeRef gen_type_to_llvm_type(t_type *type, t_logger *logger)
+/**
+ * @brief Check if a Luka type is signed.
+ *
+ * @param[in] type the type to check.
+ *
+ * @return whether the type is signed.
+ */
+bool gen_ttype_is_signed(t_type *type)
 {
-    t_struct_info *struct_info = NULL;
-
     switch (type->type)
     {
-    case TYPE_ANY:
-        return LLVMInt8Type();
-    case TYPE_BOOL:
-        return LLVMInt1Type();
     case TYPE_SINT8:
-        return LLVMInt8Type();
     case TYPE_SINT16:
-        return LLVMInt16Type();
     case TYPE_SINT32:
-        return LLVMInt32Type();
     case TYPE_SINT64:
-        return LLVMInt64Type();
-    case TYPE_UINT8:
-        return LLVMInt8Type();
-    case TYPE_UINT16:
-        return LLVMInt16Type();
-    case TYPE_UINT32:
-        return LLVMInt32Type();
-    case TYPE_UINT64:
-        return LLVMInt64Type();
-    case TYPE_F32:
-        return LLVMFloatType();
-    case TYPE_F64:
-        return LLVMDoubleType();
-    case TYPE_STRING:
-        return LLVMPointerType(LLVMInt8Type(), 0);
-    case TYPE_VOID:
-        return LLVMVoidType();
-    case TYPE_PTR:
-        return LLVMPointerType(gen_type_to_llvm_type(type->inner_type, logger), 0);
-    case TYPE_ARRAY:
-        if (NULL != type->payload)
-        {
-            return LLVMArrayType(gen_type_to_llvm_type(type->inner_type, logger), (size_t)type->payload);
-        }
-        return LLVMPointerType(gen_type_to_llvm_type(type->inner_type, logger), 0);
-    case TYPE_STRUCT:
-        HASH_FIND_STR(struct_infos, (char*)type->payload, struct_info);
-        if (NULL != struct_info)
-        {
-            return struct_info->struct_type;
-        }
-
-        (void) LOGGER_log(logger, L_ERROR, "gen_type_to_llvm_type: I don't know how to translate struct named %s to LLVM types without a previous definition.\n",
-                          type);
-        (void) exit(LUKA_CODEGEN_ERROR);
-
+        return true;
     default:
-        (void) LOGGER_log(logger, L_ERROR, "gen_type_to_llvm_type: I don't know how to translate type %d to LLVM types.\n",
-                          type);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        return false;
     }
 }
 
+/**
+ * @brief Converting a LLVM type to Luka type.
+ *
+ * @param[in] type the LLVM type.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the Luka type.
+ */
 t_type *gen_llvm_type_to_ttype(LLVMTypeRef type, t_logger *logger)
 {
     t_type *ttype = calloc(1, sizeof(t_type));
@@ -165,6 +128,213 @@ t_type *gen_llvm_type_to_ttype(LLVMTypeRef type, t_logger *logger)
     return ttype;
 }
 
+/**
+ * @brief Getting a field out of a struct.
+ *
+ * @param[in] variable the named value.
+ * @param[in] key the field to get.
+ * @param[in] builder the LLVM IR builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return a GEP instruction to the struct field.
+ */
+LLVMValueRef gen_get_struct_field_pointer(t_named_value *variable,
+                                          char *key,
+                                          LLVMBuilderRef builder,
+                                          t_logger *logger)
+{
+    LLVMValueRef indices[2] = { LLVMConstInt(LLVMInt32Type(), 0, 0), NULL };
+    t_struct_info *struct_info = NULL;
+
+    HASH_FIND_STR(struct_infos, (char*)variable->ttype->payload, struct_info);
+
+    if (NULL == struct_info)
+    {
+        (void) LOGGER_log(logger, L_ERROR, "Couldn't find struct info.\n");
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
+
+    for (size_t i = 0; i < struct_info->number_of_fields; ++i)
+    {
+        if ((NULL != struct_info->struct_fields) && (0 == strcmp(key, struct_info->struct_fields[i])))
+        {
+            indices[1] = LLVMConstInt(LLVMInt32Type(), i, 0);
+        }
+    }
+
+    if (NULL == indices[1])
+    {
+        (void) LOGGER_log(logger, L_ERROR, "`%s` is not a field in struct `%s`.\n", key, struct_info->struct_name);
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
+
+    return LLVMBuildGEP(builder, variable->alloca_inst, indices, 2, "geptmp");
+}
+
+/**
+ * @brief Cast lhs and rhs to be the same size if they are of different types.
+ *
+ * @details The size of the smaller value is always extended to be as large as the larger value size.
+ *
+ * @param[in,out] lhs the left hand side value.
+ * @param[in,out] rhs the right hand side value.
+ * @param[in] builder the LLVM IR builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return whether a cast has happend.
+ */
+bool gen_llvm_cast_sizes_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBuilderRef builder, t_logger *logger) {
+    t_type *lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*lhs), logger);
+    t_type *rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*rhs), logger);
+
+    if (lhs_t->type != rhs_t->type)
+    {
+        if (TYPE_is_floating_type(lhs_t))
+        {
+            if (TYPE_F32 == lhs_t->type)
+            {
+                *lhs = LLVMBuildFPExt(builder, *lhs, LLVMTypeOf(*rhs), "fpexttmp");
+            }
+            else
+            {
+
+                *rhs = LLVMBuildFPExt(builder, *rhs, LLVMTypeOf(*lhs), "fpexttmp");
+            }
+
+        }
+        else if (LLVMGetIntTypeWidth(LLVMTypeOf(*lhs)) < LLVMGetIntTypeWidth(LLVMTypeOf(*rhs)))
+        {
+            *lhs = LLVMBuildIntCast2(builder, *lhs, LLVMTypeOf(*rhs), gen_ttype_is_signed(rhs_t), "intcasttmp");
+        }
+        else
+        {
+            *rhs = LLVMBuildIntCast2(builder, *rhs, LLVMTypeOf(*lhs), gen_ttype_is_signed(lhs_t), "intcasttmp");
+        }
+
+
+        (void) TYPE_free_type(lhs_t);
+        lhs_t = NULL;
+        (void) TYPE_free_type(rhs_t);
+        rhs_t = NULL;
+
+        return true;
+    }
+
+    (void) TYPE_free_type(lhs_t);
+    lhs_t = NULL;
+    (void) TYPE_free_type(rhs_t);
+    rhs_t = NULL;
+    return false;
+}
+
+
+/**
+ * @brief Clearing currently defined named values.
+ */
+void gen_named_values_clear()
+{
+    t_named_value *named_value = NULL, *named_value_iter = NULL;
+
+    HASH_ITER(hh, named_values, named_value, named_value_iter) {
+        HASH_DEL(named_values, named_value);
+        if (NULL != named_value)
+        {
+            if (NULL != named_value->name)
+            {
+                (void) free((char *) named_value->name);
+                named_value->name = NULL;
+            }
+
+            if (NULL != named_value->ttype)
+            {
+                (void) TYPE_free_type(named_value->ttype);
+                named_value->ttype = NULL;
+            }
+
+            (void) free(named_value);
+            named_value = NULL;
+        }
+    }
+
+}
+
+/**
+ * @brief Convert Luka type to LLVM type.
+ *
+ * @param[in] type the Luka type to convert.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the LLVM type.
+ */
+LLVMTypeRef gen_type_to_llvm_type(t_type *type, t_logger *logger)
+{
+    t_struct_info *struct_info = NULL;
+
+    switch (type->type)
+    {
+    case TYPE_ANY:
+        return LLVMInt8Type();
+    case TYPE_BOOL:
+        return LLVMInt1Type();
+    case TYPE_SINT8:
+        return LLVMInt8Type();
+    case TYPE_SINT16:
+        return LLVMInt16Type();
+    case TYPE_SINT32:
+        return LLVMInt32Type();
+    case TYPE_SINT64:
+        return LLVMInt64Type();
+    case TYPE_UINT8:
+        return LLVMInt8Type();
+    case TYPE_UINT16:
+        return LLVMInt16Type();
+    case TYPE_UINT32:
+        return LLVMInt32Type();
+    case TYPE_UINT64:
+        return LLVMInt64Type();
+    case TYPE_F32:
+        return LLVMFloatType();
+    case TYPE_F64:
+        return LLVMDoubleType();
+    case TYPE_STRING:
+        return LLVMPointerType(LLVMInt8Type(), 0);
+    case TYPE_VOID:
+        return LLVMVoidType();
+    case TYPE_PTR:
+        return LLVMPointerType(gen_type_to_llvm_type(type->inner_type, logger), 0);
+    case TYPE_ARRAY:
+        if (NULL != type->payload)
+        {
+            return LLVMArrayType(gen_type_to_llvm_type(type->inner_type, logger), (size_t)type->payload);
+        }
+        return LLVMPointerType(gen_type_to_llvm_type(type->inner_type, logger), 0);
+    case TYPE_STRUCT:
+        HASH_FIND_STR(struct_infos, (char*)type->payload, struct_info);
+        if (NULL != struct_info)
+        {
+            return struct_info->struct_type;
+        }
+
+        (void) LOGGER_log(logger, L_ERROR, "gen_type_to_llvm_type: I don't know how to translate struct named %s to LLVM types without a previous definition.\n",
+                          type);
+        (void) exit(LUKA_CODEGEN_ERROR);
+
+    default:
+        (void) LOGGER_log(logger, L_ERROR, "gen_type_to_llvm_type: I don't know how to translate type %d to LLVM types.\n",
+                          type);
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
+}
+
+/**
+ * @brief Create an alloca in the entry block of a function for a new named_value.
+ *
+ * @param[in] function the function to create the alloca inside.
+ * @param[in] type the type that should be allocated for.
+ * @param[in] var_name the name of the variable.
+ *
+ * @return an alloca instruction.
+ */
 LLVMValueRef gen_create_entry_block_allca(LLVMValueRef function,
                                           LLVMTypeRef type,
                                           const char *var_name)
@@ -187,20 +357,15 @@ LLVMValueRef gen_create_entry_block_allca(LLVMValueRef function,
     return alloca_inst;
 }
 
-bool ttype_is_signed(t_type *type)
-{
-    switch (type->type)
-    {
-    case TYPE_SINT8:
-    case TYPE_SINT16:
-    case TYPE_SINT32:
-    case TYPE_SINT64:
-        return true;
-    default:
-        return false;
-    }
-}
-
+/**
+ * @brief Get a LLVM cast operator that converts from `type` to `dest_type`.
+ *
+ * @param[in] type the type to convert from.
+ * @param[in] dest_type the type to convert to.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the opcode that should be used to cast from `type` to `dest_type`.
+ */
 LLVMOpcode gen_llvm_get_cast_op(LLVMTypeRef type, LLVMTypeRef dest_type, t_logger *logger)
 {
     t_type *ttype = gen_llvm_type_to_ttype(type, logger), *dest_ttype = gen_llvm_type_to_ttype(dest_type, logger);
@@ -217,7 +382,7 @@ LLVMOpcode gen_llvm_get_cast_op(LLVMTypeRef type, LLVMTypeRef dest_type, t_logge
         {
             opcode = LLVMFPTrunc;
         }
-        else if (ttype_is_signed(dest_ttype))
+        else if (gen_ttype_is_signed(dest_ttype))
         {
             opcode = LLVMFPToSI;
         }
@@ -230,7 +395,7 @@ LLVMOpcode gen_llvm_get_cast_op(LLVMTypeRef type, LLVMTypeRef dest_type, t_logge
     {
         if ((LLVMDoubleTypeKind == type_kind) || (LLVMFloatTypeKind == type_kind))
         {
-            if (ttype_is_signed(ttype))
+            if (gen_ttype_is_signed(ttype))
             {
                 opcode = LLVMSIToFP;
             }
@@ -240,7 +405,7 @@ LLVMOpcode gen_llvm_get_cast_op(LLVMTypeRef type, LLVMTypeRef dest_type, t_logge
 
         else if (LLVMGetIntTypeWidth(dest_type) > LLVMGetIntTypeWidth(type))
         {
-            if (ttype_is_signed(dest_ttype))
+            if (gen_ttype_is_signed(dest_ttype))
             {
                 opcode = LLVMSExt;
             }
@@ -268,6 +433,16 @@ LLVMOpcode gen_llvm_get_cast_op(LLVMTypeRef type, LLVMTypeRef dest_type, t_logge
     return opcode;
 }
 
+/**
+ * @brief Cast a LLVM value to a new type.
+ *
+ * @param[in] builder the LLVM IR builder.
+ * @param[in] original_value the value that should be casted.
+ * @param[in] dest_type the type the value should be casted to.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the value casted to the `dest_type`.
+ */
 LLVMValueRef gen_codegen_cast(LLVMBuilderRef builder,
                               LLVMValueRef original_value,
                               LLVMTypeRef dest_type,
@@ -283,6 +458,13 @@ LLVMValueRef gen_codegen_cast(LLVMBuilderRef builder,
     return LLVMBuildCast(builder, gen_llvm_get_cast_op(type, dest_type, logger), original_value, dest_type, "casttmp");
 }
 
+/**
+ * @brief Checks if a binary operator is a condition operator.
+ *
+ * @param[in] op the binary operator.
+ *
+ * @return whether the binary operator is a condition operator.
+ */
 bool gen_is_cond_op(t_ast_binop_type op) {
     switch (op) {
     case BINOP_LESSER:
@@ -299,19 +481,29 @@ bool gen_is_cond_op(t_ast_binop_type op) {
     }
 }
 
+/**
+ * @brief Cast both hand sides to floating point if one of them is a floating point type.
+ *
+ * @param[in,out] lhs the left hand side.
+ * @param[in,out] rhs the right hand side.
+ * @param[in] builder the LLVM IR builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return whether a cast has happend.
+ */
 bool gen_llvm_cast_to_fp_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBuilderRef builder, t_logger *logger) {
     t_type *lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*lhs), logger);
     t_type *rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*rhs), logger);
 
     if (TYPE_is_floating_type(lhs_t) || TYPE_is_floating_type(rhs_t)) {
         if (TYPE_is_floating_type(lhs_t) && !TYPE_is_floating_type(rhs_t)) {
-            if (ttype_is_signed(rhs_t)) {
+            if (gen_ttype_is_signed(rhs_t)) {
                 *rhs = LLVMBuildSIToFP(builder, *rhs, LLVMTypeOf(*lhs), "sitofpcasttmp");
             } else {
                 *rhs = LLVMBuildUIToFP(builder, *rhs, LLVMTypeOf(*lhs), "uitofpcasttmp");
             }
         } else if (!TYPE_is_floating_type(lhs_t) && TYPE_is_floating_type(rhs_t)) {
-            if (ttype_is_signed(lhs_t)) {
+            if (gen_ttype_is_signed(lhs_t)) {
                 *lhs = LLVMBuildSIToFP(builder, *lhs, LLVMTypeOf(*rhs), "sitofpcasttmp");
             } else {
                 *lhs = LLVMBuildUIToFP(builder, *lhs, LLVMTypeOf(*rhs), "uitofpcasttmp");
@@ -335,14 +527,24 @@ bool gen_llvm_cast_to_fp_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBui
     return false;
 }
 
+/**
+ * @brief Cast both hand sides to signed if one of them is a signed type.
+ *
+ * @param[in,out] lhs the left hand side.
+ * @param[in,out] rhs the right hand side.
+ * @param[in] builder the LLVM IR builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return whether a cast has happend.
+ */
 bool gen_llvm_cast_to_signed_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBuilderRef builder, t_logger *logger) {
     t_type *lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*lhs), logger);
     t_type *rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*rhs), logger);
 
-    if (ttype_is_signed(lhs_t) || ttype_is_signed(rhs_t)) {
-        if (ttype_is_signed(lhs_t) && !ttype_is_signed(rhs_t)) {
+    if (gen_ttype_is_signed(lhs_t) || gen_ttype_is_signed(rhs_t)) {
+        if (gen_ttype_is_signed(lhs_t) && !gen_ttype_is_signed(rhs_t)) {
             *rhs = LLVMBuildIntCast2(builder, *rhs, LLVMTypeOf(*lhs), true, "signedcasttmp");
-        } else if (!ttype_is_signed(lhs_t) && ttype_is_signed(rhs_t)) {
+        } else if (!gen_ttype_is_signed(lhs_t) && gen_ttype_is_signed(rhs_t)) {
             *lhs = LLVMBuildIntCast2(builder, *lhs, LLVMTypeOf(*rhs), true, "signedcasttmp");
         }
 
@@ -363,6 +565,16 @@ bool gen_llvm_cast_to_signed_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLV
     return false;
 }
 
+/**
+ * @brief Cast a null to be a null of the other type if one of the hand sides is null.
+ *
+ * @param[in,out] lhs the left hand side.
+ * @param[in,out] rhs the right hand side.
+ * @param[in] builder the LLVM IR builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return whether a cast has happend.
+ */
 bool gen_llvm_cast_null_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, t_logger *logger) {
     t_type *lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*lhs), logger);
     t_type *rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*rhs), logger);
@@ -392,50 +604,16 @@ bool gen_llvm_cast_null_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, t_logger
     rhs_t = NULL;
     return false;
 }
-bool gen_llvm_cast_sizes_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBuilderRef builder, t_logger *logger) {
-    t_type *lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*lhs), logger);
-    t_type *rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*rhs), logger);
 
-    if (lhs_t->type != rhs_t->type)
-    {
-        if (TYPE_is_floating_type(lhs_t))
-        {
-            if (TYPE_F32 == lhs_t->type)
-            {
-                *lhs = LLVMBuildFPExt(builder, *lhs, LLVMTypeOf(*rhs), "fpexttmp");
-            }
-            else
-            {
-
-                *rhs = LLVMBuildFPExt(builder, *rhs, LLVMTypeOf(*lhs), "fpexttmp");
-            }
-
-        }
-        else if (LLVMGetIntTypeWidth(LLVMTypeOf(*lhs)) < LLVMGetIntTypeWidth(LLVMTypeOf(*rhs)))
-        {
-            *lhs = LLVMBuildIntCast2(builder, *lhs, LLVMTypeOf(*rhs), ttype_is_signed(rhs_t), "intcasttmp");
-        }
-        else
-        {
-            *rhs = LLVMBuildIntCast2(builder, *rhs, LLVMTypeOf(*lhs), ttype_is_signed(lhs_t), "intcasttmp");
-        }
-
-
-        (void) TYPE_free_type(lhs_t);
-        lhs_t = NULL;
-        (void) TYPE_free_type(rhs_t);
-        rhs_t = NULL;
-
-        return true;
-    }
-
-    (void) TYPE_free_type(lhs_t);
-    lhs_t = NULL;
-    (void) TYPE_free_type(rhs_t);
-    rhs_t = NULL;
-    return false;
-}
-
+/**
+ * @brief Get LLVM opcode for the binary operator `op` and cast `lhs` and `rhs` if needed.
+ *
+ * @param[in] op the binary operator.
+ * @param[in,out] lhs a pointer to the left operand of the binary expression.
+ * @param[in,out] rhs a pointer to the right operand of the binary expression.
+ * @param[in] builder the LLVM IR builder.
+ * @param[in] logger a logger that can be used to log messages.
+ */
 LLVMOpcode gen_get_llvm_opcode(t_ast_binop_type op, LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBuilderRef builder, t_logger *logger) {
     switch (op)
     {
@@ -490,6 +668,15 @@ LLVMOpcode gen_get_llvm_opcode(t_ast_binop_type op, LLVMValueRef *lhs, LLVMValue
     }
 }
 
+/**
+ * @brief Checks if the comparison between `lhs` and `rhs` will be an integer comparison.
+ *
+ * @param[in] lhs the left operand of the comparison.
+ * @param[in] rhs the right operand of the comparison.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return whether the comparison will be an integer comparison.
+ */
 bool gen_is_icmp(LLVMValueRef lhs, LLVMValueRef rhs, t_logger *logger) {
     t_type *lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(lhs), logger);
     t_type *rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(rhs), logger);
@@ -503,6 +690,17 @@ bool gen_is_icmp(LLVMValueRef lhs, LLVMValueRef rhs, t_logger *logger) {
     return is_icmp;
 }
 
+/**
+ * @brief Get a LLVM integer comparison opcode for `op`.
+ *
+ * @param[in] op the binary operator.
+ * @param[in,out] lhs the left operand of the comparison.
+ * @param[in,out] rhs the right operand of the comparison.
+ * @param[in] builder the LLVM IR builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return an integer predicate for the comparison.
+ */
 LLVMIntPredicate gen_llvm_get_int_predicate(t_ast_binop_type op, LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBuilderRef builder, t_logger *logger) {
     switch (op) {
     case BINOP_LESSER:
@@ -551,6 +749,17 @@ LLVMIntPredicate gen_llvm_get_int_predicate(t_ast_binop_type op, LLVMValueRef *l
     }
 }
 
+/**
+ * @brief Get a LLVM real comparison opcode for `op`.
+ *
+ * @param[in] op the binary operator.
+ * @param[in,out] lhs the left operand of the comparison.
+ * @param[in,out] rhs the right operand of the comparison.
+ * @param[in] builder the LLVM IR builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return a real predicate for the comparison.
+ */
 LLVMRealPredicate gen_llvm_get_real_predicate(t_ast_binop_type op, LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBuilderRef builder, t_logger *logger) {
     (void) gen_llvm_cast_to_fp_if_needed(lhs, rhs, builder, logger);
     switch (op) {
@@ -574,6 +783,11 @@ LLVMRealPredicate gen_llvm_get_real_predicate(t_ast_binop_type op, LLVMValueRef 
     }
 }
 
+/**
+ * @brief Get the address of the expression of `node`.
+ *
+ * @param[in] node the AST node.
+ */
 LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module, LLVMBuilderRef builder, t_logger *logger)
 {
     switch (node->type)
@@ -656,6 +870,16 @@ LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module, LLVMBuilder
     }
 }
 
+/**
+ * @brief Generate LLVM IR for an unary expression.
+ *
+ * @param[in] n the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the unary expression.
+ */
 LLVMValueRef gen_codegen_unexpr(t_ast_node *n,
                                 LLVMModuleRef module,
                                 LLVMBuilderRef builder,
@@ -711,6 +935,16 @@ LLVMValueRef gen_codegen_unexpr(t_ast_node *n,
     }
 }
 
+/**
+ * @brief Generate LLVM IR for a binary expression.
+ *
+ * @param[in] n the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the binary expression.
+ */
 LLVMValueRef gen_codegen_binexpr(t_ast_node *n,
                                  LLVMModuleRef module,
                                  LLVMBuilderRef builder,
@@ -753,6 +987,16 @@ LLVMValueRef gen_codegen_binexpr(t_ast_node *n,
     return LLVMBuildBinOp(builder, opcode, lhs, rhs, "binoptmp");
 }
 
+/**
+ * @brief Generate LLVM IR for a function prototype.
+ *
+ * @param[in] n the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the function prototype.
+ */
 LLVMValueRef gen_codegen_prototype(t_ast_node *n,
                                    LLVMModuleRef module,
                                    LLVMBuilderRef UNUSED(builder),
@@ -799,6 +1043,17 @@ LLVMValueRef gen_codegen_prototype(t_ast_node *n,
 
 }
 
+/**
+ * @brief Generate LLVM IR for a vector of statements.
+ *
+ * @param[in] statements a vector of AST nodes for the statements.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[out] has_return_stmt whether there's a return statement in one of these statements.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the statements.
+ */
 LLVMValueRef gen_codegen_stmts(t_vector *statements,
                                LLVMModuleRef module,
                                LLVMBuilderRef builder,
@@ -828,6 +1083,16 @@ LLVMValueRef gen_codegen_stmts(t_vector *statements,
     return ret_val;
 }
 
+/**
+ * @brief Generate LLVM IR for a function.
+ *
+ * @param[in] n the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the function.
+ */
 LLVMValueRef gen_codegen_function(t_ast_node *n,
                                   LLVMModuleRef module,
                                   LLVMBuilderRef builder,
@@ -942,6 +1207,16 @@ LLVMValueRef gen_codegen_function(t_ast_node *n,
     return func;
 }
 
+/**
+ * @brief Generate LLVM IR for a return statement.
+ *
+ * @param[in] n the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the return statement.
+ */
 LLVMValueRef gen_codegen_return_stmt(t_ast_node *n,
                                      LLVMModuleRef module,
                                      LLVMBuilderRef builder,
@@ -964,6 +1239,16 @@ LLVMValueRef gen_codegen_return_stmt(t_ast_node *n,
     return NULL;
 }
 
+/**
+ * @brief Generate LLVM IR for an if expression.
+ *
+ * @param[in] n the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the if expression.
+ */
 LLVMValueRef gen_codegen_if_expr(t_ast_node *n,
                                  LLVMModuleRef module,
                                  LLVMBuilderRef builder,
@@ -1059,6 +1344,16 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n,
     return phi;
 }
 
+/**
+ * @brief Generate LLVM IR for a while expression.
+ *
+ * @param[in] n the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the while expression.
+ */
 LLVMValueRef gen_codegen_while_expr(t_ast_node *n,
                                  LLVMModuleRef module,
                                  LLVMBuilderRef builder,
@@ -1111,6 +1406,16 @@ LLVMValueRef gen_codegen_while_expr(t_ast_node *n,
     return body_value;
 }
 
+/**
+ * @brief Generate LLVM IR for a cast expression.
+ *
+ * @param[in] node the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the cast expression.
+ */
 LLVMValueRef gen_codegen_cast_expr(t_ast_node *node,
                                    LLVMModuleRef module,
                                    LLVMBuilderRef builder,
@@ -1125,6 +1430,16 @@ LLVMValueRef gen_codegen_cast_expr(t_ast_node *node,
     return gen_codegen_cast(builder, expr, dest_type, logger);
 }
 
+/**
+ * @brief Generate LLVM IR for a variable reference.
+ *
+ * @param[in] node the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the variable reference.
+ */
 LLVMValueRef gen_codegen_variable(t_ast_node *node,
                                   LLVMModuleRef UNUSED(module),
                                   LLVMBuilderRef builder,
@@ -1143,6 +1458,16 @@ LLVMValueRef gen_codegen_variable(t_ast_node *node,
     (void) exit(LUKA_CODEGEN_ERROR);
 }
 
+/**
+ * @brief Generate LLVM IR for a let statement.
+ *
+ * @param[in] node the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the let statement.
+ */
 LLVMValueRef gen_codegen_let_stmt(t_ast_node *node,
                                   LLVMModuleRef module,
                                   LLVMBuilderRef builder,
@@ -1184,6 +1509,16 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node,
     return NULL;
 }
 
+/**
+ * @brief Generate LLVM IR for an assignment expression.
+ *
+ * @param[in] node the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the assignment expression.
+ */
 LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node,
                                          LLVMModuleRef module,
                                          LLVMBuilderRef builder,
@@ -1279,6 +1614,16 @@ LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node,
     return rhs;
 }
 
+/**
+ * @brief Generate LLVM IR for a call expression.
+ *
+ * @param[in] node the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the call expression.
+ */
 LLVMValueRef gen_codegen_call(t_ast_node *node,
                               LLVMModuleRef module,
                               LLVMBuilderRef builder,
@@ -1365,6 +1710,16 @@ cleanup:
     return call;
 }
 
+/**
+ * @brief Generate LLVM IR for an expression statement.
+ *
+ * @param[in] n the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the expression statement.
+ */
 LLVMValueRef gen_codegen_expression_stmt(t_ast_node *n,
                                          LLVMModuleRef module,
                                          LLVMBuilderRef builder,
@@ -1379,6 +1734,16 @@ LLVMValueRef gen_codegen_expression_stmt(t_ast_node *n,
     return NULL;
 }
 
+/**
+ * @brief Generate LLVM IR for a break statement.
+ *
+ * @param[in] n the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the break statement.
+ */
 LLVMValueRef gen_codegen_break_stmt(t_ast_node *UNUSED(n),
                                     LLVMModuleRef UNUSED(module),
                                     LLVMBuilderRef builder,
@@ -1401,6 +1766,16 @@ LLVMValueRef gen_codegen_break_stmt(t_ast_node *UNUSED(n),
     return NULL;
 }
 
+/**
+ * @brief Generate LLVM IR for a number literal.
+ *
+ * @param[in] n the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the number literal.
+ */
 LLVMValueRef gen_codegen_number(t_ast_node *node, t_logger *logger)
 {
     LLVMTypeRef type = gen_type_to_llvm_type(node->number.type, logger);
@@ -1432,6 +1807,16 @@ LLVMValueRef gen_codegen_number(t_ast_node *node, t_logger *logger)
     }
 }
 
+/**
+ * @brief Generate LLVM IR for a struct definition.
+ *
+ * @param[in] n the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the struct definition.
+ */
 LLVMValueRef gen_codegen_struct_definition(t_ast_node *node,
                                            LLVMModuleRef UNUSED(module),
                                            LLVMBuilderRef UNUSED(builder),
@@ -1510,6 +1895,16 @@ cleanup:
     return NULL;
 }
 
+/**
+ * @brief Generate LLVM IR for a struct value.
+ *
+ * @param[in] n the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the struct value.
+ */
 LLVMValueRef gen_codegen_struct_value(t_ast_node *node,
                                       LLVMModuleRef module,
                                       LLVMBuilderRef builder,
@@ -1534,40 +1929,16 @@ LLVMValueRef gen_codegen_struct_value(t_ast_node *node,
     return struct_value;
 }
 
-
-LLVMValueRef gen_get_struct_field_pointer(t_named_value *variable,
-                                          char *key,
-                                          LLVMBuilderRef builder,
-                                          t_logger *logger)
-{
-    LLVMValueRef indices[2] = { LLVMConstInt(LLVMInt32Type(), 0, 0), NULL };
-    t_struct_info *struct_info = NULL;
-
-    HASH_FIND_STR(struct_infos, (char*)variable->ttype->payload, struct_info);
-
-    if (NULL == struct_info)
-    {
-        (void) LOGGER_log(logger, L_ERROR, "Couldn't find struct info.\n");
-        (void) exit(LUKA_CODEGEN_ERROR);
-    }
-
-    for (size_t i = 0; i < struct_info->number_of_fields; ++i)
-    {
-        if ((NULL != struct_info->struct_fields) && (0 == strcmp(key, struct_info->struct_fields[i])))
-        {
-            indices[1] = LLVMConstInt(LLVMInt32Type(), i, 0);
-        }
-    }
-
-    if (NULL == indices[1])
-    {
-        (void) LOGGER_log(logger, L_ERROR, "`%s` is not a field in struct `%s`.\n", key, struct_info->struct_name);
-        (void) exit(LUKA_CODEGEN_ERROR);
-    }
-
-    return LLVMBuildGEP(builder, variable->alloca_inst, indices, 2, "geptmp");
-}
-
+/**
+ * @brief Generate LLVM IR for an enum definition.
+ *
+ * @param[in] n the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the enum definition.
+ */
 LLVMValueRef gen_codegen_enum_definition(t_ast_node *node,
                                            LLVMModuleRef UNUSED(module),
                                            LLVMBuilderRef UNUSED(builder),
@@ -1649,6 +2020,16 @@ cleanup:
     return NULL;
 }
 
+/**
+ * @brief Generate LLVM IR for a get expression.
+ *
+ * @param[in] n the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the get expression.
+ */
 LLVMValueRef gen_codegen_get_expr(t_ast_node *node,
                                   LLVMModuleRef module,
                                   LLVMBuilderRef builder,
@@ -1692,6 +2073,16 @@ LLVMValueRef gen_codegen_get_expr(t_ast_node *node,
     return load;
 }
 
+/**
+ * @brief Generate LLVM IR for a array dereference.
+ *
+ * @param[in] n the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the array dereference.
+ */
 LLVMValueRef gen_codegen_array_deref(t_ast_node *node,
                                      LLVMModuleRef module,
                                      LLVMBuilderRef builder,
@@ -1700,6 +2091,16 @@ LLVMValueRef gen_codegen_array_deref(t_ast_node *node,
     return LLVMBuildLoad(builder, gen_get_address(node, module, builder, logger), "loadtmp");
 }
 
+/**
+ * @brief Generate LLVM IR for a literal.
+ *
+ * @param[in] n the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the built LLVM IR for the literal.
+ */
 LLVMValueRef gen_codegen_literal(t_ast_node *node,
                                  LLVMModuleRef UNUSED(module),
                                  LLVMBuilderRef UNUSED(builder),
@@ -1786,33 +2187,6 @@ void GEN_codegen_initialize()
 {
     loop_blocks = calloc(1, sizeof(t_vector));
     (void) vector_setup(loop_blocks, 6 , sizeof(LLVMBasicBlockRef));
-}
-
-void gen_named_values_clear()
-{
-    t_named_value *named_value = NULL, *named_value_iter = NULL;
-
-    HASH_ITER(hh, named_values, named_value, named_value_iter) {
-        HASH_DEL(named_values, named_value);
-        if (NULL != named_value)
-        {
-            if (NULL != named_value->name)
-            {
-                (void) free((char *) named_value->name);
-                named_value->name = NULL;
-            }
-
-            if (NULL != named_value->ttype)
-            {
-                (void) TYPE_free_type(named_value->ttype);
-                named_value->ttype = NULL;
-            }
-
-            (void) free(named_value);
-            named_value = NULL;
-        }
-    }
-
 }
 
 void GEN_codegen_reset()

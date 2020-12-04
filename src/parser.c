@@ -1,30 +1,171 @@
+/** @file parser.c */
 #include "parser.h"
 #include "ast.h"
 #include "type.h"
 
 #include <string.h>
 
+/**
+ * @brief Parse an expression.
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return an expression AST node.
+ */
 t_ast_node *parser_parse_expression(t_parser *parser);
+
+/**
+ * @brief Parse an assignment (or a lower precedence expression).
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return an assignment AST node.
+ */
+t_ast_node *parser_parse_assignment(t_parser *parser);
+
+/**
+ * @brief Parse an equality (or a lower precedence expression).
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return an equality AST node.
+ */
 t_ast_node *parser_parse_equality(t_parser *parser);
+
+/**
+ * @brief Parse a comparison (or a lower precedence expression).
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return a comparison AST node.
+ */
 t_ast_node *parser_parse_comparison(t_parser *parser);
+
+/**
+ * @brief Parse a term (or a lower precedence expression).
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return a term AST node.
+ */
 t_ast_node *parser_parse_term(t_parser *parser);
+
+/**
+ * @brief Parse a factor (or a lower precedence expression).
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return a factor AST node.
+ */
 t_ast_node *parser_parse_factor(t_parser *parser);
+
+/**
+ * @brief Parse a unary (or a lower precedence expression).
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return a unary AST node.
+ */
 t_ast_node *parser_parse_unary(t_parser *parser);
+
+/**
+ * @brief Parse a primary (or a lower precedence expression).
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return a primary AST node.
+ */
 t_ast_node *parser_parse_primary(t_parser *parser);
 
-t_vector *parse_statements(t_parser *parser);
+/**
+ * @brief Parse zero or more statements.
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return a vector of statement AST nodes.
+ */
+t_vector *parser_parse_statements(t_parser *parser);
+
+/**
+ * @brief Parse one or more struct fields.
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return a vector of #t_struct_field * that represent the parsed struct fields (name and type) or NULL if failed to parse the struct fields.
+ */
 t_vector *parser_parse_struct_fields(t_parser *parser);
+
+/**
+ * @brief Parse a struct field.
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return a #t_struct_field * that represent the parsed struct field (name and type).
+ */
 t_struct_field *parser_parse_struct_field(t_parser *parser);
+
+/**
+ * @brief Check if an identifier is a struct name known by the parser.
+ *
+ * @param[in] parser the parser to parse with.
+ * @param[in] ident_name the identifier to check.
+ *
+ * @return whether the @p ident_name is a name of a struct.
+ */
 bool parser_is_struct_name(t_parser *parser, const char *ident_name);
 
+/**
+ * @brief Parse one or more enum fields.
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return a vector of #t_enum_field * that represent the parsed enum fields (name and value) or NULL if failed to parse the enum fields.
+ */
 t_vector *parser_parse_enum_fields(t_parser *parser);
+
+/**
+ * @brief Parse a enum field.
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return a #t_enum_field * that represent the parsed enum field (name and value).
+ */
 t_enum_field *parser_parse_enum_field(t_parser *parser);
+
+/**
+ * @brief Check if an identifier is a enum name known by the parser.
+ *
+ * @param[in] parser the parser to parse with.
+ * @param[in] ident_name the identifier to check.
+ *
+ * @return whether the @p ident_name is a name of a enum.
+ */
 bool parser_is_enum_name(t_parser *parser, const char *ident_name);
 
-t_ast_node *parse_prototype(t_parser *parser);
-t_ast_node *parser_parse_assignment(t_parser *parser);
-t_ast_node *parse_unary_expr(t_parser *parser);
+/**
+ * @brief Parse a function.
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return a function AST node.
+ */
+t_ast_node *parser_parse_function(t_parser *parser);
 
+/**
+ * @brief Parse a function prototype.
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return a function prototype AST node.
+ */
+t_ast_node *parser_parse_prototype(t_parser *parser);
+
+/**
+ * @brief Report a parser error.
+ *
+ * @param[in] parser the parser to report with.
+ * @param[in] message the message to report.
+ */
 void ERR(t_parser *parser, const char *message)
 {
     t_token *token = NULL;
@@ -37,6 +178,14 @@ void ERR(t_parser *parser, const char *message)
     (void) exit(1);
 }
 
+/**
+ * @brief Expect a token from a certain type to be the next token in the parser's tokens vector.
+ *
+ * @param[in] parser the parser to use.
+ * @param[in] type the type of the expected token.
+ *
+ * @return true if the expected token is the next token or false otherwise.
+ */
 bool EXPECT(t_parser *parser, t_toktype type)
 {
     t_token *token = NULL;
@@ -48,6 +197,14 @@ bool EXPECT(t_parser *parser, t_toktype type)
     return token->type == type;
 }
 
+/**
+ * @brief Expect a token from a certain type to be the current token in the parser's tokens vector.
+ *
+ * @param[in] parser the parser to use.
+ * @param[in] type the type of the expected token.
+ *
+ * @return true if the expected token is the current token or false otherwise.
+ */
 bool MATCH(t_parser *parser, t_toktype type)
 {
     t_token *token = NULL;
@@ -59,12 +216,24 @@ bool MATCH(t_parser *parser, t_toktype type)
     return token->type == type;
 }
 
+/**
+ * @brief Advance the parser's tokens index to the next token.
+ *
+ * @param[in,out] parser the parser to use.
+ */
 void ADVANCE(t_parser *parser)
 {
     ++parser->index;
     (void) assert(parser->index < parser->tokens->size);
 }
 
+/**
+ * @brief If the expected token type is equal to the next token's type, advance, otherwise report an error.
+ *
+ * @param[in,out] parser the parser to use.
+ * @param[in] type the expected token type.
+ * @param[in] message the message to report if the expected token is not the next token.
+ */
 void EXPECT_ADVANCE(t_parser *parser, t_toktype type, const char *message)
 {
     if (!EXPECT(parser, type))
@@ -75,6 +244,13 @@ void EXPECT_ADVANCE(t_parser *parser, t_toktype type, const char *message)
     ADVANCE(parser);
 }
 
+/**
+ * @brief If the expected token type is equal to the current token's type, advance, otherwise report an error.
+ *
+ * @param[in,out] parser the parser to use.
+ * @param[in] type the expected token type.
+ * @param[in] message the message to report if the expected token type is not the current token's type.
+ */
 void MATCH_ADVANCE(t_parser *parser, t_toktype type, const char *message)
 {
     if (!MATCH(parser, type))
@@ -85,12 +261,27 @@ void MATCH_ADVANCE(t_parser *parser, t_toktype type, const char *message)
     ADVANCE(parser);
 }
 
+/**
+ * Checks if the AST node is a compound expression node.
+ *
+ * @param[in] node the AST node.
+ *
+ * @return whether the given @p node is a compound expression AST node.
+ */
 bool parser_is_compound_expr(t_ast_node *node)
 {
     return (node->type == AST_TYPE_WHILE_EXPR) || (node->type == AST_TYPE_IF_EXPR);
 }
 
-t_type *parse_type(t_parser *parser, bool parse_prefix)
+/**
+ * @brief Parse a type.
+ *
+ * @param[in,out] parser the parser to use.
+ * @param[in] parse_prefix whether the ":" should be parsed to.
+ *
+ * @return a #t_type * that matches the parsed type or a signed integer 32 bit type by default.
+ */
+t_type *parser_parse_type(t_parser *parser, bool parse_prefix)
 {
     t_token *token = NULL;
     t_type *type = NULL;
@@ -324,13 +515,13 @@ t_vector *PARSER_parse_top_level(t_parser *parser)
         {
         case T_FN:
         {
-            function = PARSER_parse_function(parser);
+            function = parser_parse_function(parser);
             (void) vector_push_back(functions, &function);
             break;
         }
         case T_EXTERN:
         {
-            prototype = parse_prototype(parser);
+            prototype = parser_parse_prototype(parser);
             function = AST_new_function(prototype, NULL);
             (void) vector_push_back(functions, &function);
             EXPECT_ADVANCE(parser, T_SEMI_COLON,
@@ -385,7 +576,15 @@ cleanup:
     return functions;
 }
 
-t_ast_unop_type parse_unop(t_token *token, t_logger *logger)
+/**
+ * @brief Parse a unary operator.
+ *
+ * @param[in] token the token to parse.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return a #t_ast_unop_type that matches the unary operator.
+ */
+t_ast_unop_type parser_parse_unop(t_token *token, t_logger *logger)
 {
     switch (token->type)
     {
@@ -400,13 +599,21 @@ t_ast_unop_type parse_unop(t_token *token, t_logger *logger)
     case T_BANG:
         return UNOP_NOT;
     default:
-        (void) LOGGER_log(logger, L_ERROR, "Unknown token in parse_unop at %ld:%ld\n", token->line,
+        (void) LOGGER_log(logger, L_ERROR, "Unknown token in parser_parse_unop at %ld:%ld\n", token->line,
                           token->offset);
         (void) exit(1);
     }
 }
 
-t_ast_binop_type parse_binop(t_token *token, t_logger *logger)
+/**
+ * @brief Parse a binary operator.
+ *
+ * @param[in] token the token to parse.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return a #t_ast_binop_type that matches the binary operator.
+ */
+t_ast_binop_type parser_parse_binop(t_token *token, t_logger *logger)
 {
     switch (token->type)
     {
@@ -431,13 +638,20 @@ t_ast_binop_type parse_binop(t_token *token, t_logger *logger)
     case T_GEQ:
         return BINOP_GEQ;
     default:
-        (void) LOGGER_log(logger, L_ERROR, "Unknown token in parse_binop at %ld:%ld\n", token->line,
+        (void) LOGGER_log(logger, L_ERROR, "Unknown token in parser_parse_binop at %ld:%ld\n", token->line,
                           token->offset);
         (void) exit(1);
     }
 }
 
-t_ast_node *parse_paren_expr(t_parser *parser)
+/**
+ * @brief Parse a parthesized expression.
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return an expression AST node.
+ */
+t_ast_node *parser_parse_paren_expr(t_parser *parser)
 {
     t_ast_node *expr;
     MATCH_ADVANCE(parser, T_OPEN_PAREN, "Expected '('");
@@ -476,7 +690,22 @@ bool parser_is_enum_name(t_parser *parser, const char *ident_name)
     return false;
 }
 
-t_ast_node *parse_ident_expr(t_parser *parser)
+/**
+ * @brief Parse an identifier expression.
+ *
+ * @details An identifier expression is any expression that starts with an identifier.
+ * An identifier expression can be any of the following:
+ * - Get Expression
+ * - Struct Value
+ * - Variable Reference
+ * - Array Dereference
+ * - Call Expression
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return an identifier expression AST node.
+ */
+t_ast_node *parser_parse_ident_expr(t_parser *parser)
 {
     t_token *token;
     t_ast_node *expr = NULL;
@@ -559,7 +788,7 @@ t_ast_node *parse_ident_expr(t_parser *parser)
             ADVANCE(parser);
             mutable = true;
         }
-        return AST_new_variable(ident_name, parse_type(parser, true), mutable);
+        return AST_new_variable(ident_name, parser_parse_type(parser, true), mutable);
     }
 
     ADVANCE(parser);
@@ -874,7 +1103,7 @@ t_ast_node *parser_parse_primary(t_parser *parser)
     {
     case T_IDENTIFIER:
     {
-        return parse_ident_expr(parser);
+        return parser_parse_ident_expr(parser);
     }
     case T_NUMBER:
     {
@@ -904,7 +1133,7 @@ t_ast_node *parser_parse_primary(t_parser *parser)
     }
     case T_OPEN_PAREN:
     {
-        return parse_paren_expr(parser);
+        return parser_parse_paren_expr(parser);
     }
     case T_STRING:
     {
@@ -938,7 +1167,14 @@ t_ast_node *parser_parse_primary(t_parser *parser)
     }
 }
 
-bool should_finish_expression(t_token *token)
+/**
+ * @brief Checks if the expression is over based on the given @p token.
+ *
+ * @param[in] token the token that may end the expression.
+ *
+ * @return whether the expression is over.
+ */
+bool parser_should_finish_expression(t_token *token)
 {
     if (T_OPEN_BRACE == token->type)
     {
@@ -994,11 +1230,11 @@ t_ast_node *parser_parse_expression(t_parser *parser)
         ADVANCE(parser);
         cond = parser_parse_expression(parser);
         --parser->index;
-        then_body = parse_statements(parser);
+        then_body = parser_parse_statements(parser);
         if (EXPECT(parser, T_ELSE))
         {
             ADVANCE(parser);
-            else_body = parse_statements(parser);
+            else_body = parser_parse_statements(parser);
         }
         else
         {
@@ -1014,7 +1250,7 @@ t_ast_node *parser_parse_expression(t_parser *parser)
         ADVANCE(parser);
         cond = parser_parse_expression(parser);
         --parser->index;
-        body = parse_statements(parser);
+        body = parser_parse_statements(parser);
         node = AST_new_while_expr(cond, body);
         break;
     }
@@ -1027,7 +1263,7 @@ t_ast_node *parser_parse_expression(t_parser *parser)
 
     if (MATCH(parser, T_AS))
     {
-        type = parse_type(parser, false);
+        type = parser_parse_type(parser, false);
         ADVANCE(parser);
         return AST_new_cast_expr(node, type);
     }
@@ -1061,7 +1297,14 @@ t_ast_node *parser_parse_assignment(t_parser *parser)
     return lhs;
 }
 
-t_ast_node *parse_statement(t_parser *parser)
+/**
+ * @brief Parse a statement.
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return a statement AST node.
+ */
+t_ast_node *parser_parse_statement(t_parser *parser)
 {
     t_ast_node *node = NULL, *expr = NULL, *var = NULL;
     t_token *token = NULL;
@@ -1094,7 +1337,7 @@ t_ast_node *parse_statement(t_parser *parser)
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
         if (EXPECT(parser, T_COLON))
         {
-            type = parse_type(parser, true);
+            type = parser_parse_type(parser, true);
         }
         EXPECT_ADVANCE(parser, T_EQUALS,
                        "Expected a '=' after ident in variable declaration");
@@ -1150,7 +1393,7 @@ t_ast_node *parse_statement(t_parser *parser)
             return node;
         }
 
-        if (should_finish_expression(token))
+        if (parser_should_finish_expression(token))
         {
             return expr;
         }
@@ -1163,7 +1406,7 @@ t_ast_node *parse_statement(t_parser *parser)
     return NULL;
 }
 
-t_vector *parse_statements(t_parser *parser)
+t_vector *parser_parse_statements(t_parser *parser)
 {
     t_vector *stmts = NULL;
     t_ast_node *stmt = NULL;
@@ -1188,7 +1431,7 @@ t_vector *parse_statements(t_parser *parser)
             ->type)
     {
         ADVANCE(parser);
-        stmt = parse_statement(parser);
+        stmt = parser_parse_statement(parser);
         (void) vector_push_back(stmts, &stmt);
         --parser->index;
     }
@@ -1200,7 +1443,7 @@ cleanup:
     return stmts;
 }
 
-t_ast_node *parse_prototype(t_parser *parser)
+t_ast_node *parser_parse_prototype(t_parser *parser)
 {
     char *name = NULL;
     char **args = NULL, **new_args = NULL;
@@ -1222,7 +1465,7 @@ t_ast_node *parse_prototype(t_parser *parser)
     {
         // No args
         ADVANCE(parser);
-        return_type = parse_type(parser, true);
+        return_type = parser_parse_type(parser, true);
         return AST_new_prototype(name, NULL, NULL, 0, return_type, vararg);
     }
 
@@ -1244,7 +1487,7 @@ t_ast_node *parse_prototype(t_parser *parser)
 
     if (T_THREE_DOTS == token->type)
     {
-        types[0] = parse_type(parser, true);
+        types[0] = parser_parse_type(parser, true);
         if (TYPE_ANY != types[0])
         {
             types[0]->type = TYPE_ANY;
@@ -1256,7 +1499,7 @@ t_ast_node *parse_prototype(t_parser *parser)
     }
     else
     {
-        types[0] = parse_type(parser, true);
+        types[0] = parser_parse_type(parser, true);
     }
     args[0] = strdup(token->content);
     arity = 1;
@@ -1296,7 +1539,7 @@ t_ast_node *parse_prototype(t_parser *parser)
 
         if (T_THREE_DOTS == token->type)
         {
-            types[arity - 1] = parse_type(parser, true);
+            types[arity - 1] = parser_parse_type(parser, true);
             if (TYPE_ANY != types[arity - 1])
             {
                 types[arity - 1]->type = TYPE_ANY;
@@ -1317,14 +1560,14 @@ t_ast_node *parse_prototype(t_parser *parser)
         }
         else
         {
-            types[arity - 1] = parse_type(parser, true);
+            types[arity - 1] = parser_parse_type(parser, true);
         }
         args[arity - 1] = strdup(token->content);
     }
 
     EXPECT_ADVANCE(parser, T_CLOSE_PAREN, "Expected a ')'");
 
-    return_type = parse_type(parser, true);
+    return_type = parser_parse_type(parser, true);
 
     if (arity != allocated)
     {
@@ -1418,11 +1661,16 @@ t_vector *parser_parse_struct_fields(t_parser *parser)
         }
     }
 
+    if (vector_is_empty(fields))
+    {
+        (void) LOGGER_log(parser->logger, L_ERROR, "Structs must have at least one field.");
+        goto cleanup;
+    }
+
     vector_shrink_to_fit(fields);
     return fields;
 
 cleanup:
-
     VECTOR_FOR_EACH(fields, field) {
         struct_field = ITERATOR_GET_AS(t_struct_field_ptr, &field);
         if (NULL != struct_field)
@@ -1463,7 +1711,7 @@ t_struct_field *parser_parse_struct_field(t_parser *parser)
     MATCH_ADVANCE(parser, T_IDENTIFIER, "Expected an identifier as a struct field name");
     --parser->index;
     struct_field->name = strdup(token->content);
-    struct_field->type = parse_type(parser, true);
+    struct_field->type = parser_parse_type(parser, true);
     ADVANCE(parser);
 
     return struct_field;
@@ -1626,12 +1874,12 @@ cleanup:
     return NULL;
 }
 
-t_ast_node *PARSER_parse_function(t_parser *parser)
+t_ast_node *parser_parse_function(t_parser *parser)
 {
     t_ast_node *prototype = NULL;
     t_vector *body = NULL;
-    prototype = parse_prototype(parser);
-    body = parse_statements(parser);
+    prototype = parser_parse_prototype(parser);
+    body = parser_parse_statements(parser);
     return AST_new_function(prototype, body);
 }
 

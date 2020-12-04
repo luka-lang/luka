@@ -1,3 +1,4 @@
+/** @file logger.c */
 #include "logger.h"
 
 #include <stdlib.h>
