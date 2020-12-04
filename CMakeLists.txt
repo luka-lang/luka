@@ -30,3 +30,7 @@ file(GLOB_RECURSE LIBS    libs/*)
 add_executable(luka ${SOURCES})
 
 target_link_libraries(luka ${LLVM_LIBRARIES} ${LLVM_LIBS} ${LIBS})
+
+add_custom_target(docs cd ${PROJECT_SOURCE_DIR}/docs
+  COMMAND doxygen && cd -
+  DEPENDS ${PROJECT_SOURCE_DIR}/docs/Doxyfile)
