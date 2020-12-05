@@ -4,92 +4,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "lib.h"
 #include "type.h"
 
-/**
- * @brief Dumps a type into a string representation.
- *
- * @param[in] type the type to dump.
- * @param[in] logger a logger that can be used to log messages.
- * @param[out] buffer the buffer to which the string representation will be written
- * @param[in] buffer_size the size of the buffer.
- *
- * @return the buffer with the written string representation of the type.
- */
-const char *ast_type_to_string(t_type *type, t_logger *logger, char *buffer, size_t buffer_size)
-{
-    if (type->mutable)
-    {
-        (void) snprintf(buffer, buffer_size, "mut ");
-        buffer = buffer + strlen("mut ");
-    }
-
-    switch (type->type)
-    {
-    case TYPE_ANY:
-        (void) snprintf(buffer, buffer_size, "any");
-        break;
-    case TYPE_BOOL:
-        (void) snprintf(buffer, buffer_size, "bool");
-        break;
-    case TYPE_SINT8:
-        (void) snprintf(buffer, buffer_size, "s8");
-        break;
-    case TYPE_SINT16:
-        (void) snprintf(buffer, buffer_size, "s16");
-        break;
-    case TYPE_SINT32:
-        (void) snprintf(buffer, buffer_size, "s32");
-        break;
-    case TYPE_SINT64:
-        (void) snprintf(buffer, buffer_size, "s64");
-        break;
-    case TYPE_UINT8:
-        (void) snprintf(buffer, buffer_size, "u8");
-        break;
-    case TYPE_UINT16:
-        (void) snprintf(buffer, buffer_size, "u16");
-        break;
-    case TYPE_UINT32:
-        (void) snprintf(buffer, buffer_size, "u32");
-        break;
-    case TYPE_UINT64:
-        (void) snprintf(buffer, buffer_size, "u64");
-        break;
-    case TYPE_F32:
-        (void) snprintf(buffer, buffer_size, "f32");
-        break;
-    case TYPE_F64:
-        (void) snprintf(buffer, buffer_size, "f64");
-        break;
-    case TYPE_STRING:
-        (void) snprintf(buffer, buffer_size, "string");
-        break;
-    case TYPE_VOID:
-        (void) snprintf(buffer, buffer_size, "void");
-        break;
-    case TYPE_PTR:
-        (void) ast_type_to_string(type->inner_type, logger, buffer, buffer_size);
-        (void) snprintf(buffer + strlen(buffer), buffer_size, "*");
-        break;
-    case TYPE_ARRAY:
-        (void) ast_type_to_string(type->inner_type, logger, buffer, buffer_size);
-        (void) snprintf(buffer + strlen(buffer), buffer_size, "[]");
-        break;
-    default:
-        (void) LOGGER_log(logger, L_ERROR, "ast_type_to_string: I don't know how to translate type %d to LLVM types.\n",
-                type);
-        (void) snprintf(buffer, buffer_size, "s32");
-        break;
-    }
-
-    if (type->mutable)
-    {
-        buffer = buffer - strlen("mut ");
-    }
-
-    return buffer;
-}
 
 t_ast_node *AST_new_number(t_type *type, void *value)
 {
@@ -936,77 +853,6 @@ char *ast_binop_to_str(t_ast_binop_type op, t_logger *logger)
 }
 
 /**
- * @brief Stringifying a string value.
- *
- * @param[in] source the string value.
- * @param[in] source_length the length of the source string.
- * @param[in] logger a logger that can be used to log messages.
- *
- * @return an escaped string.
- */
-char *ast_stringify(const char* source, size_t source_length, t_logger *logger)
-{
-    size_t i = 0;
-    size_t char_count = source_length;
-    size_t off = 0;
-    for (i = 0; i < source_length; ++i)
-    {
-        switch (source[i])
-        {
-        case '\n':
-        case '\t':
-        case '\\':
-        case '\"':
-            ++char_count;
-            break;
-        default:
-            break;
-        }
-    }
-
-    ++i;
-
-    char *str = calloc(sizeof(char), char_count + 1);
-    if (NULL == str)
-    {
-        (void) LOGGER_log(logger, L_ERROR, "Couldn't allocate memory for string in ast_stringify.\n");
-        return NULL;
-    }
-
-    for (i = 0; i < source_length && i + off < char_count; ++i)
-    {
-        switch (source[i])
-        {
-        case '\n':
-            str[i + off] = '\\';
-            str[i + off + 1] = 'n';
-            ++off;
-            break;
-        case '\t':
-            str[i + off] = '\\';
-            str[i + off + 1] = 't';
-            ++off;
-            break;
-        case '\\':
-            str[i + off] = '\\';
-            str[i + off + 1] = '\\';
-            ++off;
-            break;
-        case '\"':
-            str[i + off] = '\\';
-            str[i + off + 1] = '"';
-            ++off;
-            break;
-        default:
-            str[i + off] = source[i];
-        }
-    }
-
-    str[char_count] = '\0';
-    return str;
-}
-
-/**
  * @brief Getting a string representation of a literal.
  *
  * @param type the type of the literal.
@@ -1059,7 +905,7 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
         break;
     case AST_TYPE_STRING:
     {
-        char *stringified = ast_stringify(node->string.value, node->string.length, logger);
+        char *stringified = LIB_stringify(node->string.value, node->string.length, logger);
         (void) LOGGER_log(logger, L_DEBUG, "%*c\b AST string \"%s\"\n", offset, ' ', stringified);
         (void) free(stringified);
         break;
@@ -1102,7 +948,7 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
             for (i = 0; i < node->prototype.arity - 1; ++i)
             {
                 (void) memset(type_str, 0, sizeof(type_str));
-                (void) ast_type_to_string(node->prototype.types[i], logger, type_str, sizeof(type_str));
+                (void) TYPE_to_string(node->prototype.types[i], logger, type_str, sizeof(type_str));
                 (void) LOGGER_log(logger, L_DEBUG, "%*c\b %zu: (%s) %s\n", offset, '-', i, type_str, node->prototype.args[i]);
             }
         }
@@ -1113,13 +959,13 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
             for (i = 0; i < node->prototype.arity; ++i)
             {
                 (void) memset(type_str, 0, sizeof(type_str));
-                (void) ast_type_to_string(node->prototype.types[i], logger, type_str, sizeof(type_str));
+                (void) TYPE_to_string(node->prototype.types[i], logger, type_str, sizeof(type_str));
                 (void) LOGGER_log(logger, L_DEBUG, "%*c\b %zu: (%s) %s\n", offset, '-', i,
                     type_str, node->prototype.args[i]);
             }
         }
         (void) memset(type_str, 0, sizeof(type_str));
-        (void) ast_type_to_string(node->prototype.return_type, logger, type_str, sizeof(type_str));
+        (void) TYPE_to_string(node->prototype.return_type, logger, type_str, sizeof(type_str));
         (void) LOGGER_log(logger, L_DEBUG, "%*c\b Return Type -> %s\n", offset, '-',
                type_str);
         break;
@@ -1194,7 +1040,7 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
         if (NULL != node->cast_expr.type)
         {
             (void) memset(type_str, 0, sizeof(type_str));
-            ast_type_to_string(node->cast_expr.type, logger, type_str, sizeof(type_str));
+            TYPE_to_string(node->cast_expr.type, logger, type_str, sizeof(type_str));
             (void) LOGGER_log(logger, L_DEBUG, "%*c\b Type: %s\n", offset + 2, ' ', type_str);
         }
         break;
@@ -1303,7 +1149,7 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
                     if (NULL != struct_field->type)
                     {
                         (void) memset(type_str, 0, sizeof(type_str));
-                        (void) ast_type_to_string(struct_field->type, logger, type_str, sizeof(type_str));
+                        (void) TYPE_to_string(struct_field->type, logger, type_str, sizeof(type_str));
                         (void) LOGGER_log(logger, L_DEBUG, "%*c\b Type - %s\n", offset + 6, ' ', type_str);
                     }
                 }
@@ -1425,5 +1271,21 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
         (void) LOGGER_log(logger, L_DEBUG, "I don't know how to print type - %d\n", node->type);
         break;
     }
+    }
+}
+
+bool AST_is_cond_binop(t_ast_binop_type op)
+{
+    switch (op)
+    {
+    case BINOP_LESSER:
+    case BINOP_GREATER:
+    case BINOP_EQUALS:
+    case BINOP_NEQ:
+    case BINOP_LEQ:
+    case BINOP_GEQ:
+        return true;
+    default:
+        return false;
     }
 }

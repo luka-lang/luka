@@ -307,4 +307,13 @@ void AST_print_functions(t_vector *functions, int offset, t_logger *logger);
  */
 void AST_print_ast(t_ast_node *node, int offset, t_logger *logger);
 
+/**
+ * @brief Checks if a binary operator is a condition operator.
+ *
+ * @param[in] op the binary operator.
+ *
+ * @return whether the binary operator is a condition operator.
+ */
+bool AST_is_cond_binop(t_ast_binop_type op);
+
 #endif // __AST_H__

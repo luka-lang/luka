@@ -1,3 +1,4 @@
+/** @file lib.c */
 #include "lib.h"
 
 #include <stdlib.h>
@@ -42,4 +43,67 @@ void LIB_free_functions_vector(t_vector *functions, t_logger *logger)
     (void) vector_clear(functions);
     (void) vector_destroy(functions);
     (void) free(functions);
+    functions = NULL;
+}
+
+char *LIB_stringify(const char* source, size_t source_length, t_logger *logger)
+{
+    size_t i = 0;
+    size_t char_count = source_length;
+    size_t off = 0;
+    for (i = 0; i < source_length; ++i)
+    {
+        switch (source[i])
+        {
+        case '\n':
+        case '\t':
+        case '\\':
+        case '\"':
+            ++char_count;
+            break;
+        default:
+            break;
+        }
+    }
+
+    ++i;
+
+    char *str = calloc(sizeof(char), char_count + 1);
+    if (NULL == str)
+    {
+        (void) LOGGER_log(logger, L_ERROR, "Couldn't allocate memory for string in ast_stringify.\n");
+        return NULL;
+    }
+
+    for (i = 0; i < source_length && i + off < char_count; ++i)
+    {
+        switch (source[i])
+        {
+        case '\n':
+            str[i + off] = '\\';
+            str[i + off + 1] = 'n';
+            ++off;
+            break;
+        case '\t':
+            str[i + off] = '\\';
+            str[i + off + 1] = 't';
+            ++off;
+            break;
+        case '\\':
+            str[i + off] = '\\';
+            str[i + off + 1] = '\\';
+            ++off;
+            break;
+        case '\"':
+            str[i + off] = '\\';
+            str[i + off + 1] = '"';
+            ++off;
+            break;
+        default:
+            str[i + off] = source[i];
+        }
+    }
+
+    str[char_count] = '\0';
+    return str;
 }

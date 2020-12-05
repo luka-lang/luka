@@ -502,7 +502,7 @@ t_vector *PARSER_parse_top_level(t_parser *parser)
     if (NULL == functions)
     {
         (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for functions");
-        goto cleanup;
+        goto l_cleanup;
     }
 
     (void) vector_setup(functions, 5, sizeof(t_ast_node_ptr));
@@ -572,7 +572,7 @@ t_vector *PARSER_parse_top_level(t_parser *parser)
 
     (void) vector_shrink_to_fit(functions);
 
-cleanup:
+l_cleanup:
     return functions;
 }
 
@@ -738,7 +738,7 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
         if (NULL == struct_value_fields)
         {
             (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for struct_value_fields.\n");
-            goto cleanup;
+            goto l_cleanup;
         }
 
         (void) vector_setup(struct_value_fields, 5, sizeof(t_struct_value_field_ptr));
@@ -750,7 +750,7 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
             if (NULL == struct_value_field)
             {
                 (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for struct_value_field.\n");
-                goto cleanup;
+                goto l_cleanup;
             }
 
             token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
@@ -796,7 +796,7 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
     if (NULL == args)
     {
         (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for args.\n");
-        goto cleanup;
+        goto l_cleanup;
     }
     vector_setup(args, 10, sizeof(t_ast_node));
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
@@ -822,7 +822,7 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
 
     return AST_new_call_expr(ident_name, args);
 
-cleanup:
+l_cleanup:
     if (NULL != args)
     {
         t_ast_node *node = NULL;
@@ -1415,7 +1415,7 @@ t_vector *parser_parse_statements(t_parser *parser)
     if (NULL == stmts)
     {
         (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for statments.\n");
-        goto cleanup;
+        goto l_cleanup;
     }
 
     (void) vector_setup(stmts, 10, sizeof(t_ast_node_ptr));
@@ -1439,7 +1439,7 @@ t_vector *parser_parse_statements(t_parser *parser)
     ADVANCE(parser);
     (void) vector_shrink_to_fit(stmts);
 
-cleanup:
+l_cleanup:
     return stmts;
 }
 
@@ -1476,13 +1476,13 @@ t_ast_node *parser_parse_prototype(t_parser *parser)
     if (NULL == args)
     {
         (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for args.\n");
-        goto cleanup;
+        goto l_cleanup;
     }
     types = calloc(allocated, sizeof(t_type *));
     if (NULL == types)
     {
         (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for types.\n");
-        goto cleanup;
+        goto l_cleanup;
     }
 
     if (T_THREE_DOTS == token->type)
@@ -1524,7 +1524,7 @@ t_ast_node *parser_parse_prototype(t_parser *parser)
             if (NULL == new_args)
             {
                 (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for arguments.\n");
-                goto cleanup;
+                goto l_cleanup;
             }
             args = new_args;
 
@@ -1532,7 +1532,7 @@ t_ast_node *parser_parse_prototype(t_parser *parser)
             if (NULL == new_types)
             {
                 (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for types.\n");
-                goto cleanup;
+                goto l_cleanup;
             }
             types = new_types;
         }
@@ -1575,7 +1575,7 @@ t_ast_node *parser_parse_prototype(t_parser *parser)
         if (NULL == new_args)
         {
             (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for arguments.\n");
-            goto cleanup;
+            goto l_cleanup;
         }
         args = new_args;
 
@@ -1583,14 +1583,14 @@ t_ast_node *parser_parse_prototype(t_parser *parser)
         if (NULL == new_types)
         {
             (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for types.\n");
-            goto cleanup;
+            goto l_cleanup;
         }
         types = new_types;
     }
 
     return AST_new_prototype(name, args, types, arity, return_type, vararg);
 
-cleanup:
+l_cleanup:
     if (NULL != args)
     {
         for (size_t i = 0; i < arity; ++i)
@@ -1633,7 +1633,7 @@ t_vector *parser_parse_struct_fields(t_parser *parser)
     if (NULL == fields)
     {
         (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for struct fields vector.\n");
-        goto cleanup;
+        goto l_cleanup;
     }
 
     vector_setup(fields, 5, sizeof(t_struct_field_ptr));
@@ -1646,7 +1646,7 @@ t_vector *parser_parse_struct_fields(t_parser *parser)
             struct_field = parser_parse_struct_field(parser);
             if (NULL == struct_field)
             {
-                goto cleanup;
+                goto l_cleanup;
             }
             vector_push_back(fields, &struct_field);
 
@@ -1664,13 +1664,13 @@ t_vector *parser_parse_struct_fields(t_parser *parser)
     if (vector_is_empty(fields))
     {
         (void) LOGGER_log(parser->logger, L_ERROR, "Structs must have at least one field.");
-        goto cleanup;
+        goto l_cleanup;
     }
 
     vector_shrink_to_fit(fields);
     return fields;
 
-cleanup:
+l_cleanup:
     VECTOR_FOR_EACH(fields, field) {
         struct_field = ITERATOR_GET_AS(t_struct_field_ptr, &field);
         if (NULL != struct_field)
@@ -1704,7 +1704,7 @@ t_struct_field *parser_parse_struct_field(t_parser *parser)
     t_struct_field *struct_field = calloc(1, sizeof(t_struct_field));
     if (NULL == struct_field)
     {
-        goto cleanup;
+        goto l_cleanup;
     }
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
@@ -1716,7 +1716,7 @@ t_struct_field *parser_parse_struct_field(t_parser *parser)
 
     return struct_field;
 
-cleanup:
+l_cleanup:
     if (NULL != struct_field)
     {
         if (NULL != struct_field->name)
@@ -1748,7 +1748,7 @@ t_vector *parser_parse_enum_fields(t_parser *parser)
     if (NULL == fields)
     {
         (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for enum fields vector.\n");
-        goto cleanup;
+        goto l_cleanup;
     }
 
     vector_setup(fields, 5, sizeof(t_enum_field_ptr));
@@ -1761,7 +1761,7 @@ t_vector *parser_parse_enum_fields(t_parser *parser)
             enum_field = parser_parse_enum_field(parser);
             if (NULL == enum_field)
             {
-                goto cleanup;
+                goto l_cleanup;
             }
 
             if (NULL == enum_field->expr)
@@ -1790,7 +1790,7 @@ t_vector *parser_parse_enum_fields(t_parser *parser)
     vector_shrink_to_fit(fields);
     return fields;
 
-cleanup:
+l_cleanup:
 
     VECTOR_FOR_EACH(fields, field) {
         enum_field = ITERATOR_GET_AS(t_enum_field_ptr, &field);
@@ -1825,7 +1825,7 @@ t_enum_field *parser_parse_enum_field(t_parser *parser)
     t_enum_field *enum_field = calloc(1, sizeof(t_enum_field));
     if (NULL == enum_field)
     {
-        goto cleanup;
+        goto l_cleanup;
     }
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
@@ -1837,13 +1837,13 @@ t_enum_field *parser_parse_enum_field(t_parser *parser)
         enum_field->expr = parser_parse_primary(parser);
         if (AST_TYPE_NUMBER != enum_field->expr->type) {
             (void) LOGGER_log(parser->logger, L_ERROR, "Enum values must be numbers.");
-            goto cleanup;
+            goto l_cleanup;
         }
 
         if (TYPE_is_floating_type(enum_field->expr->number.type))
         {
             (void) LOGGER_log(parser->logger, L_ERROR, "Enum values must be integer numbers.");
-            goto cleanup;
+            goto l_cleanup;
         }
     }
     else
@@ -1853,7 +1853,7 @@ t_enum_field *parser_parse_enum_field(t_parser *parser)
 
     return enum_field;
 
-cleanup:
+l_cleanup:
     if (NULL != enum_field)
     {
         if (NULL != enum_field->name)

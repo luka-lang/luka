@@ -13,7 +13,7 @@ t_logger *LOGGER_initialize(char *file_path, size_t verbosity)
     logger = malloc(sizeof(t_logger));
     if (NULL == logger)
     {
-        goto cleanup;
+        goto l_cleanup;
     }
 
     logger->verbosity = verbosity;
@@ -21,12 +21,12 @@ t_logger *LOGGER_initialize(char *file_path, size_t verbosity)
     logger->fp = fopen(file_path, "a");
     if (NULL == logger->fp)
     {
-        goto cleanup;
+        goto l_cleanup;
     }
 
     return logger;
 
-cleanup:
+l_cleanup:
     if (NULL != fp)
     {
         (void) fclose(fp);

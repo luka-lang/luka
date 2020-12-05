@@ -13,27 +13,6 @@ t_enum_info *enum_infos = NULL;
 t_vector *loop_blocks = NULL;
 
 /**
- * @brief Check if a Luka type is signed.
- *
- * @param[in] type the type to check.
- *
- * @return whether the type is signed.
- */
-bool gen_ttype_is_signed(t_type *type)
-{
-    switch (type->type)
-    {
-    case TYPE_SINT8:
-    case TYPE_SINT16:
-    case TYPE_SINT32:
-    case TYPE_SINT64:
-        return true;
-    default:
-        return false;
-    }
-}
-
-/**
  * @brief Converting a LLVM type to Luka type.
  *
  * @param[in] type the LLVM type.
@@ -204,11 +183,11 @@ bool gen_llvm_cast_sizes_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBui
         }
         else if (LLVMGetIntTypeWidth(LLVMTypeOf(*lhs)) < LLVMGetIntTypeWidth(LLVMTypeOf(*rhs)))
         {
-            *lhs = LLVMBuildIntCast2(builder, *lhs, LLVMTypeOf(*rhs), gen_ttype_is_signed(rhs_t), "intcasttmp");
+            *lhs = LLVMBuildIntCast2(builder, *lhs, LLVMTypeOf(*rhs), TYPE_is_signed(rhs_t), "intcasttmp");
         }
         else
         {
-            *rhs = LLVMBuildIntCast2(builder, *rhs, LLVMTypeOf(*lhs), gen_ttype_is_signed(lhs_t), "intcasttmp");
+            *rhs = LLVMBuildIntCast2(builder, *rhs, LLVMTypeOf(*lhs), TYPE_is_signed(lhs_t), "intcasttmp");
         }
 
 
@@ -382,7 +361,7 @@ LLVMOpcode gen_llvm_get_cast_op(LLVMTypeRef type, LLVMTypeRef dest_type, t_logge
         {
             opcode = LLVMFPTrunc;
         }
-        else if (gen_ttype_is_signed(dest_ttype))
+        else if (TYPE_is_signed(dest_ttype))
         {
             opcode = LLVMFPToSI;
         }
@@ -395,7 +374,7 @@ LLVMOpcode gen_llvm_get_cast_op(LLVMTypeRef type, LLVMTypeRef dest_type, t_logge
     {
         if ((LLVMDoubleTypeKind == type_kind) || (LLVMFloatTypeKind == type_kind))
         {
-            if (gen_ttype_is_signed(ttype))
+            if (TYPE_is_signed(ttype))
             {
                 opcode = LLVMSIToFP;
             }
@@ -405,7 +384,7 @@ LLVMOpcode gen_llvm_get_cast_op(LLVMTypeRef type, LLVMTypeRef dest_type, t_logge
 
         else if (LLVMGetIntTypeWidth(dest_type) > LLVMGetIntTypeWidth(type))
         {
-            if (gen_ttype_is_signed(dest_ttype))
+            if (TYPE_is_signed(dest_ttype))
             {
                 opcode = LLVMSExt;
             }
@@ -459,29 +438,6 @@ LLVMValueRef gen_codegen_cast(LLVMBuilderRef builder,
 }
 
 /**
- * @brief Checks if a binary operator is a condition operator.
- *
- * @param[in] op the binary operator.
- *
- * @return whether the binary operator is a condition operator.
- */
-bool gen_is_cond_op(t_ast_binop_type op) {
-    switch (op) {
-    case BINOP_LESSER:
-    case BINOP_GREATER:
-    case BINOP_EQUALS:
-    case BINOP_NEQ:
-    case BINOP_LEQ:
-    case BINOP_GEQ:
-        return true;
-    default:
-    {
-        return false;
-    }
-    }
-}
-
-/**
  * @brief Cast both hand sides to floating point if one of them is a floating point type.
  *
  * @param[in,out] lhs the left hand side.
@@ -497,13 +453,13 @@ bool gen_llvm_cast_to_fp_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLVMBui
 
     if (TYPE_is_floating_type(lhs_t) || TYPE_is_floating_type(rhs_t)) {
         if (TYPE_is_floating_type(lhs_t) && !TYPE_is_floating_type(rhs_t)) {
-            if (gen_ttype_is_signed(rhs_t)) {
+            if (TYPE_is_signed(rhs_t)) {
                 *rhs = LLVMBuildSIToFP(builder, *rhs, LLVMTypeOf(*lhs), "sitofpcasttmp");
             } else {
                 *rhs = LLVMBuildUIToFP(builder, *rhs, LLVMTypeOf(*lhs), "uitofpcasttmp");
             }
         } else if (!TYPE_is_floating_type(lhs_t) && TYPE_is_floating_type(rhs_t)) {
-            if (gen_ttype_is_signed(lhs_t)) {
+            if (TYPE_is_signed(lhs_t)) {
                 *lhs = LLVMBuildSIToFP(builder, *lhs, LLVMTypeOf(*rhs), "sitofpcasttmp");
             } else {
                 *lhs = LLVMBuildUIToFP(builder, *lhs, LLVMTypeOf(*rhs), "uitofpcasttmp");
@@ -541,10 +497,10 @@ bool gen_llvm_cast_to_signed_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs, LLV
     t_type *lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*lhs), logger);
     t_type *rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*rhs), logger);
 
-    if (gen_ttype_is_signed(lhs_t) || gen_ttype_is_signed(rhs_t)) {
-        if (gen_ttype_is_signed(lhs_t) && !gen_ttype_is_signed(rhs_t)) {
+    if (TYPE_is_signed(lhs_t) || TYPE_is_signed(rhs_t)) {
+        if (TYPE_is_signed(lhs_t) && !TYPE_is_signed(rhs_t)) {
             *rhs = LLVMBuildIntCast2(builder, *rhs, LLVMTypeOf(*lhs), true, "signedcasttmp");
-        } else if (!gen_ttype_is_signed(lhs_t) && gen_ttype_is_signed(rhs_t)) {
+        } else if (!TYPE_is_signed(lhs_t) && TYPE_is_signed(rhs_t)) {
             *lhs = LLVMBuildIntCast2(builder, *lhs, LLVMTypeOf(*rhs), true, "signedcasttmp");
         }
 
@@ -971,7 +927,7 @@ LLVMValueRef gen_codegen_binexpr(t_ast_node *n,
         (void) exit(LUKA_CODEGEN_ERROR);
     }
 
-    if (gen_is_cond_op(n->binary_expr.operator))
+    if (AST_is_cond_binop(n->binary_expr.operator))
     {
         (void) gen_llvm_cast_null_if_needed(&lhs, &rhs, logger);
         if (gen_is_icmp(lhs, rhs, logger))
@@ -1652,18 +1608,18 @@ LLVMValueRef gen_codegen_call(t_ast_node *node,
 
     if (!vararg && node->call_expr.args->size != required_params_count)
     {
-        goto cleanup;
+        goto l_cleanup;
     }
 
     if (vararg && node->call_expr.args->size < required_params_count)
     {
-        goto cleanup;
+        goto l_cleanup;
     }
 
     args = calloc(node->call_expr.args->size, sizeof(LLVMValueRef));
     if (NULL == args)
     {
-        goto cleanup;
+        goto l_cleanup;
     }
 
     VECTOR_FOR_EACH(node->call_expr.args, args_iter)
@@ -1672,7 +1628,7 @@ LLVMValueRef gen_codegen_call(t_ast_node *node,
         args[i] = GEN_codegen(arg, module, builder, logger);
         if (NULL == args[i])
         {
-            goto cleanup;
+            goto l_cleanup;
         }
 
         if (i < required_params_count)
@@ -1694,7 +1650,7 @@ LLVMValueRef gen_codegen_call(t_ast_node *node,
                           node->call_expr.args->size,
                           LLVMGetReturnType(func_type) != LLVMVoidType() ? "calltmp" : "");
 
-cleanup:
+l_cleanup:
     if (NULL != varargs)
     {
         (void) free(varargs);
@@ -1831,13 +1787,13 @@ LLVMValueRef gen_codegen_struct_definition(t_ast_node *node,
     element_types = calloc(elements_count, sizeof(LLVMTypeRef));
     if (NULL == element_types)
     {
-        goto cleanup;
+        goto l_cleanup;
     }
 
     struct_info = calloc(1, sizeof(t_struct_info));
     if (NULL == struct_info)
     {
-        goto cleanup;
+        goto l_cleanup;
     }
 
     struct_info->struct_name = strdup(node->struct_definition.name);
@@ -1845,7 +1801,7 @@ LLVMValueRef gen_codegen_struct_definition(t_ast_node *node,
     struct_info->struct_fields = calloc(elements_count, sizeof(char**));
     if (NULL == struct_info->struct_fields)
     {
-        goto cleanup;
+        goto l_cleanup;
     }
 
     for (size_t i = 0; i < elements_count; ++i)
@@ -1868,7 +1824,7 @@ LLVMValueRef gen_codegen_struct_definition(t_ast_node *node,
 
     error = false;
 
-cleanup:
+l_cleanup:
     if (NULL != element_types)
     {
         (void) free(element_types);
@@ -1951,7 +1907,7 @@ LLVMValueRef gen_codegen_enum_definition(t_ast_node *node,
     enum_info = calloc(1, sizeof(t_enum_info));
     if (NULL == enum_info)
     {
-        goto cleanup;
+        goto l_cleanup;
     }
 
     enum_info->enum_name = strdup(node->enum_definition.name);
@@ -1959,13 +1915,13 @@ LLVMValueRef gen_codegen_enum_definition(t_ast_node *node,
     enum_info->enum_field_names = calloc(elements_count, sizeof(char**));
     if (NULL == enum_info->enum_field_names)
     {
-        goto cleanup;
+        goto l_cleanup;
     }
 
     enum_info->enum_field_values = calloc(elements_count, sizeof(int));
     if (NULL == enum_info->enum_field_values)
     {
-        goto cleanup;
+        goto l_cleanup;
     }
 
     for (size_t i = 0; i < elements_count; ++i)
@@ -1985,7 +1941,7 @@ LLVMValueRef gen_codegen_enum_definition(t_ast_node *node,
 
     error = false;
 
-cleanup:
+l_cleanup:
     if (!error)
     {
         return NULL;

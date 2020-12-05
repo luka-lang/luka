@@ -124,7 +124,7 @@ int main(int argc, char **argv)
     {
         (void) print_help();
         status_code = LUKA_WRONG_PARAMETERS;
-        goto cleanup;
+        goto l_cleanup;
     }
 
     file_path = argv[optind++];
@@ -133,7 +133,7 @@ int main(int argc, char **argv)
     status_code = LEXER_tokenize_source(&tokens, file_contents, logger);
     if (LUKA_SUCCESS != status_code)
     {
-        goto cleanup;
+        goto l_cleanup;
     }
 
     if (NULL != file_contents)
@@ -147,7 +147,7 @@ int main(int argc, char **argv)
     {
        (void) LOGGER_log(logger, L_ERROR, "Failed allocating memory for parser.\n");
        status_code = LUKA_CANT_ALLOC_MEMORY;
-       goto cleanup;
+       goto l_cleanup;
     }
 
     (void) PARSER_initialize(parser, &tokens, file_path, logger);
@@ -173,7 +173,7 @@ int main(int argc, char **argv)
     {
         (void) LOGGER_log(logger, L_ERROR, "Getting target from triple failed:\n%s\n", error);
         (void) LLVMDisposeMessage(error);
-        goto cleanup;
+        goto l_cleanup;
     }
 
     if (NULL != error)
@@ -220,7 +220,7 @@ int main(int argc, char **argv)
         (void) LOGGER_log(logger, L_ERROR, "Couldn't verify module:\n%s\n", error);
         (void) LLVMDisposeMessage(error);
         error = NULL;
-        goto cleanup;
+        goto l_cleanup;
     }
     (void) LLVMDisposeMessage(error);
     error = NULL;
@@ -314,7 +314,7 @@ int main(int argc, char **argv)
 
     status_code = LUKA_SUCCESS;
 
-cleanup:
+l_cleanup:
     if (NULL != cmd) {
         (void) free(cmd);
         cmd = NULL;
