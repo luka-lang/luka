@@ -27,6 +27,8 @@ void LIB_free_tokens_vector(t_vector *tokens)
     }
     (void) vector_clear(tokens);
     (void) vector_destroy(tokens);
+    (void) free(tokens);
+    tokens = NULL;
 }
 
 void LIB_free_functions_vector(t_vector *functions, t_logger *logger)
