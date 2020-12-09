@@ -20,4 +20,15 @@ void LIB_free_tokens_vector(t_vector *tokens);
  */
 void LIB_free_functions_vector(t_vector *functions, t_logger *logger);
 
+/**
+ * @brief Stringifying a string value.
+ *
+ * @param[in] source the string value.
+ * @param[in] source_length the length of the source string.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return an escaped string.
+ */
+char *LIB_stringify(const char* source, size_t source_length, t_logger *logger);
+
 #endif // __LIB_H__

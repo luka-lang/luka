@@ -226,7 +226,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source, t_logg
     {
         (void) LOGGER_log(logger, L_ERROR, "Couldn't allocate memory for token.\n");
         return_code = LUKA_CANT_ALLOC_MEMORY;
-        goto cleanup;
+        goto l_cleanup;
     }
 
     for (size_t i = 0; i < length; ++i)
@@ -430,7 +430,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source, t_logg
             {
                 (void) LOGGER_log(logger, L_ERROR, "Couldn't lex string.\n");
                 return_code = LUKA_LEXER_FAILED;
-                goto cleanup;
+                goto l_cleanup;
             }
             token->content = identifier;
             break;
@@ -473,7 +473,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source, t_logg
                 {
                     (void) LOGGER_log(logger, L_ERROR, "Couldn't lex identifier.\n");
                     return_code = LUKA_LEXER_FAILED;
-                    goto cleanup;
+                    goto l_cleanup;
                 }
                 number = lexer_is_keyword(identifier);
                 if (-1 != number)
@@ -493,14 +493,14 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source, t_logg
         {
             (void) LOGGER_log(logger, L_ERROR, "Couldn't add token to tokens vector.\n");
             return_code = LUKA_VECTOR_FAILURE;
-            goto cleanup;
+            goto l_cleanup;
         }
         token = calloc(1, sizeof(t_token));
         if (NULL == token)
         {
             (void) LOGGER_log(logger, L_ERROR, "Couldn't allocate memory for token.\n");
             return_code = LUKA_CANT_ALLOC_MEMORY;
-            goto cleanup;
+            goto l_cleanup;
         }
     }
 
@@ -508,7 +508,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source, t_logg
 
     return_code = LUKA_SUCCESS;
 
-cleanup:
+l_cleanup:
     if (NULL != token)
     {
         (void) free(token);

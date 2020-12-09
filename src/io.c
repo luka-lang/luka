@@ -1,3 +1,4 @@
+/** @file io.c */
 #include "io.h"
 
 char *IO_get_file_contents(const char *file_path)
@@ -11,7 +12,7 @@ char *IO_get_file_contents(const char *file_path)
     if (NULL == fp)
     {
         (void) perror("Couldn't open file");
-        goto cleanup;
+        goto l_cleanup;
     }
 
     (void) fseek(fp, 0L, SEEK_END);
@@ -22,14 +23,14 @@ char *IO_get_file_contents(const char *file_path)
     if (NULL == file_contents)
     {
         (void) perror("Couldn't allocate memory for file contents");
-        goto cleanup;
+        goto l_cleanup;
     }
 
     (void) fread(file_contents, size, 1, fp);
     file_contents[size] = EOF;
     file_contents[size + 1] = '\0';
 
-cleanup:
+l_cleanup:
     if (NULL != fp)
     {
         (void) fclose(fp);

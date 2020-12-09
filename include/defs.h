@@ -34,8 +34,9 @@ typedef enum
     LUKA_CANT_OPEN_FILE, /**< Cannot open the file given to compile */
     LUKA_CANT_ALLOC_MEMORY, /**< Cannot allocate dynamic memory */
     LUKA_LEXER_FAILED, /**< The lexer failed */
-    LUKA_VECTOR_FAILURE, /**< There was a problem in the vector library */
+    LUKA_PARSER_FAILED, /**< The parser failed */
     LUKA_CODEGEN_ERROR, /**< There was a problem in the codegen phase */
+    LUKA_VECTOR_FAILURE, /**< There was a problem in the vector library */
 } t_return_code; /**< An enum of possible luka return codes */
 
 #define NUMBER_OF_KEYWORDS 33 /**< Number of keywords in the luka programming language */

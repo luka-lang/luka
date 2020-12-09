@@ -1,3 +1,4 @@
+/** @file type.c */
 #include "type.h"
 
 #include <stdlib.h>
@@ -109,4 +110,93 @@ size_t TYPE_sizeof(t_type *type)
         default:
             return 0;
     }
+}
+
+bool TYPE_is_signed(t_type *type)
+{
+    switch (type->type)
+    {
+    case TYPE_SINT8:
+    case TYPE_SINT16:
+    case TYPE_SINT32:
+    case TYPE_SINT64:
+        return true;
+    default:
+        return false;
+    }
+}
+
+const char *TYPE_to_string(t_type *type, t_logger *logger, char *buffer, size_t buffer_size)
+{
+    if (type->mutable)
+    {
+        (void) snprintf(buffer, buffer_size, "mut ");
+        buffer = buffer + strlen("mut ");
+    }
+
+    switch (type->type)
+    {
+    case TYPE_ANY:
+        (void) snprintf(buffer, buffer_size, "any");
+        break;
+    case TYPE_BOOL:
+        (void) snprintf(buffer, buffer_size, "bool");
+        break;
+    case TYPE_SINT8:
+        (void) snprintf(buffer, buffer_size, "s8");
+        break;
+    case TYPE_SINT16:
+        (void) snprintf(buffer, buffer_size, "s16");
+        break;
+    case TYPE_SINT32:
+        (void) snprintf(buffer, buffer_size, "s32");
+        break;
+    case TYPE_SINT64:
+        (void) snprintf(buffer, buffer_size, "s64");
+        break;
+    case TYPE_UINT8:
+        (void) snprintf(buffer, buffer_size, "u8");
+        break;
+    case TYPE_UINT16:
+        (void) snprintf(buffer, buffer_size, "u16");
+        break;
+    case TYPE_UINT32:
+        (void) snprintf(buffer, buffer_size, "u32");
+        break;
+    case TYPE_UINT64:
+        (void) snprintf(buffer, buffer_size, "u64");
+        break;
+    case TYPE_F32:
+        (void) snprintf(buffer, buffer_size, "f32");
+        break;
+    case TYPE_F64:
+        (void) snprintf(buffer, buffer_size, "f64");
+        break;
+    case TYPE_STRING:
+        (void) snprintf(buffer, buffer_size, "string");
+        break;
+    case TYPE_VOID:
+        (void) snprintf(buffer, buffer_size, "void");
+        break;
+    case TYPE_PTR:
+        (void) TYPE_to_string(type->inner_type, logger, buffer, buffer_size);
+        (void) snprintf(buffer + strlen(buffer), buffer_size, "*");
+        break;
+    case TYPE_ARRAY:
+        (void) TYPE_to_string(type->inner_type, logger, buffer, buffer_size);
+        (void) snprintf(buffer + strlen(buffer), buffer_size, "[]");
+        break;
+    default:
+        (void) LOGGER_log(logger, L_ERROR, "ast_type_to_string: I don't know how to translate type %d to LLVM types.\n",
+                type);
+        (void) snprintf(buffer, buffer_size, "s32");
+        break;
+    }
+
+    if (type->mutable)
+    {
+        buffer = buffer - strlen("mut ");
+    }
+
+    return buffer;
 }
