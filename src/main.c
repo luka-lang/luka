@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include <llvm-c/Analysis.h>
@@ -29,9 +31,7 @@
 
 #define DEFAULT_LOG_PATH ("/tmp/luka.log")
 #define BITCODE_FILENAME ("a.out.bc")
-#define OBJECT_FILENAME  ("a.out.o")
-#define ASM_FILENAME     ("a.out.S")
-#define OUT_FILENAME     ("a.out")
+#define OUT_FILENAME     ("./a.out")
 #define DEFAULT_OPT      ('3')
 #define CMD_LEN          (14 + 4096)
 
@@ -131,7 +131,6 @@ void main_context_initialize(t_main_context *context, int argc, char **argv)
     context->logger = NULL;
     context->verbosity = 0;
     context->output_path = OUT_FILENAME;
-    context->cmd = NULL;
     context->bitcode = false;
     context->optimization = DEFAULT_OPT;
     context->compile = true;
@@ -146,11 +145,6 @@ void main_context_initialize(t_main_context *context, int argc, char **argv)
  */
 void main_context_destruct(t_main_context *context)
 {
-    if (NULL != context->cmd) {
-        (void) free(context->cmd);
-        context->cmd = NULL;
-    }
-
     if (NULL != context->tokens)
     {
         (void) LIB_free_tokens_vector(context->tokens);
@@ -307,13 +301,11 @@ t_return_code main_lex(t_main_context *context)
         return status_code;
     }
 
-    status_code = LEXER_tokenize_source(context->tokens, context->file_contents, context->logger);
-    if (LUKA_SUCCESS != status_code)
-    {
-        return status_code;
-    }
+    RAISE_LUKA_STATUS_ON_ERROR(LEXER_tokenize_source(context->tokens, context->file_contents, context->logger), status_code, l_cleanup);
 
     status_code = LUKA_SUCCESS;
+
+l_cleanup:
     return status_code;
 }
 
@@ -595,57 +587,96 @@ t_return_code main_generate_output(t_main_context *context)
     }
     else
     {
+        char object_template[] = "/tmp/XXXXXX.o";
+        char asm_template[] = "/tmp/XXXXXX.S";
+        int object_fd = -1;
+        int asm_fd = -1;
+
         if (context->assemble)
         {
-            (void) LLVMTargetMachineEmitToFile(context->target_machine, context->module, OBJECT_FILENAME, LLVMObjectFile, &context->error);
+            object_fd = mkstemps(object_template, 2);
+            if (-1 == object_fd)
+            {
+                status_code = LUKA_GENERAL_ERROR;
+                goto l_cleanup;
+            }
+
+            if(LLVMTargetMachineEmitToFile(context->target_machine, context->module, object_template, LLVMObjectFile, &context->error))
+            {
+                status_code = LUKA_LLVM_ERROR;
+                goto l_cleanup;
+            }
+
+            ON_ERROR(close(object_fd))
+            {
+                status_code = LUKA_IO_ERROR;
+                goto l_cleanup;
+            }
         }
         else
         {
-            (void) LLVMTargetMachineEmitToFile(context->target_machine, context->module, ASM_FILENAME, LLVMAssemblyFile, &context->error);
+            asm_fd = mkstemps(asm_template, 2);
+            if (-1 == asm_fd)
+            {
+                status_code = LUKA_GENERAL_ERROR;
+                goto l_cleanup;
+            }
+
+            if(LLVMTargetMachineEmitToFile(context->target_machine, context->module, asm_template, LLVMAssemblyFile, &context->error))
+            {
+                status_code = LUKA_LLVM_ERROR;
+                goto l_cleanup;
+            }
+
+            ON_ERROR(close(asm_fd))
+            {
+                status_code = LUKA_IO_ERROR;
+                goto l_cleanup;
+            }
         }
 
         if (NULL != context->error)
         {
             (void) LOGGER_log(context->logger, L_ERROR, "Error while emitting file: %s\n", context->error);
-            goto l_cleanup;
+            status_code = LUKA_GENERAL_ERROR;
+            return status_code;
         }
 
         if (context->link)
         {
-            context->cmd = malloc(CMD_LEN);
-            if (NULL == context->cmd)
+            char *args[] = {"gcc", "-o", context->output_path, object_template, NULL};
+            pid_t pid = fork();
+            if (0 == pid)
             {
-                status_code = LUKA_CANT_ALLOC_MEMORY;
-                goto l_cleanup;
+                (void) execvp(args[0], args);
             }
-
-            (void) snprintf(context->cmd, CMD_LEN, "gcc -o \"%s\" %s -lc", context->output_path, OBJECT_FILENAME);
-            (void) system(context->cmd);
-            (void) snprintf(context->cmd, CMD_LEN, "./%s", OBJECT_FILENAME);
-            (void) unlink(context->cmd);
+            else
+            {
+                (void) wait(NULL);
+                (void) unlink(object_template);
+            }
         }
         else
         {
             if (context->assemble)
             {
-                (void) rename(OBJECT_FILENAME, context->output_path);
+                ON_ERROR(rename(object_template, context->output_path))
+                {
+                    RAISE_LUKA_STATUS_ON_ERROR(IO_copy(object_template, context->output_path), status_code, l_cleanup);
+                }
             }
             else
             {
-                (void) rename(ASM_FILENAME, context->output_path);
+                ON_ERROR(rename(asm_template, context->output_path))
+                {
+                    RAISE_LUKA_STATUS_ON_ERROR(IO_copy(asm_template, context->output_path), status_code, l_cleanup);
+                }
             }
         }
     }
 
     status_code = LUKA_SUCCESS;
-
 l_cleanup:
-    if (NULL != context->cmd)
-    {
-        (void) free(context->cmd);
-        context->cmd = NULL;
-    }
-
     return status_code;
 }
 
@@ -655,19 +686,12 @@ int main(int argc, char **argv)
     t_main_context context;
 
     (void) main_context_initialize(&context, argc, argv);
-    status_code = main_get_args(&context);
-    if (LUKA_SUCCESS != status_code)
-    {
-        goto l_cleanup;
-    }
+
+    RAISE_LUKA_STATUS_ON_ERROR(main_get_args(&context), status_code, l_cleanup);
 
     context.logger = LOGGER_initialize(DEFAULT_LOG_PATH, context.verbosity);
 
-    status_code = main_lex(&context);
-    if (LUKA_SUCCESS != status_code)
-    {
-        goto l_cleanup;
-    }
+    RAISE_LUKA_STATUS_ON_ERROR(main_lex(&context), status_code, l_cleanup);
 
     if (NULL != context.file_contents)
     {
@@ -675,35 +699,11 @@ int main(int argc, char **argv)
         context.file_contents = NULL;
     }
 
-    status_code = main_parse(&context);
-    if (LUKA_SUCCESS != status_code)
-    {
-        goto l_cleanup;
-    }
-
-    status_code = main_initialize_llvm(&context);
-    if (LUKA_SUCCESS != status_code)
-    {
-        goto l_cleanup;
-    }
-
-    status_code = main_code_generation(&context);
-    if (LUKA_SUCCESS != status_code)
-    {
-        goto l_cleanup;
-    }
-
-    status_code = main_optimize(&context);
-    if (LUKA_SUCCESS != status_code)
-    {
-        goto l_cleanup;
-    }
-
-    status_code = main_generate_output(&context);
-    if (LUKA_SUCCESS != status_code)
-    {
-        goto l_cleanup;
-    }
+    RAISE_LUKA_STATUS_ON_ERROR(main_parse(&context), status_code, l_cleanup);
+    RAISE_LUKA_STATUS_ON_ERROR(main_initialize_llvm(&context), status_code, l_cleanup);
+    RAISE_LUKA_STATUS_ON_ERROR(main_code_generation(&context), status_code, l_cleanup);
+    RAISE_LUKA_STATUS_ON_ERROR(main_optimize(&context), status_code, l_cleanup);
+    RAISE_LUKA_STATUS_ON_ERROR(main_generate_output(&context), status_code, l_cleanup);
 
     status_code = LUKA_SUCCESS;
 
