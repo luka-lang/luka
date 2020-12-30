@@ -1443,14 +1443,12 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n, LLVMModuleRef module,
     (void) LLVMAppendExistingBasicBlock(func, then_block);
     (void) LLVMPositionBuilderAtEnd(builder, then_block);
 
-    then_value = gen_codegen_stmts(n->if_expr.then_body, module, builder,
-                                   &has_return_stmt, logger);
+    then_value = gen_codegen_stmts(n->if_expr.then_body, module, builder, &has_return_stmt, logger);
 
     if (!has_return_stmt)
     {
         (void) LLVMBuildBr(builder, merge_block);
     }
-    has_return_stmt = false;
 
     then_block = LLVMGetInsertBlock(builder);
 
@@ -1458,8 +1456,9 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n, LLVMModuleRef module,
     {
         (void) LLVMAppendExistingBasicBlock(func, else_block);
         (void) LLVMPositionBuilderAtEnd(builder, else_block);
-        else_value = gen_codegen_stmts(n->if_expr.else_body, module, builder,
-                                       &has_return_stmt, logger);
+        has_return_stmt = false;
+        else_value = gen_codegen_stmts(n->if_expr.else_body, module, builder, &has_return_stmt, logger);
+
         if (!has_return_stmt)
         {
             (void) LLVMBuildBr(builder, merge_block);
