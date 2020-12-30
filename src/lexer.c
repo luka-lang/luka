@@ -113,10 +113,18 @@ char *lexer_lex_number(const char *source, size_t *index, t_logger *logger)
  */
 char *lexer_lex_identifier(const char *source, size_t *index)
 {
-    size_t i = (*index) + 1;
-    while ((0 != isalnum(source[i]) || ('_' == source[i])))
+    size_t i = *index;
+    if (isalpha(source[i]) || ('_' == source[i]))
     {
         ++i;
+        while ((0 != isalnum(source[i]) || ('_' == source[i])))
+        {
+            ++i;
+        }
+    }
+    else
+    {
+        return "";
     }
 
     char *ident = calloc(sizeof(char), (i - *index) + 1);
