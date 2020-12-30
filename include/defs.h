@@ -37,6 +37,8 @@ typedef enum
     LUKA_PARSER_FAILED, /**< The parser failed */
     LUKA_CODEGEN_ERROR, /**< There was a problem in the codegen phase */
     LUKA_VECTOR_FAILURE, /**< There was a problem in the vector library */
+    LUKA_IO_ERROR, /**< There was a problem with input output operations */
+    LUKA_LLVM_ERROR, /**< Signifies that a problem occured when calling an LLVM function */
 } t_return_code; /**< An enum of possible luka return codes */
 
 #define NUMBER_OF_KEYWORDS 33 /**< Number of keywords in the luka programming language */
@@ -414,4 +416,10 @@ typedef struct {
 
 typedef t_enum_field* t_enum_field_ptr; /**< A type alias for getting this type from a vector */
 
+#define RAISE_STATUS_ON_ERROR_INTERNAL(expr, status_variable, status_type, success_status, label)      \
+    do { status_type _internal_status_ = expr; if (_internal_status_ != success_status) { status_variable = _internal_status_; goto label; } } while (0)
+
+#define RAISE_STATUS_ON_ERROR(expr, status_variable, label) RAISE_STATUS_ON_ERROR_INTERNAL(expr, status_variable, int, 0, label)
+#define RAISE_LUKA_STATUS_ON_ERROR(expr, status_variable, label) RAISE_STATUS_ON_ERROR_INTERNAL(expr, status_variable, t_return_code, LUKA_SUCCESS, label)
+#define ON_ERROR(expr) if (0 != (expr))
 #endif // __DEFS_H__

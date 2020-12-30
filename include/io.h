@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "defs.h"
+
 /**
  * @brief Get the contents of a file.
  *
@@ -13,5 +15,7 @@
  * @return the contents of the file.
  */
 char *IO_get_file_contents(const char *file_path);
+
+t_return_code IO_copy(const char *original_file_path, const char *new_file_path);
 
 #endif // __IO_H__
