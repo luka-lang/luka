@@ -1,3 +1,4 @@
+/** @file main_internal.h */
 #ifndef __MAIN_INTERNAL_H__
 #define __MAIN_INTERNAL_H__
 
@@ -9,16 +10,16 @@
 typedef struct {
   int argc;
   char **argv;
-  char *file_path;
-  char *file_contents;
+  char **file_paths;
+  size_t files_count;
+  size_t file_index;
   t_vector *tokens;
-  t_module *module;
+  t_module **modules;
   t_parser *parser;
   t_ast_node *node;
   LLVMModuleRef llvm_module;
   LLVMBuilderRef builder;
   LLVMPassManagerRef pass_manager;
-  LLVMValueRef value;
   LLVMTargetMachineRef target_machine;
   LLVMTargetRef target;
   LLVMTargetDataRef target_data;
@@ -100,14 +101,12 @@ static t_return_code parse(t_main_context *context, const char * file_path);
  * variable.
  *
  * @param[in,out] context the context to use.
- * @param[in] file_path the path of the file that the module represents.
  *
  * @return
  * - LUKA_SUCCESS on success.
  * - LUKA_GENERAL_ERROR if couldn't get target from provided triple.
  */
-static t_return_code initialize_llvm(t_main_context *context,
-                                          const char *file_path);
+static t_return_code initialize_llvm(t_main_context *context);
 
 /**
  * @brief Generate LLVM IR for the module inside @p context based on the vector
@@ -175,11 +174,10 @@ static t_return_code frontend(t_main_context *context, const char *file_path);
  * module, codegen, optimizing and generating output files.
  *
  * @param[in,out] context the context to use.
- * @param[in] file_path the path to the file that was originally lexed and parsed.
  *
  * @return LUKA_SUCCESS on success or a status from one of stages on failure.
  */
-static t_return_code backend(t_main_context *context, const char *file_path);
+static t_return_code backend(t_main_context *context);
 
 /**
  * @brief Perform all stages of the compiler on the given file.

@@ -953,16 +953,16 @@ LLVMValueRef gen_codegen_binexpr(t_ast_node *n,
  *
  * @return the built LLVM IR for the function prototype.
  */
-LLVMValueRef gen_codegen_prototype(t_ast_node *n,
-                                   LLVMModuleRef module,
+LLVMValueRef gen_codegen_prototype(t_ast_node *n, LLVMModuleRef module,
                                    LLVMBuilderRef UNUSED(builder),
                                    t_logger *logger)
 {
-    LLVMValueRef func = NULL;
+    LLVMValueRef func = NULL, module_func = NULL, param = NULL;
     LLVMTypeRef func_type = NULL;
     size_t i = 0, arity = n->prototype.arity;
     bool vararg = n->prototype.vararg;
     LLVMTypeRef *params = NULL;
+    char *func_type_str = NULL, *module_func_str = NULL;
     if (vararg)
     {
         --arity;
@@ -970,7 +970,9 @@ LLVMValueRef gen_codegen_prototype(t_ast_node *n,
     params = calloc(arity, sizeof(LLVMTypeRef));
     if (NULL == params)
     {
-        (void) LOGGER_log(logger, L_ERROR, "Failed to assign memory for params in prototype generaion.\n");
+        (void) LOGGER_log(
+            logger, L_ERROR,
+            "Failed to assign memory for params in prototype generaion.\n");
         (void) exit(LUKA_CANT_ALLOC_MEMORY);
     }
 
@@ -978,25 +980,48 @@ LLVMValueRef gen_codegen_prototype(t_ast_node *n,
     {
         params[i] = gen_type_to_llvm_type(n->prototype.types[i], logger);
     }
-    func_type = LLVMFunctionType(gen_type_to_llvm_type(n->prototype.return_type, logger),
-                                 params, arity, vararg);
+    func_type = LLVMFunctionType(
+        gen_type_to_llvm_type(n->prototype.return_type, logger), params, arity,
+        vararg);
 
+    module_func = LLVMGetNamedFunction(module, n->prototype.name);
+    if (NULL != module_func)
+    {
+        func_type_str = LLVMPrintTypeToString(func_type);
+        module_func_str = LLVMPrintTypeToString(LLVMTypeOf(module_func));
+        if ((LLVMExternalLinkage == LLVMGetLinkage(module_func))
+            && (0 == strcmp(func_type_str, module_func_str)))
+        {
+            func = module_func;
+            goto l_cleanup;
+        }
+    }
     func = LLVMAddFunction(module, n->prototype.name, func_type);
     (void) LLVMSetLinkage(func, LLVMExternalLinkage);
 
     for (i = 0; i < arity; ++i)
     {
-        LLVMValueRef param = LLVMGetParam(func, i);
+        param = LLVMGetParam(func, i);
         (void) LLVMSetValueName(param, n->prototype.args[i]);
     }
 
+l_cleanup:
     if (NULL != params)
     {
         (void) free(params);
     }
 
-    return func;
+    if (NULL != func_type_str)
+    {
+        (void) LLVMDisposeMessage(func_type_str);
+    }
 
+    if (NULL != module_func_str)
+    {
+        (void) LLVMDisposeMessage(module_func_str);
+    }
+
+    return func;
 }
 
 /**
