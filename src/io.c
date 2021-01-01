@@ -21,7 +21,7 @@ char *IO_get_file_contents(const char *file_path)
     size = ftell(fp);
     (void) fseek(fp, 0L, SEEK_SET);
 
-    file_contents = (char *)calloc(sizeof(char), size + 2);
+    file_contents = (char *) calloc(sizeof(char), size + 2);
     if (NULL == file_contents)
     {
         (void) perror("Couldn't allocate memory for file contents");

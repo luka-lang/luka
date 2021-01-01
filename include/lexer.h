@@ -19,6 +19,7 @@
  * * LUKA_VECTOR_FAILURE when failed to add a token to the vector
  * * LUKA_LEXER_FAILED if failed to lex identifier or string.
  */
-t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source, t_logger *logger);
+t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
+                                    t_logger *logger);
 
 #endif // __LEXER_H__

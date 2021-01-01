@@ -12,7 +12,6 @@
  */
 void LIB_free_tokens_vector(t_vector *tokens);
 
-
 /**
  * @brief Initializes a module.
  *
@@ -38,6 +37,6 @@ void LIB_free_module(t_module *module, t_logger *logger);
  *
  * @return an escaped string.
  */
-char *LIB_stringify(const char* source, size_t source_length, t_logger *logger);
+char *LIB_stringify(const char *source, size_t source_length, t_logger *logger);
 
 #endif // __LIB_H__

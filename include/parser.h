@@ -13,13 +13,14 @@
 
 typedef struct
 {
-    t_vector *tokens; /**< The vector of tokens that the parser will operate on */
+    t_vector
+        *tokens;  /**< The vector of tokens that the parser will operate on */
     size_t index; /**< The current index in the tokens vector */
     t_vector *struct_names; /**< A vector of currently defined struct names */
-    t_vector *enum_names; /**< A vector of currently defined enum names*/
-    const char *file_path; /**< The path of parsed file */
-    t_logger *logger; /**< A logger the parser will log messages to */
-} t_parser;  /**< A struct for a parser */
+    t_vector *enum_names;   /**< A vector of currently defined enum names*/
+    const char *file_path;  /**< The path of parsed file */
+    t_logger *logger;       /**< A logger the parser will log messages to */
+} t_parser;                 /**< A struct for a parser */
 
 /**
  * @brief Initializes a new parser based on the given parameters.
@@ -31,7 +32,8 @@ typedef struct
  * @param[in] file_path the path of the file the tokens came from.
  * @param[in] logger the logger that the parser should log messages to.
  */
-void PARSER_initialize(t_parser *parser, t_vector *tokens, const char *file_path, t_logger *logger);
+void PARSER_initialize(t_parser *parser, t_vector *tokens,
+                       const char *file_path, t_logger *logger);
 
 /**
  * @brief Parse top level declarations and definitions.

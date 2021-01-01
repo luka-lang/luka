@@ -1,22 +1,23 @@
 // The MIT License (MIT)
 // Copyright (c) 2016 Peter Goldsborough
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-// the Software, and to permit persons to whom the Software is furnished to do so,
-// subject to the following conditions:
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-// FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-// COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-// IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-// CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 
 #ifndef VECTOR_H
 #define VECTOR_H
@@ -27,16 +28,16 @@
 /***** DEFINITIONS *****/
 
 #define VECTOR_MINIMUM_CAPACITY 2
-#define VECTOR_GROWTH_FACTOR 2
+#define VECTOR_GROWTH_FACTOR    2
 #define VECTOR_SHRINK_THRESHOLD (1 / 4)
 
-#define VECTOR_ERROR -1
+#define VECTOR_ERROR   -1
 #define VECTOR_SUCCESS 0
 
 #define VECTOR_UNINITIALIZED NULL
-#define VECTOR_INITIALIZER            \
-    {                                 \
-        0, 0, 0, VECTOR_UNINITIALIZED \
+#define VECTOR_INITIALIZER                                                     \
+    {                                                                          \
+        0, 0, 0, VECTOR_UNINITIALIZED                                          \
     }
 
 /***** STRUCTURES *****/
@@ -95,8 +96,8 @@ void *vector_get(Vector *vector, size_t index);
 const void *vector_const_get(const Vector *vector, size_t index);
 void *vector_front(Vector *vector);
 void *vector_back(Vector *vector);
-#define VECTOR_GET_AS(type, vector_pointer, index) \
-    *((type *)vector_get((vector_pointer), (index)))
+#define VECTOR_GET_AS(type, vector_pointer, index)                             \
+    *((type *) vector_get((vector_pointer), (index)))
 
 /* Information */
 bool vector_is_initialized(const Vector *vector);
@@ -115,7 +116,7 @@ Iterator vector_end(Vector *vector);
 Iterator vector_iterator(Vector *vector, size_t index);
 
 void *iterator_get(Iterator *iterator);
-#define ITERATOR_GET_AS(type, iterator) *((type *)iterator_get((iterator)))
+#define ITERATOR_GET_AS(type, iterator) *((type *) iterator_get((iterator)))
 
 int iterator_erase(Vector *vector, Iterator *iterator);
 
@@ -131,10 +132,10 @@ bool iterator_is_after(Iterator *first, Iterator *second);
 
 size_t iterator_index(Vector *vector, Iterator *iterator);
 
-#define VECTOR_FOR_EACH(vector_pointer, iterator_name)             \
-    for (Iterator(iterator_name) = vector_begin((vector_pointer)), \
-        end = vector_end((vector_pointer));                        \
-         !iterator_equals(&(iterator_name), &end);                 \
+#define VECTOR_FOR_EACH(vector_pointer, iterator_name)                         \
+    for (Iterator(iterator_name) = vector_begin((vector_pointer)),             \
+        end = vector_end((vector_pointer));                                    \
+         !iterator_equals(&(iterator_name), &end);                             \
          iterator_increment(&(iterator_name)))
 
 /***** PRIVATE *****/

@@ -6,7 +6,8 @@
 #include "logger.h"
 
 /**
- * @brief Checks if the given string representation of a number will be stored in a floating point type.
+ * @brief Checks if the given string representation of a number will be stored
+ * in a floating point type.
  *
  * @param[in] s the string representation of the number.
  *
@@ -69,11 +70,13 @@ bool TYPE_is_signed(t_type *type);
  *
  * @param[in] type the type to dump.
  * @param[in] logger a logger that can be used to log messages.
- * @param[out] buffer the buffer to which the string representation will be written
+ * @param[out] buffer the buffer to which the string representation will be
+ * written
  * @param[in] buffer_size the size of the buffer.
  *
  * @return the buffer with the written string representation of the type.
  */
-const char *TYPE_to_string(t_type *type, t_logger *logger, char *buffer, size_t buffer_size);
+const char *TYPE_to_string(t_type *type, t_logger *logger, char *buffer,
+                           size_t buffer_size);
 
 #endif // __TYPE_H_

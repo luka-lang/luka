@@ -7,33 +7,34 @@
 #include <llvm-c/Core.h>
 #include <llvm-c/TargetMachine.h>
 
-typedef struct {
-  int argc;
-  char **argv;
-  char **file_paths;
-  size_t files_count;
-  size_t file_index;
-  t_vector *tokens;
-  t_module **modules;
-  t_parser *parser;
-  t_ast_node *node;
-  LLVMModuleRef llvm_module;
-  LLVMBuilderRef builder;
-  LLVMPassManagerRef pass_manager;
-  LLVMTargetMachineRef target_machine;
-  LLVMTargetRef target;
-  LLVMTargetDataRef target_data;
-  char *triple;
-  char *error;
-  t_logger *logger;
-  size_t verbosity;
-  char *output_path;
-  char *cmd;
-  bool bitcode;
-  char optimization;
-  bool compile;
-  bool assemble;
-  bool link;
+typedef struct
+{
+    int argc;
+    char **argv;
+    char **file_paths;
+    size_t files_count;
+    size_t file_index;
+    t_vector *tokens;
+    t_module **modules;
+    t_parser *parser;
+    t_ast_node *node;
+    LLVMModuleRef llvm_module;
+    LLVMBuilderRef builder;
+    LLVMPassManagerRef pass_manager;
+    LLVMTargetMachineRef target_machine;
+    LLVMTargetRef target;
+    LLVMTargetDataRef target_data;
+    char *triple;
+    char *error;
+    t_logger *logger;
+    size_t verbosity;
+    char *output_path;
+    char *cmd;
+    bool bitcode;
+    char optimization;
+    bool compile;
+    bool assemble;
+    bool link;
 } t_main_context;
 
 /**
@@ -50,7 +51,8 @@ static void print_help(void);
  */
 static void context_initialize(t_main_context *context, int argc, char **argv);
 /**
- * @brief Destruct the main context, deallocates all memory allocated in the context.
+ * @brief Destruct the main context, deallocates all memory allocated in the
+ * context.
  *
  * @param[in,out] context the context to free.
  */
@@ -80,7 +82,7 @@ static t_return_code get_args(t_main_context *context);
  * - LUKA_VECTOR_FAILURE if the tokens vector couldn't have been setup.
  * - LUKA_LEXER_FAILED for problems inside the lexer.
  */
-static t_return_code lex(t_main_context *context, const char * file_path);
+static t_return_code lex(t_main_context *context, const char *file_path);
 
 /**
  * @brief Perform the parsing stage.
@@ -94,7 +96,7 @@ static t_return_code lex(t_main_context *context, const char * file_path);
  * allocated.
  * - LUKA_VECTOR_FAILURE if the tokens vector couldn't have been setup.
  */
-static t_return_code parse(t_main_context *context, const char * file_path);
+static t_return_code parse(t_main_context *context, const char *file_path);
 
 /**
  * @brief Initalize all LLVM related things both in global scope and in context
