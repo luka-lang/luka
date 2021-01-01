@@ -4,32 +4,26 @@ project(luka)
 
 add_compile_options(-Wall -Wextra -pedantic -Werror)
 
-if (CMAKE_C_COMPILER_ID MATCHES "Clang")
-	add_compile_options("-fuse-ld=lld")
-endif()
-
-# find_package(LLVM REQUIRED analysis bitwriter core mcjit executionengine interpreter native)
-
-# message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
-# message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
-# include_directories(${LLVM_INCLUDE_DIRS})
+find_package(LLVM REQUIRED)
+include_directories(${LLVM_INCLUDE_DIRS})
+link_directories(${LLVM_LIBRARY_DIRS})
+add_definitions(${LLVM_DEFINITIONS})
 
 find_program(LLVM_CONFIG_EXECUTABLE NAMES llvm-config)
 
 execute_process(
-	COMMAND ${LLVM_CONFIG_EXECUTABLE} --libs core mcjit executionengine interpreter analysis native bitwriter
-	OUTPUT_VARIABLE LLVM_LIBS
+	COMMAND ${LLVM_CONFIG_EXECUTABLE} --libs core analysis native bitwriter
+	OUTPUT_VARIABLE LLVM_LIBRARIES
 	OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 include_directories(${PROJECT_SOURCE_DIR}/include)
-add_definitions(${LLVM_DEFINITIONS})
 
 file(GLOB_RECURSE SOURCES src/*.c)
 file(GLOB_RECURSE LIBS    libs/*)
 
 add_executable(luka ${SOURCES})
 
-target_link_libraries(luka ${LLVM_LIBRARIES} ${LLVM_LIBS} ${LIBS})
+target_link_libraries(luka ${LLVM_LIBRARIES} ${LIBS})
 
 add_custom_target(docs cd ${PROJECT_SOURCE_DIR}/docs
   COMMAND doxygen && cd -

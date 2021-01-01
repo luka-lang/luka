@@ -1,6 +1,7 @@
 /** @file parser.c */
 #include "parser.h"
 #include "ast.h"
+#include "lib.h"
 #include "type.h"
 
 #include <string.h>
@@ -490,22 +491,18 @@ void PARSER_free(t_parser *parser)
     parser->enum_names = NULL;
 }
 
-t_vector *PARSER_parse_top_level(t_parser *parser)
+t_module *PARSER_parse_file(t_parser *parser)
 {
-    t_vector *functions = NULL;
+    t_module *module = NULL;
     t_token *token = NULL;
-    t_ast_node *function = NULL, *prototype = NULL, *node = NULL;
+    t_ast_node *node = NULL;
     char *name = NULL;
     t_vector *fields = NULL;
 
-    functions = calloc(1, sizeof(t_vector));
-    if (NULL == functions)
+    if (LUKA_SUCCESS != LIB_initialize_module(&module, parser->logger))
     {
-        (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for functions");
         goto l_cleanup;
     }
-
-    (void) vector_setup(functions, 5, sizeof(t_ast_node_ptr));
 
     while (parser->index < parser->tokens->size)
     {
@@ -515,15 +512,15 @@ t_vector *PARSER_parse_top_level(t_parser *parser)
         {
         case T_FN:
         {
-            function = parser_parse_function(parser);
-            (void) vector_push_back(functions, &function);
+            node = parser_parse_function(parser);
+            (void) vector_push_back(module->functions, &node);
             break;
         }
         case T_EXTERN:
         {
-            prototype = parser_parse_prototype(parser);
-            function = AST_new_function(prototype, NULL);
-            (void) vector_push_back(functions, &function);
+            node = parser_parse_prototype(parser);
+            node = AST_new_function(node, NULL);
+            (void) vector_push_back(module->functions, &node);
             EXPECT_ADVANCE(parser, T_SEMI_COLON,
                            "Expected a `;` at the end of an extern statement.");
             break;
@@ -539,7 +536,7 @@ t_vector *PARSER_parse_top_level(t_parser *parser)
             MATCH_ADVANCE(parser, T_CLOSE_BRACE, "Expected a '}' after struct fields in struct definition");
             node = AST_new_struct_definition(name, fields);
             (void) vector_push_front(parser->struct_names, &name);
-            (void) vector_push_front(functions, &node);
+            (void) vector_push_front(module->structs, &node);
             parser->index -= 1;
             break;
         }
@@ -554,7 +551,7 @@ t_vector *PARSER_parse_top_level(t_parser *parser)
             MATCH_ADVANCE(parser, T_CLOSE_BRACE, "Expected a '}' after enum fields in enum definition");
             node = AST_new_enum_definition(name, fields);
             (void) vector_push_front(parser->enum_names, &name);
-            (void) vector_push_front(functions, &node);
+            (void) vector_push_front(module->enums, &node);
             parser->index -= 1;
             break;
         }
@@ -570,10 +567,12 @@ t_vector *PARSER_parse_top_level(t_parser *parser)
         parser->index += 1;
     }
 
-    (void) vector_shrink_to_fit(functions);
+    (void) vector_shrink_to_fit(module->enums);
+    (void) vector_shrink_to_fit(module->functions);
+    (void) vector_shrink_to_fit(module->structs);
 
 l_cleanup:
-    return functions;
+    return module;
 }
 
 /**

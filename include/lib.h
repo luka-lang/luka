@@ -12,13 +12,22 @@
  */
 void LIB_free_tokens_vector(t_vector *tokens);
 
+
 /**
- * @brief Deallocates all memory allocated by the @p functions vector.
+ * @brief Initializes a module.
  *
- * @param[in,out] functions the functions vector to free.
+ * @param[in,out] module the module to free.
  * @param[in] logger a logger that can be used to log messages.
  */
-void LIB_free_functions_vector(t_vector *functions, t_logger *logger);
+t_return_code LIB_initialize_module(t_module **module, t_logger *logger);
+
+/**
+ * @brief Deallocates all memory allocated by the @p module.
+ *
+ * @param[in,out] module the module to free.
+ * @param[in] logger a logger that can be used to log messages.
+ */
+void LIB_free_module(t_module *module, t_logger *logger);
 
 /**
  * @brief Stringifying a string value.
