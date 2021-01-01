@@ -12,9 +12,9 @@ void LIB_free_tokens_vector(t_vector *tokens)
     t_iterator last = vector_end(tokens);
     for (; !iterator_equals(&iterator, &last); iterator_increment(&iterator))
     {
-        token = *(t_token_ptr *)iterator_get(&iterator);
-        if ((token->type == T_NUMBER) || (token->type == T_STRING) ||
-            ((token->type <= T_IDENTIFIER) && (token->type > T_UNKNOWN)))
+        token = *(t_token_ptr *) iterator_get(&iterator);
+        if ((token->type == T_NUMBER) || (token->type == T_STRING)
+            || ((token->type <= T_IDENTIFIER) && (token->type > T_UNKNOWN)))
         {
             if (NULL != token->content)
             {
@@ -39,7 +39,7 @@ void lib_free_nodes_vector(t_vector *nodes, t_logger *logger)
 
     for (; !iterator_equals(&iterator, &last); iterator_increment(&iterator))
     {
-        node = *(t_ast_node_ptr *)iterator_get(&iterator);
+        node = *(t_ast_node_ptr *) iterator_get(&iterator);
         (void) AST_free_node(node, logger);
     }
 
@@ -55,7 +55,8 @@ t_return_code lib_intialize_nodes(t_vector **nodes, t_logger *logger)
     *nodes = calloc(1, sizeof(t_vector));
     if (NULL == *nodes)
     {
-        (void) LOGGER_log(logger, L_ERROR, "Couldn't allocate memory for nodes");
+        (void) LOGGER_log(logger, L_ERROR,
+                          "Couldn't allocate memory for nodes");
         status_code = LUKA_CANT_ALLOC_MEMORY;
         goto l_cleanup;
     }
@@ -92,9 +93,13 @@ t_return_code LIB_initialize_module(t_module **module, t_logger *logger)
     (*module)->functions = NULL;
     (*module)->structs = NULL;
 
-    RAISE_LUKA_STATUS_ON_ERROR(lib_intialize_nodes(&(*module)->enums, logger), status_code, l_cleanup);
-    RAISE_LUKA_STATUS_ON_ERROR(lib_intialize_nodes(&(*module)->functions, logger), status_code, l_cleanup);
-    RAISE_LUKA_STATUS_ON_ERROR(lib_intialize_nodes(&(*module)->structs, logger), status_code, l_cleanup);
+    RAISE_LUKA_STATUS_ON_ERROR(lib_intialize_nodes(&(*module)->enums, logger),
+                               status_code, l_cleanup);
+    RAISE_LUKA_STATUS_ON_ERROR(
+        lib_intialize_nodes(&(*module)->functions, logger), status_code,
+        l_cleanup);
+    RAISE_LUKA_STATUS_ON_ERROR(lib_intialize_nodes(&(*module)->structs, logger),
+                               status_code, l_cleanup);
 
     status_code = LUKA_SUCCESS;
     return status_code;
@@ -115,8 +120,6 @@ l_cleanup:
         {
             (void) lib_free_nodes_vector((*module)->structs, logger);
         }
-
-
     }
     return status_code;
 }
@@ -142,7 +145,7 @@ void LIB_free_module(t_module *module, t_logger *logger)
     module = NULL;
 }
 
-char *LIB_stringify(const char* source, size_t source_length, t_logger *logger)
+char *LIB_stringify(const char *source, size_t source_length, t_logger *logger)
 {
     size_t i = 0;
     size_t char_count = source_length;
@@ -151,14 +154,14 @@ char *LIB_stringify(const char* source, size_t source_length, t_logger *logger)
     {
         switch (source[i])
         {
-        case '\n':
-        case '\t':
-        case '\\':
-        case '\"':
-            ++char_count;
-            break;
-        default:
-            break;
+            case '\n':
+            case '\t':
+            case '\\':
+            case '\"':
+                ++char_count;
+                break;
+            default:
+                break;
         }
     }
 
@@ -167,7 +170,9 @@ char *LIB_stringify(const char* source, size_t source_length, t_logger *logger)
     char *str = calloc(sizeof(char), char_count + 1);
     if (NULL == str)
     {
-        (void) LOGGER_log(logger, L_ERROR, "Couldn't allocate memory for string in ast_stringify.\n");
+        (void) LOGGER_log(
+            logger, L_ERROR,
+            "Couldn't allocate memory for string in ast_stringify.\n");
         return NULL;
     }
 
@@ -175,28 +180,28 @@ char *LIB_stringify(const char* source, size_t source_length, t_logger *logger)
     {
         switch (source[i])
         {
-        case '\n':
-            str[i + off] = '\\';
-            str[i + off + 1] = 'n';
-            ++off;
-            break;
-        case '\t':
-            str[i + off] = '\\';
-            str[i + off + 1] = 't';
-            ++off;
-            break;
-        case '\\':
-            str[i + off] = '\\';
-            str[i + off + 1] = '\\';
-            ++off;
-            break;
-        case '\"':
-            str[i + off] = '\\';
-            str[i + off + 1] = '"';
-            ++off;
-            break;
-        default:
-            str[i + off] = source[i];
+            case '\n':
+                str[i + off] = '\\';
+                str[i + off + 1] = 'n';
+                ++off;
+                break;
+            case '\t':
+                str[i + off] = '\\';
+                str[i + off + 1] = 't';
+                ++off;
+                break;
+            case '\\':
+                str[i + off] = '\\';
+                str[i + off + 1] = '\\';
+                ++off;
+                break;
+            case '\"':
+                str[i + off] = '\\';
+                str[i + off + 1] = '"';
+                ++off;
+                break;
+            default:
+                str[i + off] = source[i];
         }
     }
 

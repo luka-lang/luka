@@ -11,31 +11,31 @@
 
 typedef struct
 {
-    const char *name; /**< The name of the named value */
+    const char *name;         /**< The name of the named value */
     LLVMValueRef alloca_inst; /**< The alloca instruction of the named value */
-    LLVMTypeRef type; /**< The LLVM type of the named value */
-    t_type *ttype; /**< The luka type of the named value */
-    bool mutable; /**< Whether the named value is mutable */
-    UT_hash_handle hh; /**< A handle for uthash */
-} t_named_value; /**< A struct for named values */
+    LLVMTypeRef type;         /**< The LLVM type of the named value */
+    t_type *ttype;            /**< The luka type of the named value */
+    bool mutable;             /**< Whether the named value is mutable */
+    UT_hash_handle hh;        /**< A handle for uthash */
+} t_named_value;              /**< A struct for named values */
 
 typedef struct
 {
     LLVMTypeRef struct_type; /**< The LLVM type of the struct */
-    char *struct_name; /**< The name of the struct */
-    char **struct_fields; /**< The name of the struct fields */
+    char *struct_name;       /**< The name of the struct */
+    char **struct_fields;    /**< The name of the struct fields */
     size_t number_of_fields; /**< The number of fields in the struct */
-    UT_hash_handle hh; /**< A handle for uthash */
-} t_struct_info; /**< A struct for keeping info about structs */
+    UT_hash_handle hh;       /**< A handle for uthash */
+} t_struct_info;             /**< A struct for keeping info about structs */
 
 typedef struct
 {
-    char *enum_name; /**< The name of the enum */
+    char *enum_name;         /**< The name of the enum */
     char **enum_field_names; /**< The fields of the enum */
-    int *enum_field_values; /**< The values of the enum fields */
+    int *enum_field_values;  /**< The values of the enum fields */
     size_t number_of_fields; /**< The number of enum fields */
-    UT_hash_handle hh; /**< A handle for uthash */
-} t_enum_info; /**< A struct for keeping info about enums */
+    UT_hash_handle hh;       /**< A handle for uthash */
+} t_enum_info;               /**< A struct for keeping info about enums */
 
 /**
  * @brief Generating LLVM IR for a Luka AST node.
@@ -47,7 +47,8 @@ typedef struct
  *
  * @return the generated LLVM IR code for the AST node.
  */
-LLVMValueRef GEN_codegen(t_ast_node *n, LLVMModuleRef module, LLVMBuilderRef builder, t_logger *logger);
+LLVMValueRef GEN_codegen(t_ast_node *n, LLVMModuleRef module,
+                         LLVMBuilderRef builder, t_logger *logger);
 
 /**
  * @brief Initializing the codegen environment.

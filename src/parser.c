@@ -92,7 +92,8 @@ t_vector *parser_parse_statements(t_parser *parser);
  *
  * @param[in,out] parser the parser to parse with.
  *
- * @return a vector of #t_struct_field * that represent the parsed struct fields (name and type) or NULL if failed to parse the struct fields.
+ * @return a vector of #t_struct_field * that represent the parsed struct fields
+ * (name and type) or NULL if failed to parse the struct fields.
  */
 t_vector *parser_parse_struct_fields(t_parser *parser);
 
@@ -101,7 +102,8 @@ t_vector *parser_parse_struct_fields(t_parser *parser);
  *
  * @param[in,out] parser the parser to parse with.
  *
- * @return a #t_struct_field * that represent the parsed struct field (name and type).
+ * @return a #t_struct_field * that represent the parsed struct field (name and
+ * type).
  */
 t_struct_field *parser_parse_struct_field(t_parser *parser);
 
@@ -120,7 +122,8 @@ bool parser_is_struct_name(t_parser *parser, const char *ident_name);
  *
  * @param[in,out] parser the parser to parse with.
  *
- * @return a vector of #t_enum_field * that represent the parsed enum fields (name and value) or NULL if failed to parse the enum fields.
+ * @return a vector of #t_enum_field * that represent the parsed enum fields
+ * (name and value) or NULL if failed to parse the enum fields.
  */
 t_vector *parser_parse_enum_fields(t_parser *parser);
 
@@ -129,7 +132,8 @@ t_vector *parser_parse_enum_fields(t_parser *parser);
  *
  * @param[in,out] parser the parser to parse with.
  *
- * @return a #t_enum_field * that represent the parsed enum field (name and value).
+ * @return a #t_enum_field * that represent the parsed enum field (name and
+ * value).
  */
 t_enum_field *parser_parse_enum_field(t_parser *parser);
 
@@ -170,17 +174,19 @@ t_ast_node *parser_parse_prototype(t_parser *parser);
 void ERR(t_parser *parser, const char *message)
 {
     t_token *token = NULL;
-    token = *(t_token_ptr *)vector_get(parser->tokens, parser->index + 1);
+    token = *(t_token_ptr *) vector_get(parser->tokens, parser->index + 1);
 
     (void) LOGGER_log(parser->logger, L_ERROR, "%s\n", message);
 
-    (void) LOGGER_log(parser->logger, L_ERROR, "Error at %s %ld:%ld - %s\n", parser->file_path, token->line,
-                      token->offset, token->content);
+    (void) LOGGER_log(parser->logger, L_ERROR, "Error at %s %ld:%ld - %s\n",
+                      parser->file_path, token->line, token->offset,
+                      token->content);
     (void) exit(1);
 }
 
 /**
- * @brief Expect a token from a certain type to be the next token in the parser's tokens vector.
+ * @brief Expect a token from a certain type to be the next token in the
+ * parser's tokens vector.
  *
  * @param[in] parser the parser to use.
  * @param[in] type the type of the expected token.
@@ -193,13 +199,14 @@ bool EXPECT(t_parser *parser, t_toktype type)
 
     (void) assert(parser->index + 1 < parser->tokens->size);
 
-    token = *(t_token_ptr *)vector_get(parser->tokens, parser->index + 1);
+    token = *(t_token_ptr *) vector_get(parser->tokens, parser->index + 1);
 
     return token->type == type;
 }
 
 /**
- * @brief Expect a token from a certain type to be the current token in the parser's tokens vector.
+ * @brief Expect a token from a certain type to be the current token in the
+ * parser's tokens vector.
  *
  * @param[in] parser the parser to use.
  * @param[in] type the type of the expected token.
@@ -212,7 +219,7 @@ bool MATCH(t_parser *parser, t_toktype type)
 
     (void) assert(parser->index < parser->tokens->size);
 
-    token = *(t_token_ptr *)vector_get(parser->tokens, parser->index);
+    token = *(t_token_ptr *) vector_get(parser->tokens, parser->index);
 
     return token->type == type;
 }
@@ -229,11 +236,13 @@ void ADVANCE(t_parser *parser)
 }
 
 /**
- * @brief If the expected token type is equal to the next token's type, advance, otherwise report an error.
+ * @brief If the expected token type is equal to the next token's type, advance,
+ * otherwise report an error.
  *
  * @param[in,out] parser the parser to use.
  * @param[in] type the expected token type.
- * @param[in] message the message to report if the expected token is not the next token.
+ * @param[in] message the message to report if the expected token is not the
+ * next token.
  */
 void EXPECT_ADVANCE(t_parser *parser, t_toktype type, const char *message)
 {
@@ -246,11 +255,13 @@ void EXPECT_ADVANCE(t_parser *parser, t_toktype type, const char *message)
 }
 
 /**
- * @brief If the expected token type is equal to the current token's type, advance, otherwise report an error.
+ * @brief If the expected token type is equal to the current token's type,
+ * advance, otherwise report an error.
  *
  * @param[in,out] parser the parser to use.
  * @param[in] type the expected token type.
- * @param[in] message the message to report if the expected token type is not the current token's type.
+ * @param[in] message the message to report if the expected token type is not
+ * the current token's type.
  */
 void MATCH_ADVANCE(t_parser *parser, t_toktype type, const char *message)
 {
@@ -271,7 +282,8 @@ void MATCH_ADVANCE(t_parser *parser, t_toktype type, const char *message)
  */
 bool parser_is_compound_expr(t_ast_node *node)
 {
-    return (node->type == AST_TYPE_WHILE_EXPR) || (node->type == AST_TYPE_IF_EXPR);
+    return (node->type == AST_TYPE_WHILE_EXPR)
+        || (node->type == AST_TYPE_IF_EXPR);
 }
 
 /**
@@ -280,7 +292,8 @@ bool parser_is_compound_expr(t_ast_node *node)
  * @param[in,out] parser the parser to use.
  * @param[in] parse_prefix whether the ":" should be parsed to.
  *
- * @return a #t_type * that matches the parsed type or a signed integer 32 bit type by default.
+ * @return a #t_type * that matches the parsed type or a signed integer 32 bit
+ * type by default.
  */
 t_type *parser_parse_type(t_parser *parser, bool parse_prefix)
 {
@@ -307,7 +320,6 @@ t_type *parser_parse_type(t_parser *parser, bool parse_prefix)
         }
 
         EXPECT_ADVANCE(parser, T_COLON, "Expected a `:` before type.");
-
     }
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
@@ -321,90 +333,88 @@ t_type *parser_parse_type(t_parser *parser, bool parse_prefix)
 
     ADVANCE(parser);
 
-
     switch (token->type)
     {
-    case T_ANY_TYPE:
-        type->type = TYPE_ANY;
-        break;
-    case T_BOOL_TYPE:
-        type->type = TYPE_BOOL;
-        break;
-    case T_S8_TYPE:
-        type->type = TYPE_SINT8;
-        break;
-    case T_S16_TYPE:
-        type->type = TYPE_SINT16;
-        break;
-    case T_S32_TYPE:
-    case T_INT_TYPE:
-        type->type = TYPE_SINT32;
-        break;
-    case T_S64_TYPE:
-        type->type = TYPE_SINT64;
-        break;
-    case T_U8_TYPE:
-    case T_CHAR_TYPE:
-        type->type = TYPE_UINT8;
-        break;
-    case T_U16_TYPE:
-        type->type = TYPE_UINT16;
-        break;
-    case T_U32_TYPE:
-        type->type = TYPE_UINT32;
-        break;
-    case T_U64_TYPE:
-        type->type = TYPE_UINT64;
-        break;
-    case T_F32_TYPE:
-    case T_FLOAT_TYPE:
-        type->type = TYPE_F32;
-        break;
-    case T_F64_TYPE:
-    case T_DOUBLE_TYPE:
-        type->type = TYPE_F64;
-        break;
-    case T_STR_TYPE:
-        type->type = TYPE_STRING;
-        break;
-    case T_VOID_TYPE:
-        type->type = TYPE_VOID;
-        break;
-    case T_STRUCT:
-        type->type = TYPE_STRUCT;
-        ADVANCE(parser);
-        token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-        type->payload = (void *)strdup(token->content);
-        break;
-    case T_ENUM:
-        type->type = TYPE_ENUM,
-        ADVANCE(parser);
-        token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-        type->payload = (void *)strdup(token->content);
-        break;
-    default:
-        if (parser_is_struct_name(parser, token->content))
-        {
+        case T_ANY_TYPE:
+            type->type = TYPE_ANY;
+            break;
+        case T_BOOL_TYPE:
+            type->type = TYPE_BOOL;
+            break;
+        case T_S8_TYPE:
+            type->type = TYPE_SINT8;
+            break;
+        case T_S16_TYPE:
+            type->type = TYPE_SINT16;
+            break;
+        case T_S32_TYPE:
+        case T_INT_TYPE:
+            type->type = TYPE_SINT32;
+            break;
+        case T_S64_TYPE:
+            type->type = TYPE_SINT64;
+            break;
+        case T_U8_TYPE:
+        case T_CHAR_TYPE:
+            type->type = TYPE_UINT8;
+            break;
+        case T_U16_TYPE:
+            type->type = TYPE_UINT16;
+            break;
+        case T_U32_TYPE:
+            type->type = TYPE_UINT32;
+            break;
+        case T_U64_TYPE:
+            type->type = TYPE_UINT64;
+            break;
+        case T_F32_TYPE:
+        case T_FLOAT_TYPE:
+            type->type = TYPE_F32;
+            break;
+        case T_F64_TYPE:
+        case T_DOUBLE_TYPE:
+            type->type = TYPE_F64;
+            break;
+        case T_STR_TYPE:
+            type->type = TYPE_STRING;
+            break;
+        case T_VOID_TYPE:
+            type->type = TYPE_VOID;
+            break;
+        case T_STRUCT:
             type->type = TYPE_STRUCT;
-            type->payload = (void *)strdup(token->content);
+            ADVANCE(parser);
+            token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+            type->payload = (void *) strdup(token->content);
             break;
-        }
-
-        if (parser_is_enum_name(parser, token->content))
-        {
-            type->type = TYPE_ENUM;
-            type->payload = (void *)strdup(token->content);
+        case T_ENUM:
+            type->type = TYPE_ENUM, ADVANCE(parser);
+            token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+            type->payload = (void *) strdup(token->content);
             break;
-        }
+        default:
+            if (parser_is_struct_name(parser, token->content))
+            {
+                type->type = TYPE_STRUCT;
+                type->payload = (void *) strdup(token->content);
+                break;
+            }
 
-        (void) LOGGER_log(parser->logger, L_ERROR, "Unknown type %d %s. Fallbacking to s32.\n", token->type,
-                        token->content);
-        type->type = TYPE_SINT32;
+            if (parser_is_enum_name(parser, token->content))
+            {
+                type->type = TYPE_ENUM;
+                type->payload = (void *) strdup(token->content);
+                break;
+            }
+
+            (void) LOGGER_log(parser->logger, L_ERROR,
+                              "Unknown type %d %s. Fallbacking to s32.\n",
+                              token->type, token->content);
+            type->type = TYPE_SINT32;
     }
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
-    while ((T_STAR == token->type)
-           || (T_OPEN_BRACKET == token->type)
+    while ((T_STAR == token->type) || (T_OPEN_BRACKET == token->type)
            || (T_MUT == token->type))
     {
         inner_type = type;
@@ -422,32 +432,33 @@ t_type *parser_parse_type(t_parser *parser, bool parse_prefix)
         {
             type->mutable = true;
             ADVANCE(parser);
-            token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
+            token
+                = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
         }
 
         if (T_OPEN_BRACKET == token->type)
         {
             ADVANCE(parser);
-            EXPECT_ADVANCE(parser, T_CLOSE_BRACKET, "Expected ']' after '[' in type definition.");
+            EXPECT_ADVANCE(parser, T_CLOSE_BRACKET,
+                           "Expected ']' after '[' in type definition.");
             type->type = TYPE_ARRAY;
-            token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
+            token
+                = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
         }
         else
         {
             type->type = TYPE_PTR;
             ADVANCE(parser);
-            token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
+            token
+                = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
         }
     }
-
 
     return type;
 }
 
-void PARSER_initialize(t_parser *parser,
-                       t_vector *tokens,
-                       const char *file_path,
-                       t_logger* logger)
+void PARSER_initialize(t_parser *parser, t_vector *tokens,
+                       const char *file_path, t_logger *logger)
 {
     (void) assert(parser != NULL);
 
@@ -458,7 +469,8 @@ void PARSER_initialize(t_parser *parser,
     parser->struct_names = calloc(1, sizeof(t_vector));
     if (NULL == parser->struct_names)
     {
-        (void) LOGGER_log(parser->logger, L_ERROR, "Cannot allocate memory for struct names vector.\n");
+        (void) LOGGER_log(parser->logger, L_ERROR,
+                          "Cannot allocate memory for struct names vector.\n");
         (void) exit(LUKA_CANT_ALLOC_MEMORY);
     }
 
@@ -467,7 +479,8 @@ void PARSER_initialize(t_parser *parser,
     parser->enum_names = calloc(1, sizeof(t_vector));
     if (NULL == parser->enum_names)
     {
-        (void) LOGGER_log(parser->logger, L_ERROR, "Cannot allocate memory for enum names vector.\n");
+        (void) LOGGER_log(parser->logger, L_ERROR,
+                          "Cannot allocate memory for enum names vector.\n");
         (void) exit(LUKA_CANT_ALLOC_MEMORY);
     }
 
@@ -506,63 +519,80 @@ t_module *PARSER_parse_file(t_parser *parser)
 
     while (parser->index < parser->tokens->size)
     {
-        token = *(t_token_ptr *)vector_get(parser->tokens, parser->index);
+        token = *(t_token_ptr *) vector_get(parser->tokens, parser->index);
 
         switch (token->type)
         {
-        case T_FN:
-        {
-            node = parser_parse_function(parser);
-            (void) vector_push_back(module->functions, &node);
-            break;
-        }
-        case T_EXTERN:
-        {
-            node = parser_parse_prototype(parser);
-            node = AST_new_function(node, NULL);
-            (void) vector_push_back(module->functions, &node);
-            EXPECT_ADVANCE(parser, T_SEMI_COLON,
-                           "Expected a `;` at the end of an extern statement.");
-            break;
-        }
-        case T_STRUCT:
-        {
-            EXPECT_ADVANCE(parser, T_IDENTIFIER, "Expected an identifier after keyword 'struct'");
-            token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-            name = strdup(token->content);
-            EXPECT_ADVANCE(parser, T_OPEN_BRACE, "Expected a '{' after identifier in struct definition");
-            ADVANCE(parser);
-            fields = parser_parse_struct_fields(parser);
-            MATCH_ADVANCE(parser, T_CLOSE_BRACE, "Expected a '}' after struct fields in struct definition");
-            node = AST_new_struct_definition(name, fields);
-            (void) vector_push_front(parser->struct_names, &name);
-            (void) vector_push_front(module->structs, &node);
-            parser->index -= 1;
-            break;
-        }
-        case T_ENUM:
-        {
-            EXPECT_ADVANCE(parser, T_IDENTIFIER, "Expected an identifier after keywork 'enum'");
-            token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-            name = strdup(token->content);
-            EXPECT_ADVANCE(parser, T_OPEN_BRACE, "Expected a '{' after identifier in enum definition");
-            ADVANCE(parser);
-            fields = parser_parse_enum_fields(parser);
-            MATCH_ADVANCE(parser, T_CLOSE_BRACE, "Expected a '}' after enum fields in enum definition");
-            node = AST_new_enum_definition(name, fields);
-            (void) vector_push_front(parser->enum_names, &name);
-            (void) vector_push_front(module->enums, &node);
-            parser->index -= 1;
-            break;
-        }
-        case T_EOF:
-            break;
-        default:
-        {
-            (void) LOGGER_log(parser->logger, L_ERROR, "Syntax error at %s %ld:%ld - %s\n", parser->file_path,
-                              token->line, token->offset, token->content);
-            break;
-        }
+            case T_FN:
+                {
+                    node = parser_parse_function(parser);
+                    (void) vector_push_back(module->functions, &node);
+                    break;
+                }
+            case T_EXTERN:
+                {
+                    node = parser_parse_prototype(parser);
+                    node = AST_new_function(node, NULL);
+                    (void) vector_push_back(module->functions, &node);
+                    EXPECT_ADVANCE(
+                        parser, T_SEMI_COLON,
+                        "Expected a `;` at the end of an extern statement.");
+                    break;
+                }
+            case T_STRUCT:
+                {
+                    EXPECT_ADVANCE(
+                        parser, T_IDENTIFIER,
+                        "Expected an identifier after keyword 'struct'");
+                    token = VECTOR_GET_AS(t_token_ptr, parser->tokens,
+                                          parser->index);
+                    name = strdup(token->content);
+                    EXPECT_ADVANCE(
+                        parser, T_OPEN_BRACE,
+                        "Expected a '{' after identifier in struct definition");
+                    ADVANCE(parser);
+                    fields = parser_parse_struct_fields(parser);
+                    MATCH_ADVANCE(parser, T_CLOSE_BRACE,
+                                  "Expected a '}' after struct fields in "
+                                  "struct definition");
+                    node = AST_new_struct_definition(name, fields);
+                    (void) vector_push_front(parser->struct_names, &name);
+                    (void) vector_push_front(module->structs, &node);
+                    parser->index -= 1;
+                    break;
+                }
+            case T_ENUM:
+                {
+                    EXPECT_ADVANCE(
+                        parser, T_IDENTIFIER,
+                        "Expected an identifier after keywork 'enum'");
+                    token = VECTOR_GET_AS(t_token_ptr, parser->tokens,
+                                          parser->index);
+                    name = strdup(token->content);
+                    EXPECT_ADVANCE(
+                        parser, T_OPEN_BRACE,
+                        "Expected a '{' after identifier in enum definition");
+                    ADVANCE(parser);
+                    fields = parser_parse_enum_fields(parser);
+                    MATCH_ADVANCE(
+                        parser, T_CLOSE_BRACE,
+                        "Expected a '}' after enum fields in enum definition");
+                    node = AST_new_enum_definition(name, fields);
+                    (void) vector_push_front(parser->enum_names, &name);
+                    (void) vector_push_front(module->enums, &node);
+                    parser->index -= 1;
+                    break;
+                }
+            case T_EOF:
+                break;
+            default:
+                {
+                    (void) LOGGER_log(parser->logger, L_ERROR,
+                                      "Syntax error at %s %ld:%ld - %s\n",
+                                      parser->file_path, token->line,
+                                      token->offset, token->content);
+                    break;
+                }
         }
         parser->index += 1;
     }
@@ -587,20 +617,21 @@ t_ast_unop_type parser_parse_unop(t_token *token, t_logger *logger)
 {
     switch (token->type)
     {
-    case T_PLUS:
-        return UNOP_PLUS;
-    case T_MINUS:
-        return UNOP_MINUS;
-    case T_STAR:
-        return UNOP_DEREF;
-    case T_AMPERCENT:
-        return UNOP_REF;
-    case T_BANG:
-        return UNOP_NOT;
-    default:
-        (void) LOGGER_log(logger, L_ERROR, "Unknown token in parser_parse_unop at %ld:%ld\n", token->line,
-                          token->offset);
-        (void) exit(1);
+        case T_PLUS:
+            return UNOP_PLUS;
+        case T_MINUS:
+            return UNOP_MINUS;
+        case T_STAR:
+            return UNOP_DEREF;
+        case T_AMPERCENT:
+            return UNOP_REF;
+        case T_BANG:
+            return UNOP_NOT;
+        default:
+            (void) LOGGER_log(logger, L_ERROR,
+                              "Unknown token in parser_parse_unop at %ld:%ld\n",
+                              token->line, token->offset);
+            (void) exit(1);
     }
 }
 
@@ -616,30 +647,32 @@ t_ast_binop_type parser_parse_binop(t_token *token, t_logger *logger)
 {
     switch (token->type)
     {
-    case T_PLUS:
-        return BINOP_ADD;
-    case T_MINUS:
-        return BINOP_SUBTRACT;
-    case T_STAR:
-        return BINOP_MULTIPLY;
-    case T_SLASH:
-        return BINOP_DIVIDE;
-    case T_OPEN_ANG:
-        return BINOP_LESSER;
-    case T_CLOSE_ANG:
-        return BINOP_GREATER;
-    case T_EQEQ:
-        return BINOP_EQUALS;
-    case T_NEQ:
-        return BINOP_NEQ;
-    case T_LEQ:
-        return BINOP_LEQ;
-    case T_GEQ:
-        return BINOP_GEQ;
-    default:
-        (void) LOGGER_log(logger, L_ERROR, "Unknown token in parser_parse_binop at %ld:%ld\n", token->line,
-                          token->offset);
-        (void) exit(1);
+        case T_PLUS:
+            return BINOP_ADD;
+        case T_MINUS:
+            return BINOP_SUBTRACT;
+        case T_STAR:
+            return BINOP_MULTIPLY;
+        case T_SLASH:
+            return BINOP_DIVIDE;
+        case T_OPEN_ANG:
+            return BINOP_LESSER;
+        case T_CLOSE_ANG:
+            return BINOP_GREATER;
+        case T_EQEQ:
+            return BINOP_EQUALS;
+        case T_NEQ:
+            return BINOP_NEQ;
+        case T_LEQ:
+            return BINOP_LEQ;
+        case T_GEQ:
+            return BINOP_GEQ;
+        default:
+            (void) LOGGER_log(
+                logger, L_ERROR,
+                "Unknown token in parser_parse_binop at %ld:%ld\n", token->line,
+                token->offset);
+            (void) exit(1);
     }
 }
 
@@ -692,8 +725,8 @@ bool parser_is_enum_name(t_parser *parser, const char *ident_name)
 /**
  * @brief Parse an identifier expression.
  *
- * @details An identifier expression is any expression that starts with an identifier.
- * An identifier expression can be any of the following:
+ * @details An identifier expression is any expression that starts with an
+ * identifier. An identifier expression can be any of the following:
  * - Get Expression
  * - Struct Value
  * - Variable Reference
@@ -730,32 +763,38 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
 
         return AST_new_get_expr(ident_name, strdup(token->content), is_enum);
     }
-    else if (MATCH(parser , T_OPEN_BRACE) && parser_is_struct_name(parser, ident_name))
+    else if (MATCH(parser, T_OPEN_BRACE)
+             && parser_is_struct_name(parser, ident_name))
     {
         ADVANCE(parser);
         struct_value_fields = calloc(1, sizeof(t_vector));
         if (NULL == struct_value_fields)
         {
-            (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for struct_value_fields.\n");
+            (void) LOGGER_log(
+                parser->logger, L_ERROR,
+                "Couldn't allocate memory for struct_value_fields.\n");
             goto l_cleanup;
         }
 
-        (void) vector_setup(struct_value_fields, 5, sizeof(t_struct_value_field_ptr));
-
+        (void) vector_setup(struct_value_fields, 5,
+                            sizeof(t_struct_value_field_ptr));
 
         while (true)
         {
             struct_value_field = calloc(1, sizeof(t_struct_value_field));
             if (NULL == struct_value_field)
             {
-                (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for struct_value_field.\n");
+                (void) LOGGER_log(
+                    parser->logger, L_ERROR,
+                    "Couldn't allocate memory for struct_value_field.\n");
                 goto l_cleanup;
             }
 
             token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
             struct_value_field->name = strdup(token->content);
 
-            EXPECT_ADVANCE(parser, T_COLON, "Expected ':' after field name in struct value.\n");
+            EXPECT_ADVANCE(parser, T_COLON,
+                           "Expected ':' after field name in struct value.\n");
             ADVANCE(parser);
             struct_value_field->expr = parser_parse_expression(parser);
 
@@ -767,7 +806,8 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
                 break;
             }
 
-            MATCH_ADVANCE(parser, T_COMMA, "Expected '}' or ',' after struct value field.\n");
+            MATCH_ADVANCE(parser, T_COMMA,
+                          "Expected '}' or ',' after struct value field.\n");
         }
 
         return AST_new_struct_value(ident_name, struct_value_fields);
@@ -776,7 +816,8 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
     {
         ADVANCE(parser);
         expr = parser_parse_expression(parser);
-        MATCH_ADVANCE(parser, T_CLOSE_BRACKET, "Expected ']' after index in array dereference.\n");
+        MATCH_ADVANCE(parser, T_CLOSE_BRACKET,
+                      "Expected ']' after index in array dereference.\n");
 
         return AST_new_array_deref(ident_name, expr);
     }
@@ -787,14 +828,16 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
             ADVANCE(parser);
             mutable = true;
         }
-        return AST_new_variable(ident_name, parser_parse_type(parser, true), mutable);
+        return AST_new_variable(ident_name, parser_parse_type(parser, true),
+                                mutable);
     }
 
     ADVANCE(parser);
     args = calloc(1, sizeof(t_vector));
     if (NULL == args)
     {
-        (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for args.\n");
+        (void) LOGGER_log(parser->logger, L_ERROR,
+                          "Couldn't allocate memory for args.\n");
         goto l_cleanup;
     }
     vector_setup(args, 10, sizeof(t_ast_node));
@@ -812,7 +855,8 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
                 break;
             }
 
-            MATCH_ADVANCE(parser, T_COMMA, "Expected ')' or ',' in argument list.");
+            MATCH_ADVANCE(parser, T_COMMA,
+                          "Expected ')' or ',' in argument list.");
         }
     }
 
@@ -828,9 +872,10 @@ l_cleanup:
         t_iterator iterator = vector_begin(args);
         t_iterator last = vector_end(args);
 
-        for (; !iterator_equals(&iterator, &last); iterator_increment(&iterator))
+        for (; !iterator_equals(&iterator, &last);
+             iterator_increment(&iterator))
         {
-            node = *(t_ast_node_ptr *)iterator_get(&iterator);
+            node = *(t_ast_node_ptr *) iterator_get(&iterator);
             AST_free_node(node, parser->logger);
         }
 
@@ -846,9 +891,11 @@ l_cleanup:
         t_iterator iterator = vector_begin(struct_value_fields);
         t_iterator last = vector_end(struct_value_fields);
 
-        for (; !iterator_equals(&iterator, &last); iterator_increment(&iterator))
+        for (; !iterator_equals(&iterator, &last);
+             iterator_increment(&iterator))
         {
-            struct_value_field = ITERATOR_GET_AS(t_struct_value_field_ptr, &iterator);
+            struct_value_field
+                = ITERATOR_GET_AS(t_struct_value_field_ptr, &iterator);
             if (NULL == struct_value_field)
             {
                 continue;
@@ -907,33 +954,32 @@ l_cleanup:
     }
 
     return NULL;
-
 }
 
 t_ast_node *parser_parse_equality(t_parser *parser)
 {
     t_ast_node *lhs = NULL, *rhs = NULL;
     t_token *token = NULL;
-    t_ast_binop_type operator = BINOP_NEQ;
+    t_ast_binop_type operator= BINOP_NEQ;
 
     lhs = parser_parse_comparison(parser);
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     switch (token->type)
     {
         case T_NEQ:
-        {
-            operator = BINOP_NEQ;
-            break;
-        }
+            {
+                operator= BINOP_NEQ;
+                break;
+            }
         case T_EQEQ:
-        {
-            operator = BINOP_EQUALS;
-            break;
-        }
+            {
+                operator= BINOP_EQUALS;
+                break;
+            }
         default:
-        {
-            return lhs;
-        }
+            {
+                return lhs;
+            }
     }
 
     ADVANCE(parser);
@@ -945,36 +991,36 @@ t_ast_node *parser_parse_comparison(t_parser *parser)
 {
     t_ast_node *lhs = NULL, *rhs = NULL;
     t_token *token = NULL;
-    t_ast_binop_type operator = BINOP_GREATER;
+    t_ast_binop_type operator= BINOP_GREATER;
 
     lhs = parser_parse_term(parser);
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     switch (token->type)
     {
         case T_CLOSE_ANG:
-        {
-            operator = BINOP_GREATER;
-            break;
-        }
+            {
+                operator= BINOP_GREATER;
+                break;
+            }
         case T_GEQ:
-        {
-            operator = BINOP_GEQ;
-            break;
-        }
+            {
+                operator= BINOP_GEQ;
+                break;
+            }
         case T_OPEN_ANG:
-        {
-            operator = BINOP_LESSER;
-            break;
-        }
+            {
+                operator= BINOP_LESSER;
+                break;
+            }
         case T_LEQ:
-        {
-            operator = BINOP_LEQ;
-            break;
-        }
+            {
+                operator= BINOP_LEQ;
+                break;
+            }
         default:
-        {
-            return lhs;
-        }
+            {
+                return lhs;
+            }
     }
 
     ADVANCE(parser);
@@ -986,26 +1032,26 @@ t_ast_node *parser_parse_term(t_parser *parser)
 {
     t_ast_node *lhs = NULL, *rhs = NULL;
     t_token *token = NULL;
-    t_ast_binop_type operator = BINOP_SUBTRACT;
+    t_ast_binop_type operator= BINOP_SUBTRACT;
 
     lhs = parser_parse_factor(parser);
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     switch (token->type)
     {
         case T_MINUS:
-        {
-            operator = BINOP_SUBTRACT;
-            break;
-        }
+            {
+                operator= BINOP_SUBTRACT;
+                break;
+            }
         case T_PLUS:
-        {
-            operator = BINOP_ADD;
-            break;
-        }
+            {
+                operator= BINOP_ADD;
+                break;
+            }
         default:
-        {
-            return lhs;
-        }
+            {
+                return lhs;
+            }
     }
 
     ADVANCE(parser);
@@ -1013,36 +1059,35 @@ t_ast_node *parser_parse_term(t_parser *parser)
     return AST_new_binary_expr(operator, lhs, rhs);
 }
 
-
 t_ast_node *parser_parse_factor(t_parser *parser)
 {
     t_ast_node *lhs = NULL, *rhs = NULL;
     t_token *token = NULL;
-    t_ast_binop_type operator = BINOP_DIVIDE;
+    t_ast_binop_type operator= BINOP_DIVIDE;
 
     lhs = parser_parse_unary(parser);
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     switch (token->type)
     {
         case T_SLASH:
-        {
-            operator = BINOP_DIVIDE;
-            break;
-        }
+            {
+                operator= BINOP_DIVIDE;
+                break;
+            }
         case T_STAR:
-        {
-            operator = BINOP_MULTIPLY;
-            break;
-        }
+            {
+                operator= BINOP_MULTIPLY;
+                break;
+            }
         case T_PERCENT:
-        {
-            operator = BINOP_MODULOS;
-            break;
-        }
+            {
+                operator= BINOP_MODULOS;
+                break;
+            }
         default:
-        {
-            return lhs;
-        }
+            {
+                return lhs;
+            }
     }
 
     ADVANCE(parser);
@@ -1058,33 +1103,33 @@ t_ast_node *parser_parse_unary(t_parser *parser)
     switch (token->type)
     {
         case T_BANG:
-        {
-            ADVANCE(parser);
-            unary = parser_parse_unary(parser);
-            return AST_new_unary_expr(UNOP_NOT, unary);
-        }
+            {
+                ADVANCE(parser);
+                unary = parser_parse_unary(parser);
+                return AST_new_unary_expr(UNOP_NOT, unary);
+            }
         case T_MINUS:
-        {
-            ADVANCE(parser);
-            unary = parser_parse_unary(parser);
-            return AST_new_unary_expr(UNOP_MINUS, unary);
-        }
+            {
+                ADVANCE(parser);
+                unary = parser_parse_unary(parser);
+                return AST_new_unary_expr(UNOP_MINUS, unary);
+            }
         case T_AMPERCENT:
-        {
-            ADVANCE(parser);
-            unary = parser_parse_unary(parser);
-            return AST_new_unary_expr(UNOP_REF, unary);
-        }
+            {
+                ADVANCE(parser);
+                unary = parser_parse_unary(parser);
+                return AST_new_unary_expr(UNOP_REF, unary);
+            }
         case T_STAR:
-        {
-            ADVANCE(parser);
-            unary = parser_parse_unary(parser);
-            return AST_new_unary_expr(UNOP_DEREF, unary);
-        }
+            {
+                ADVANCE(parser);
+                unary = parser_parse_unary(parser);
+                return AST_new_unary_expr(UNOP_DEREF, unary);
+            }
         default:
-        {
-            return parser_parse_primary(parser);
-        }
+            {
+                return parser_parse_primary(parser);
+            }
     }
 }
 
@@ -1097,72 +1142,72 @@ t_ast_node *parser_parse_primary(t_parser *parser)
     double f64;
     float f32;
 
-
     switch (token->type)
     {
-    case T_IDENTIFIER:
-    {
-        return parser_parse_ident_expr(parser);
-    }
-    case T_NUMBER:
-    {
-        type = TYPE_initialize_type(TYPE_SINT32);
-        if (TYPE_is_floating_point(token->content))
-        {
-            if ('f' == token->content[strlen(token->content) - 1])
+        case T_IDENTIFIER:
             {
-                type->type = TYPE_F32;
-                f32 = strtof(token->content, NULL);
-                n = AST_new_number(type, &f32);
+                return parser_parse_ident_expr(parser);
             }
-            else
+        case T_NUMBER:
             {
-                type->type = TYPE_F64;
-                f64 = strtod(token->content, NULL);
-                n = AST_new_number(type, &f64);
+                type = TYPE_initialize_type(TYPE_SINT32);
+                if (TYPE_is_floating_point(token->content))
+                {
+                    if ('f' == token->content[strlen(token->content) - 1])
+                    {
+                        type->type = TYPE_F32;
+                        f32 = strtof(token->content, NULL);
+                        n = AST_new_number(type, &f32);
+                    }
+                    else
+                    {
+                        type->type = TYPE_F64;
+                        f64 = strtod(token->content, NULL);
+                        n = AST_new_number(type, &f64);
+                    }
+                }
+                else
+                {
+                    s32 = strtol(token->content, NULL, 10);
+                    n = AST_new_number(type, &s32);
+                }
+                ADVANCE(parser);
+                return n;
             }
-        }
-        else
-        {
-            s32 = strtol(token->content, NULL, 10);
-            n = AST_new_number(type, &s32);
-        }
-        ADVANCE(parser);
-        return n;
-    }
-    case T_OPEN_PAREN:
-    {
-        return parser_parse_paren_expr(parser);
-    }
-    case T_STRING:
-    {
-        n = AST_new_string(strdup(token->content));
-        ADVANCE(parser);
-        return n;
-    }
-    case T_NULL:
-    {
-        n = AST_new_literal(AST_LITERAL_NULL);
-        ADVANCE(parser);
-        return n;
-    }
-    case T_TRUE:
-    {
-        n = AST_new_literal(AST_LITERAL_TRUE);
-        ADVANCE(parser);
-        return n;
-    }
-    case T_FALSE:
-    {
-        n = AST_new_literal(AST_LITERAL_FALSE);
-        ADVANCE(parser);
-        return n;
-    }
+        case T_OPEN_PAREN:
+            {
+                return parser_parse_paren_expr(parser);
+            }
+        case T_STRING:
+            {
+                n = AST_new_string(strdup(token->content));
+                ADVANCE(parser);
+                return n;
+            }
+        case T_NULL:
+            {
+                n = AST_new_literal(AST_LITERAL_NULL);
+                ADVANCE(parser);
+                return n;
+            }
+        case T_TRUE:
+            {
+                n = AST_new_literal(AST_LITERAL_TRUE);
+                ADVANCE(parser);
+                return n;
+            }
+        case T_FALSE:
+            {
+                n = AST_new_literal(AST_LITERAL_FALSE);
+                ADVANCE(parser);
+                return n;
+            }
 
-    default:
-        (void) LOGGER_log(parser->logger, L_ERROR, "parse_primary: Syntax error at %ld:%ld - %s\n",
-                          token->line, token->offset, token->content);
-        (void) exit(1);
+        default:
+            (void) LOGGER_log(parser->logger, L_ERROR,
+                              "parse_primary: Syntax error at %ld:%ld - %s\n",
+                              token->line, token->offset, token->content);
+            (void) exit(1);
     }
 }
 
@@ -1224,40 +1269,40 @@ t_ast_node *parser_parse_expression(t_parser *parser)
 
     switch (token->type)
     {
-    case T_IF:
-    {
-        ADVANCE(parser);
-        cond = parser_parse_expression(parser);
-        --parser->index;
-        then_body = parser_parse_statements(parser);
-        if (EXPECT(parser, T_ELSE))
-        {
-            ADVANCE(parser);
-            else_body = parser_parse_statements(parser);
-        }
-        else
-        {
-            else_body = NULL;
-        }
-        --parser->index;
-        node = AST_new_if_expr(cond, then_body, else_body);
-        ADVANCE(parser);
-        break;
-    };
-    case T_WHILE:
-    {
-        ADVANCE(parser);
-        cond = parser_parse_expression(parser);
-        --parser->index;
-        body = parser_parse_statements(parser);
-        node = AST_new_while_expr(cond, body);
-        break;
-    }
-    default:
-    {
-        node = parser_parse_assignment(parser);
-        break;
-    }
+        case T_IF:
+            {
+                ADVANCE(parser);
+                cond = parser_parse_expression(parser);
+                --parser->index;
+                then_body = parser_parse_statements(parser);
+                if (EXPECT(parser, T_ELSE))
+                {
+                    ADVANCE(parser);
+                    else_body = parser_parse_statements(parser);
+                }
+                else
+                {
+                    else_body = NULL;
+                }
+                --parser->index;
+                node = AST_new_if_expr(cond, then_body, else_body);
+                ADVANCE(parser);
+                break;
+            };
+        case T_WHILE:
+            {
+                ADVANCE(parser);
+                cond = parser_parse_expression(parser);
+                --parser->index;
+                body = parser_parse_statements(parser);
+                node = AST_new_while_expr(cond, body);
+                break;
+            }
+        default:
+            {
+                node = parser_parse_assignment(parser);
+                break;
+            }
     }
 
     if (MATCH(parser, T_AS))
@@ -1282,14 +1327,16 @@ t_ast_node *parser_parse_assignment(t_parser *parser)
         rhs = parser_parse_assignment(parser);
 
         if ((AST_TYPE_VARIABLE == lhs->type)
-            || ((AST_TYPE_UNARY_EXPR == lhs->type) && (UNOP_DEREF == lhs->unary_expr.operator))
+            || ((AST_TYPE_UNARY_EXPR == lhs->type)
+                && (UNOP_DEREF == lhs->unary_expr.operator))
             || (AST_TYPE_GET_EXPR == lhs->type)
             || (AST_TYPE_ARRAY_DEREF == lhs->type))
         {
             return AST_new_assignment_expr(lhs, rhs);
         }
 
-        (void) LOGGER_log(parser->logger, L_ERROR, "Invalid assignment target.\n");
+        (void) LOGGER_log(parser->logger, L_ERROR,
+                          "Invalid assignment target.\n");
         (void) exit(LUKA_GENERAL_ERROR);
     }
 
@@ -1315,91 +1362,111 @@ t_ast_node *parser_parse_statement(t_parser *parser)
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     switch (token->type)
     {
-    case T_RETURN:
-    {
-        ADVANCE(parser);
-        expr = parser_parse_expression(parser);
-        MATCH_ADVANCE(parser, T_SEMI_COLON,
-                      "Expected a ';' at the end of a return statement");
-        node = AST_new_return_stmt(expr);
-        return node;
-    }
-    case T_LET:
-    {
-        if (EXPECT(parser, T_MUT))
-        {
-            ADVANCE(parser);
-            mutable = true;
-        }
-        EXPECT_ADVANCE(parser, T_IDENTIFIER,
-                       "Expected an identifier after a 'let'");
-        token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-        if (EXPECT(parser, T_COLON))
-        {
-            type = parser_parse_type(parser, true);
-        }
-        EXPECT_ADVANCE(parser, T_EQUALS,
-                       "Expected a '=' after ident in variable declaration");
-        ADVANCE(parser);
-        expr = parser_parse_expression(parser);
-        var = AST_new_variable(strdup(token->content), type, mutable);
-        node = AST_new_let_stmt(var, expr);
-        MATCH_ADVANCE(parser, T_SEMI_COLON, "Expected a ';' after let statement");
-        return node;
-    }
-    case T_BREAK:
-    {
-        EXPECT_ADVANCE(parser, T_SEMI_COLON, "Expected a ';' after 'break'");
-        ADVANCE(parser);
-        return AST_new_break_stmt();
-    }
-    case T_STRUCT:
-    {
-        EXPECT_ADVANCE(parser, T_IDENTIFIER, "Expected an identifier after keyword 'struct'");
-        token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-        name = strdup(token->content);
-        EXPECT_ADVANCE(parser, T_OPEN_BRACE, "Expected a '{' after identifier in struct definition");
-        ADVANCE(parser);
-        fields = parser_parse_struct_fields(parser);
-        MATCH_ADVANCE(parser, T_CLOSE_BRACE, "Expected a '}' after struct fields in struct definition");
-        node = AST_new_struct_definition(name, fields);
-        (void) vector_push_front(parser->struct_names, &name);
-        return node;
-    }
-    case T_ENUM:
-    {
-        EXPECT_ADVANCE(parser, T_IDENTIFIER, "Expected an identifier after keywork 'enum'");
-        token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-        name = strdup(token->content);
-        EXPECT_ADVANCE(parser, T_OPEN_BRACE, "Expected a '{' after identifier in enum definition");
-        ADVANCE(parser);
-        fields = parser_parse_enum_fields(parser);
-        MATCH_ADVANCE(parser, T_CLOSE_BRACE, "Expected a '}' after enum fields in enum definition");
-        node = AST_new_enum_definition(name, fields);
-        (void) vector_push_front(parser->enum_names, &name);
-        return node;
-    }
-    default:
-    {
-        expr = parser_parse_expression(parser);
-        token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+        case T_RETURN:
+            {
+                ADVANCE(parser);
+                expr = parser_parse_expression(parser);
+                MATCH_ADVANCE(
+                    parser, T_SEMI_COLON,
+                    "Expected a ';' at the end of a return statement");
+                node = AST_new_return_stmt(expr);
+                return node;
+            }
+        case T_LET:
+            {
+                if (EXPECT(parser, T_MUT))
+                {
+                    ADVANCE(parser);
+                    mutable = true;
+                }
+                EXPECT_ADVANCE(parser, T_IDENTIFIER,
+                               "Expected an identifier after a 'let'");
+                token
+                    = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+                if (EXPECT(parser, T_COLON))
+                {
+                    type = parser_parse_type(parser, true);
+                }
+                EXPECT_ADVANCE(
+                    parser, T_EQUALS,
+                    "Expected a '=' after ident in variable declaration");
+                ADVANCE(parser);
+                expr = parser_parse_expression(parser);
+                var = AST_new_variable(strdup(token->content), type, mutable);
+                node = AST_new_let_stmt(var, expr);
+                MATCH_ADVANCE(parser, T_SEMI_COLON,
+                              "Expected a ';' after let statement");
+                return node;
+            }
+        case T_BREAK:
+            {
+                EXPECT_ADVANCE(parser, T_SEMI_COLON,
+                               "Expected a ';' after 'break'");
+                ADVANCE(parser);
+                return AST_new_break_stmt();
+            }
+        case T_STRUCT:
+            {
+                EXPECT_ADVANCE(parser, T_IDENTIFIER,
+                               "Expected an identifier after keyword 'struct'");
+                token
+                    = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+                name = strdup(token->content);
+                EXPECT_ADVANCE(
+                    parser, T_OPEN_BRACE,
+                    "Expected a '{' after identifier in struct definition");
+                ADVANCE(parser);
+                fields = parser_parse_struct_fields(parser);
+                MATCH_ADVANCE(
+                    parser, T_CLOSE_BRACE,
+                    "Expected a '}' after struct fields in struct definition");
+                node = AST_new_struct_definition(name, fields);
+                (void) vector_push_front(parser->struct_names, &name);
+                return node;
+            }
+        case T_ENUM:
+            {
+                EXPECT_ADVANCE(parser, T_IDENTIFIER,
+                               "Expected an identifier after keywork 'enum'");
+                token
+                    = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+                name = strdup(token->content);
+                EXPECT_ADVANCE(
+                    parser, T_OPEN_BRACE,
+                    "Expected a '{' after identifier in enum definition");
+                ADVANCE(parser);
+                fields = parser_parse_enum_fields(parser);
+                MATCH_ADVANCE(
+                    parser, T_CLOSE_BRACE,
+                    "Expected a '}' after enum fields in enum definition");
+                node = AST_new_enum_definition(name, fields);
+                (void) vector_push_front(parser->enum_names, &name);
+                return node;
+            }
+        default:
+            {
+                expr = parser_parse_expression(parser);
+                token
+                    = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
 
-        if ((T_SEMI_COLON == token->type) || (parser_is_compound_expr(expr)))
-        {
-            /* Expression Statement */
-            ADVANCE(parser);
-            node = AST_new_expression_stmt(expr);
-            return node;
-        }
+                if ((T_SEMI_COLON == token->type)
+                    || (parser_is_compound_expr(expr)))
+                {
+                    /* Expression Statement */
+                    ADVANCE(parser);
+                    node = AST_new_expression_stmt(expr);
+                    return node;
+                }
 
-        if (parser_should_finish_expression(token))
-        {
-            return expr;
-        }
-        (void) LOGGER_log(parser->logger, L_ERROR, "Not a statement: %ld:%ld - %s\n", token->line,
-                          token->offset, token->content);
-        (void) exit(1);
-    }
+                if (parser_should_finish_expression(token))
+                {
+                    return expr;
+                }
+                (void) LOGGER_log(parser->logger, L_ERROR,
+                                  "Not a statement: %ld:%ld - %s\n",
+                                  token->line, token->offset, token->content);
+                (void) exit(1);
+            }
     }
 
     return NULL;
@@ -1413,7 +1480,8 @@ t_vector *parser_parse_statements(t_parser *parser)
     stmts = calloc(1, sizeof(t_vector));
     if (NULL == stmts)
     {
-        (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for statments.\n");
+        (void) LOGGER_log(parser->logger, L_ERROR,
+                          "Couldn't allocate memory for statments.\n");
         goto l_cleanup;
     }
 
@@ -1422,12 +1490,12 @@ t_vector *parser_parse_statements(t_parser *parser)
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
 
     EXPECT_ADVANCE(parser, T_OPEN_BRACE,
-                    "Expected '{' to open a body of statements");
+                   "Expected '{' to open a body of statements");
 
-    while (
-        T_CLOSE_BRACE !=
-        (token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1))
-            ->type)
+    while (T_CLOSE_BRACE
+           != (token
+               = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1))
+                  ->type)
     {
         ADVANCE(parser);
         stmt = parser_parse_statement(parser);
@@ -1455,12 +1523,14 @@ t_ast_node *parser_parse_prototype(t_parser *parser)
 
     EXPECT_ADVANCE(parser, T_IDENTIFIER,
                    "Expected an identifier after 'fn' keyword");
-    name = strdup((VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index))->content);
+    name = strdup(
+        (VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index))->content);
 
     EXPECT_ADVANCE(parser, T_OPEN_PAREN, "Expected a '('");
 
-    if (T_CLOSE_PAREN ==
-        (VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1))->type)
+    if (T_CLOSE_PAREN
+        == (VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1))
+               ->type)
     {
         // No args
         ADVANCE(parser);
@@ -1474,13 +1544,15 @@ t_ast_node *parser_parse_prototype(t_parser *parser)
     args = calloc(allocated, sizeof(char *));
     if (NULL == args)
     {
-        (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for args.\n");
+        (void) LOGGER_log(parser->logger, L_ERROR,
+                          "Couldn't allocate memory for args.\n");
         goto l_cleanup;
     }
     types = calloc(allocated, sizeof(t_type *));
     if (NULL == types)
     {
-        (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for types.\n");
+        (void) LOGGER_log(parser->logger, L_ERROR,
+                          "Couldn't allocate memory for types.\n");
         goto l_cleanup;
     }
 
@@ -1503,9 +1575,11 @@ t_ast_node *parser_parse_prototype(t_parser *parser)
     args[0] = strdup(token->content);
     arity = 1;
 
-    while ((T_CLOSE_PAREN !=
-           (token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1))
-               ->type) && !vararg)
+    while ((T_CLOSE_PAREN
+            != (token
+                = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1))
+                   ->type)
+           && !vararg)
     {
         EXPECT_ADVANCE(parser, T_COMMA, "Expected ',' after arg");
         if (!(EXPECT(parser, T_IDENTIFIER) || EXPECT(parser, T_THREE_DOTS)))
@@ -1522,7 +1596,8 @@ t_ast_node *parser_parse_prototype(t_parser *parser)
             new_args = realloc(args, sizeof(char *) * allocated);
             if (NULL == new_args)
             {
-                (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for arguments.\n");
+                (void) LOGGER_log(parser->logger, L_ERROR,
+                                  "Couldn't allocate memory for arguments.\n");
                 goto l_cleanup;
             }
             args = new_args;
@@ -1530,7 +1605,8 @@ t_ast_node *parser_parse_prototype(t_parser *parser)
             new_types = realloc(types, sizeof(t_type *) * allocated);
             if (NULL == new_types)
             {
-                (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for types.\n");
+                (void) LOGGER_log(parser->logger, L_ERROR,
+                                  "Couldn't allocate memory for types.\n");
                 goto l_cleanup;
             }
             types = new_types;
@@ -1573,7 +1649,8 @@ t_ast_node *parser_parse_prototype(t_parser *parser)
         new_args = realloc(args, sizeof(char *) * arity);
         if (NULL == new_args)
         {
-            (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for arguments.\n");
+            (void) LOGGER_log(parser->logger, L_ERROR,
+                              "Couldn't allocate memory for arguments.\n");
             goto l_cleanup;
         }
         args = new_args;
@@ -1581,7 +1658,8 @@ t_ast_node *parser_parse_prototype(t_parser *parser)
         new_types = realloc(types, sizeof(t_type *) * arity);
         if (NULL == new_types)
         {
-            (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for types.\n");
+            (void) LOGGER_log(parser->logger, L_ERROR,
+                              "Couldn't allocate memory for types.\n");
             goto l_cleanup;
         }
         types = new_types;
@@ -1621,7 +1699,6 @@ l_cleanup:
     (void) exit(1);
 }
 
-
 t_vector *parser_parse_struct_fields(t_parser *parser)
 {
     t_vector *fields = NULL;
@@ -1631,7 +1708,9 @@ t_vector *parser_parse_struct_fields(t_parser *parser)
     fields = calloc(1, sizeof(t_vector));
     if (NULL == fields)
     {
-        (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for struct fields vector.\n");
+        (void) LOGGER_log(
+            parser->logger, L_ERROR,
+            "Couldn't allocate memory for struct fields vector.\n");
         goto l_cleanup;
     }
 
@@ -1655,14 +1734,15 @@ t_vector *parser_parse_struct_fields(t_parser *parser)
                 break;
             }
 
-            MATCH_ADVANCE(parser, T_COMMA, "Expected '}' or ',' after a struct field.");
-
+            MATCH_ADVANCE(parser, T_COMMA,
+                          "Expected '}' or ',' after a struct field.");
         }
     }
 
     if (vector_is_empty(fields))
     {
-        (void) LOGGER_log(parser->logger, L_ERROR, "Structs must have at least one field.");
+        (void) LOGGER_log(parser->logger, L_ERROR,
+                          "Structs must have at least one field.");
         goto l_cleanup;
     }
 
@@ -1670,7 +1750,8 @@ t_vector *parser_parse_struct_fields(t_parser *parser)
     return fields;
 
 l_cleanup:
-    VECTOR_FOR_EACH(fields, field) {
+    VECTOR_FOR_EACH(fields, field)
+    {
         struct_field = ITERATOR_GET_AS(t_struct_field_ptr, &field);
         if (NULL != struct_field)
         {
@@ -1688,7 +1769,6 @@ l_cleanup:
             (void) free(struct_field);
             struct_field = NULL;
         }
-
     }
     (void) vector_clear(fields);
     (void) vector_destroy(fields);
@@ -1707,7 +1787,8 @@ t_struct_field *parser_parse_struct_field(t_parser *parser)
     }
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-    MATCH_ADVANCE(parser, T_IDENTIFIER, "Expected an identifier as a struct field name");
+    MATCH_ADVANCE(parser, T_IDENTIFIER,
+                  "Expected an identifier as a struct field name");
     --parser->index;
     struct_field->name = strdup(token->content);
     struct_field->type = parser_parse_type(parser, true);
@@ -1746,7 +1827,8 @@ t_vector *parser_parse_enum_fields(t_parser *parser)
     fields = calloc(1, sizeof(t_vector));
     if (NULL == fields)
     {
-        (void) LOGGER_log(parser->logger, L_ERROR, "Couldn't allocate memory for enum fields vector.\n");
+        (void) LOGGER_log(parser->logger, L_ERROR,
+                          "Couldn't allocate memory for enum fields vector.\n");
         goto l_cleanup;
     }
 
@@ -1765,7 +1847,8 @@ t_vector *parser_parse_enum_fields(t_parser *parser)
 
             if (NULL == enum_field->expr)
             {
-                enum_field->expr = AST_new_number(TYPE_initialize_type(TYPE_SINT32), &value);
+                enum_field->expr
+                    = AST_new_number(TYPE_initialize_type(TYPE_SINT32), &value);
             }
             else
             {
@@ -1781,8 +1864,8 @@ t_vector *parser_parse_enum_fields(t_parser *parser)
                 break;
             }
 
-            MATCH_ADVANCE(parser, T_COMMA, "Expected '}' or ',' after a enum field.");
-
+            MATCH_ADVANCE(parser, T_COMMA,
+                          "Expected '}' or ',' after a enum field.");
         }
     }
 
@@ -1791,7 +1874,8 @@ t_vector *parser_parse_enum_fields(t_parser *parser)
 
 l_cleanup:
 
-    VECTOR_FOR_EACH(fields, field) {
+    VECTOR_FOR_EACH(fields, field)
+    {
         enum_field = ITERATOR_GET_AS(t_enum_field_ptr, &field);
         if (NULL != enum_field)
         {
@@ -1809,7 +1893,6 @@ l_cleanup:
             (void) free(enum_field);
             enum_field = NULL;
         }
-
     }
     (void) vector_clear(fields);
     (void) vector_destroy(fields);
@@ -1828,20 +1911,24 @@ t_enum_field *parser_parse_enum_field(t_parser *parser)
     }
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-    MATCH_ADVANCE(parser, T_IDENTIFIER, "Expected an identifier as a enum field name");
+    MATCH_ADVANCE(parser, T_IDENTIFIER,
+                  "Expected an identifier as a enum field name");
     enum_field->name = strdup(token->content);
     if (MATCH(parser, T_EQUALS))
     {
         ADVANCE(parser);
         enum_field->expr = parser_parse_primary(parser);
-        if (AST_TYPE_NUMBER != enum_field->expr->type) {
-            (void) LOGGER_log(parser->logger, L_ERROR, "Enum values must be numbers.");
+        if (AST_TYPE_NUMBER != enum_field->expr->type)
+        {
+            (void) LOGGER_log(parser->logger, L_ERROR,
+                              "Enum values must be numbers.");
             goto l_cleanup;
         }
 
         if (TYPE_is_floating_type(enum_field->expr->number.type))
         {
-            (void) LOGGER_log(parser->logger, L_ERROR, "Enum values must be integer numbers.");
+            (void) LOGGER_log(parser->logger, L_ERROR,
+                              "Enum values must be integer numbers.");
             goto l_cleanup;
         }
     }
@@ -1884,20 +1971,15 @@ t_ast_node *parser_parse_function(t_parser *parser)
 
 void PARSER_print_parser_tokens(t_parser *parser)
 {
-
     t_token *token = NULL;
     t_iterator iterator = vector_begin(parser->tokens);
     t_iterator last = vector_end(parser->tokens);
     for (; !iterator_equals(&iterator, &last); iterator_increment(&iterator))
     {
-        token = *(t_token_ptr *)iterator_get(&iterator);
+        token = *(t_token_ptr *) iterator_get(&iterator);
 
-        (void) LOGGER_log(parser->logger,
-                          L_DEBUG,
-                          "%ld:%ld - %d - %s\n",
-                          token->line,
-                          token->offset,
-                          token->type,
+        (void) LOGGER_log(parser->logger, L_DEBUG, "%ld:%ld - %d - %s\n",
+                          token->line, token->offset, token->type,
                           token->content);
     }
 }

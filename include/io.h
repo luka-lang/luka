@@ -16,6 +16,7 @@
  */
 char *IO_get_file_contents(const char *file_path);
 
-t_return_code IO_copy(const char *original_file_path, const char *new_file_path);
+t_return_code IO_copy(const char *original_file_path,
+                      const char *new_file_path);
 
 #endif // __IO_H__

@@ -40,7 +40,6 @@ l_cleanup:
     }
 
     return NULL;
-
 }
 
 void LOGGER_log(t_logger *logger, const char *level, const char *format, ...)
@@ -63,7 +62,6 @@ void LOGGER_log(t_logger *logger, const char *level, const char *format, ...)
             (void) vfprintf(stderr, format, args);
             (void) fflush(stderr);
             used_varargs = true;
-
         }
         else if (logger->verbosity > 0)
         {
@@ -76,7 +74,6 @@ void LOGGER_log(t_logger *logger, const char *level, const char *format, ...)
             (void) fflush(stdout);
             used_varargs = true;
         }
-
 
         if (((is_info_log) && (logger->verbosity > 0)) || !is_info_log)
         {
@@ -95,7 +92,6 @@ void LOGGER_log(t_logger *logger, const char *level, const char *format, ...)
     {
         (void) fprintf(stderr, "Logger is not initialized.\n");
     }
-
 }
 
 void LOGGER_free(t_logger *logger)
