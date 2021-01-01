@@ -31,21 +31,115 @@ void LIB_free_tokens_vector(t_vector *tokens)
     tokens = NULL;
 }
 
-void LIB_free_functions_vector(t_vector *functions, t_logger *logger)
+void lib_free_nodes_vector(t_vector *nodes, t_logger *logger)
 {
-    t_ast_node *function = NULL;
-    t_iterator iterator = vector_begin(functions);
-    t_iterator last = vector_end(functions);
+    t_ast_node *node = NULL;
+    t_iterator iterator = vector_begin(nodes);
+    t_iterator last = vector_end(nodes);
+
     for (; !iterator_equals(&iterator, &last); iterator_increment(&iterator))
     {
-        function = *(t_ast_node_ptr *)iterator_get(&iterator);
-        AST_free_node(function, logger);
+        node = *(t_ast_node_ptr *)iterator_get(&iterator);
+        (void) AST_free_node(node, logger);
     }
 
-    (void) vector_clear(functions);
-    (void) vector_destroy(functions);
-    (void) free(functions);
-    functions = NULL;
+    (void) vector_clear(nodes);
+    (void) vector_destroy(nodes);
+    (void) free(nodes);
+    nodes = NULL;
+}
+
+t_return_code lib_intialize_nodes(t_vector **nodes, t_logger *logger)
+{
+    t_return_code status_code = LUKA_UNINITIALIZED;
+    *nodes = calloc(1, sizeof(t_vector));
+    if (NULL == *nodes)
+    {
+        (void) LOGGER_log(logger, L_ERROR, "Couldn't allocate memory for nodes");
+        status_code = LUKA_CANT_ALLOC_MEMORY;
+        goto l_cleanup;
+    }
+
+    if (vector_setup(*nodes, 5, sizeof(t_ast_node_ptr)))
+    {
+        status_code = LUKA_VECTOR_FAILURE;
+        goto l_cleanup;
+    }
+
+    return LUKA_SUCCESS;
+
+l_cleanup:
+    if (NULL != *nodes)
+    {
+        (void) free(*nodes);
+    }
+
+    return status_code;
+}
+
+t_return_code LIB_initialize_module(t_module **module, t_logger *logger)
+{
+    t_return_code status_code = LUKA_UNINITIALIZED;
+
+    *module = calloc(1, sizeof(t_module));
+    if (NULL == *module)
+    {
+        status_code = LUKA_CANT_ALLOC_MEMORY;
+        goto l_cleanup;
+    }
+
+    (*module)->enums = NULL;
+    (*module)->functions = NULL;
+    (*module)->structs = NULL;
+
+    RAISE_LUKA_STATUS_ON_ERROR(lib_intialize_nodes(&(*module)->enums, logger), status_code, l_cleanup);
+    RAISE_LUKA_STATUS_ON_ERROR(lib_intialize_nodes(&(*module)->functions, logger), status_code, l_cleanup);
+    RAISE_LUKA_STATUS_ON_ERROR(lib_intialize_nodes(&(*module)->structs, logger), status_code, l_cleanup);
+
+    status_code = LUKA_SUCCESS;
+    return status_code;
+l_cleanup:
+    if (NULL != module)
+    {
+        if (NULL != (*module)->enums)
+        {
+            (void) lib_free_nodes_vector((*module)->enums, logger);
+        }
+
+        if (NULL != (*module)->functions)
+        {
+            (void) lib_free_nodes_vector((*module)->functions, logger);
+        }
+
+        if (NULL != (*module)->structs)
+        {
+            (void) lib_free_nodes_vector((*module)->structs, logger);
+        }
+
+
+    }
+    return status_code;
+}
+
+void LIB_free_module(t_module *module, t_logger *logger)
+{
+    if (NULL != module->functions)
+    {
+        (void) lib_free_nodes_vector(module->functions, logger);
+    }
+
+    if (NULL != module->structs)
+    {
+        (void) lib_free_nodes_vector(module->structs, logger);
+    }
+
+    if (NULL != module->enums)
+    {
+        (void) lib_free_nodes_vector(module->enums, logger);
+    }
+
+    (void) free(module);
+    module = NULL;
 }
 
 char *LIB_stringify(const char* source, size_t source_length, t_logger *logger)

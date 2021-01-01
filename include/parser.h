@@ -38,9 +38,9 @@ void PARSER_initialize(t_parser *parser, t_vector *tokens, const char *file_path
  *
  * @param[in,out] parser the parser to parse with.
  *
- * @return a vector of AST nodes that represent the parsed tokens.
+ * @return a luka module built from the parsed tokens.
  */
-t_vector *PARSER_parse_top_level(t_parser *parser);
+t_module *PARSER_parse_file(t_parser *parser);
 
 /**
  * @brief Print all tokens of a parser.

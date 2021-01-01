@@ -27,10 +27,10 @@
 #include "lib.h"
 #include "logger.h"
 #include "parser.h"
+#include "main_internal.h"
 
 
 #define DEFAULT_LOG_PATH ("/tmp/luka.log")
-#define BITCODE_FILENAME ("a.out.bc")
 #define OUT_FILENAME     ("./a.out")
 #define DEFAULT_OPT      ('3')
 #define CMD_LEN          (14 + 4096)
@@ -48,10 +48,7 @@ static struct option S_LONG_OPTIONS[] =
     {NULL, 0, NULL, 0}
 };
 
-/**
- * @brief Print how to use the executable and meaning of different arguments.
- */
-void main_print_help(void)
+static void print_help(void)
 {
     (void) printf(
         "OVERVIEW: luka LLVM compiler\n"
@@ -72,54 +69,18 @@ void main_print_help(void)
     );
 }
 
-typedef struct
-{
-    int argc;
-    char **argv;
-    char *file_path;
-    char *file_contents;
-    t_vector *tokens;
-    t_vector *functions;
-    t_parser *parser;
-    t_ast_node *function;
-    LLVMModuleRef module;
-    LLVMBuilderRef builder;
-    LLVMPassManagerRef pass_manager;
-    LLVMValueRef value;
-    LLVMTargetMachineRef target_machine;
-    LLVMTargetRef target;
-    LLVMTargetDataRef target_data;
-    char *triple;
-    char *error;
-    t_logger *logger;
-    size_t verbosity;
-    char *output_path;
-    char *cmd;
-    bool bitcode;
-    char optimization;
-    bool compile;
-    bool assemble;
-    bool link;
-} t_main_context;
 
-/**
- * @brief Initialize the main context.
- *
- * @param[in,out] context the context to initialize.
- * @param[in] argc the number of arguments to the executable.
- * @param[in] argv the arguments to the executable.
- */
-void main_context_initialize(t_main_context *context, int argc, char **argv)
+static void context_initialize(t_main_context *context, int argc, char **argv)
 {
     context->argc = argc;
     context->argv = argv;
     context->file_path = NULL;
     context->file_contents = NULL;
     context->tokens = NULL;
-    context->functions = NULL;
-    context->parser = NULL;
-    context->function = NULL;
     context->module = NULL;
+    context->parser = NULL;
+    context->node = NULL;
+    context->llvm_module = NULL;
     context->builder = NULL;
     context->pass_manager = NULL;
     context->value = NULL;
@@ -138,12 +99,7 @@ void main_context_initialize(t_main_context *context, int argc, char **argv)
     context->link = true;
 }
 
-/**
- * @brief Destruct the main context, deallocates all memory allocated in the context.
- *
- * @param[in,out] context the context to free.
- */
-void main_context_destruct(t_main_context *context)
+static void context_destruct(t_main_context *context)
 {
     if (NULL != context->tokens)
     {
@@ -151,10 +107,10 @@ void main_context_destruct(t_main_context *context)
         context->tokens = NULL;
     }
 
-    if (NULL != context->functions)
+    if (NULL != context->module)
     {
-        (void) LIB_free_functions_vector(context->functions, context->logger);
-        context->functions = NULL;
+        (void) LIB_free_module(context->module, context->logger);
+        context->module = NULL;
     }
 
     if (NULL != context->logger)
@@ -200,23 +156,14 @@ void main_context_destruct(t_main_context *context)
         context->builder = NULL;
     }
 
-    if (NULL != context->module)
+    if (NULL != context->llvm_module)
     {
-        (void) LLVMDisposeModule(context->module);
-        context->module = NULL;
+        (void) LLVMDisposeModule(context->llvm_module);
+        context->llvm_module = NULL;
     }
 }
 
-/**
- * @brief Parse the executable arguments into the context.
- *
- * @param[in,out] context the context to put the arguments into.
- *
- * @return
- * - LUKA_SUCCESS if everything went fine.
- * - LUKA_WRONG_PARAMETERS if the arguments got weren't formatted correctly.
- */
-t_return_code main_get_args(t_main_context *context)
+static t_return_code get_args(t_main_context *context)
 {
     t_return_code status_code = LUKA_UNINITIALIZED;
     char ch = '\0';
@@ -226,7 +173,7 @@ t_return_code main_get_args(t_main_context *context)
         switch (ch)
         {
             case 'h':
-                (void) main_print_help();
+                (void) print_help();
                 (void) exit(LUKA_SUCCESS);
             case 'v':
                 ++context->verbosity;
@@ -259,7 +206,7 @@ t_return_code main_get_args(t_main_context *context)
 
     if (optind >= context->argc)
     {
-        (void) main_print_help();
+        (void) print_help();
         status_code = LUKA_WRONG_PARAMETERS;
     }
     else
@@ -271,22 +218,11 @@ t_return_code main_get_args(t_main_context *context)
     return status_code;
 }
 
-/**
- * @brief Perform the lexing stage.
- *
- * @param[in,out] context the context use.
- *
- * @return
- * - LUKA_SUCCESS if everything went fine.
- * - LUKA_CANT_ALLOC_MEMORY if the memory for tokens couldn't have been allocated.
- * - LUKA_VECTOR_FAILURE if the tokens vector couldn't have been setup.
- * - LUKA_LEXER_FAILED for problems inside the lexer.
- */
-t_return_code main_lex(t_main_context *context)
+t_return_code lex(t_main_context *context, const char * file_path)
 {
     t_return_code status_code = LUKA_UNINITIALIZED;
 
-    context->file_contents = IO_get_file_contents(context->file_path);
+    context->file_contents = IO_get_file_contents(file_path);
     context->tokens = calloc(1, sizeof(t_vector));
     if (NULL == context->tokens)
     {
@@ -309,17 +245,7 @@ l_cleanup:
     return status_code;
 }
 
-/**
- * @brief Perform the parsing stage.
- *
- * @param[in,out] context the context use.
- *
- * @return
- * - LUKA_SUCCESS if everything went fine.
- * - LUKA_CANT_ALLOC_MEMORY if the memory for tokens couldn't have been allocated.
- * - LUKA_VECTOR_FAILURE if the tokens vector couldn't have been setup.
- */
-t_return_code main_parse(t_main_context *context)
+static t_return_code parse(t_main_context *context, const char * file_path)
 {
     t_return_code status_code = LUKA_UNINITIALIZED;
 
@@ -331,50 +257,34 @@ t_return_code main_parse(t_main_context *context)
        return status_code;
     }
 
-    (void) PARSER_initialize(context->parser, context->tokens, context->file_path, context->logger);
+    (void) PARSER_initialize(context->parser, context->tokens, file_path, context->logger);
 
     (void) PARSER_print_parser_tokens(context->parser);
 
-    context->functions = PARSER_parse_top_level(context->parser);
-    if (NULL == context->functions)
+    context->module = PARSER_parse_file(context->parser);
+    if (NULL == context->module)
     {
         status_code = LUKA_PARSER_FAILED;
         return status_code;
     }
 
-    VECTOR_FOR_EACH(context->functions, iterator)
+    VECTOR_FOR_EACH(context->module->functions, iterator)
     {
-        context->function = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
-        context->function = AST_fix_function_last_expression_stmt(context->function);
+        context->node = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
+        context->node = AST_fix_function_last_expression_stmt(context->node);
     }
 
-    (void) AST_print_functions(context->functions, 0, context->logger);
+    (void) AST_print_functions(context->module->functions, 0, context->logger);
 
     status_code = LUKA_SUCCESS;
     return status_code;
 }
 
-/**
- * @brief Initalize all LLVM related things both in global scope and in context variable.
- *
- * @param[in,out] context the context to use.
- *
- * @return
- * - LUKA_SUCCESS on success.
- * - LUKA_GENERAL_ERROR if couldn't get target from provided triple.
- */
-t_return_code main_initialize_llvm(t_main_context *context)
+static t_return_code initialize_llvm(t_main_context *context, const char * file_path)
 {
     t_return_code status_code = LUKA_UNINITIALIZED;
-   
-    (void) LLVMInitializeCore(LLVMGetGlobalPassRegistry());
-    (void) LLVMInitializeAllTargets();
-    (void) LLVMInitializeAllTargetInfos();
-    (void) LLVMInitializeAllTargetMCs();
-    (void) LLVMInitializeAllAsmPrinters();
-    (void) LLVMInitializeAllAsmParsers();
 
-    context->module = LLVMModuleCreateWithName(context->file_path);
+    context->llvm_module = LLVMModuleCreateWithName(file_path);
     if (NULL == context->triple)
     {
         context->triple = LLVMGetDefaultTargetTriple();
@@ -398,9 +308,9 @@ t_return_code main_initialize_llvm(t_main_context *context)
     }
 
     context->target_machine = LLVMCreateTargetMachine(context->target, context->triple, "", "", LLVMCodeGenLevelDefault, LLVMRelocPIC, LLVMCodeModelDefault);
-    (void) LLVMSetTarget(context->module, context->triple);
+    (void) LLVMSetTarget(context->llvm_module, context->triple);
     context->target_data = LLVMCreateTargetDataLayout(context->target_machine);
-    (void) LLVMSetModuleDataLayout(context->module, context->target_data);
+    (void) LLVMSetModuleDataLayout(context->llvm_module, context->target_data);
     (void) LLVMDisposeMessage(context->triple);
     context->builder = LLVMCreateBuilder();
 
@@ -408,32 +318,19 @@ t_return_code main_initialize_llvm(t_main_context *context)
     return status_code;
 }
 
-/**
- * @brief Performs the codegen stage of the compiler.
- *
- * @param[in,out] context the context to use.
- *
- * @return
- * - LUKA_SUCCESS on success.
- * - LUKA_CODEGEN_ERROR if the module couldn't have been verified.
- */
-t_return_code main_code_generation(t_main_context *context)
+static t_return_code codegen_nodes(t_main_context *context, t_vector *nodes)
 {
-    t_return_code status_code = LUKA_UNINITIALIZED;
-
-    (void) GEN_codegen_initialize();
-
-    VECTOR_FOR_EACH(context->functions, iterator)
+    VECTOR_FOR_EACH(nodes, iterator)
     {
-        context->function = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
-        context->value = GEN_codegen(context->function, context->module, context->builder, context->logger);
-        if ((NULL == context->value) && (AST_TYPE_STRUCT_DEFINITION != context->function->type) && (AST_TYPE_ENUM_DEFINITION != context->function->type))
+        context->node = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
+        context->value = GEN_codegen(context->node, context->llvm_module, context->builder, context->logger);
+        if ((NULL == context->value) && (AST_TYPE_STRUCT_DEFINITION != context->node->type) && (AST_TYPE_ENUM_DEFINITION != context->node->type))
         {
             (void) LOGGER_log(context->logger,
                               L_ERROR,
                               "Failed generating code for function %s.\n",
-                              context->function->function.prototype->prototype.name);
-            context->value = LLVMGetNamedFunction(context->module, context->function->function.prototype->prototype.name);
+                              context->node->function.prototype->prototype.name);
+            context->value = LLVMGetNamedFunction(context->llvm_module, context->node->function.prototype->prototype.name);
             if (NULL == context->value)
             {
                 (void) LOGGER_log(context->logger, L_ERROR, "Failed finding the function inside the module.\n");
@@ -442,12 +339,27 @@ t_return_code main_code_generation(t_main_context *context)
             {
                 (void) LLVMDeleteFunction(context->value);
             }
+
+            return LUKA_CODEGEN_ERROR;
         }
     }
 
+    return LUKA_SUCCESS;
+}
+
+static t_return_code code_generation(t_main_context *context)
+{
+    t_return_code status_code = LUKA_UNINITIALIZED;
+
+    (void) GEN_codegen_initialize();
+
+    RAISE_LUKA_STATUS_ON_ERROR(codegen_nodes(context, context->module->structs), status_code, l_cleanup);
+    RAISE_LUKA_STATUS_ON_ERROR(codegen_nodes(context, context->module->enums), status_code, l_cleanup);
+    RAISE_LUKA_STATUS_ON_ERROR(codegen_nodes(context, context->module->functions), status_code, l_cleanup);
+
     (void) GEN_codegen_reset();
 
-    (void) LLVMVerifyModule(context->module, LLVMAbortProcessAction, &context->error);
+    (void) LLVMVerifyModule(context->llvm_module, LLVMAbortProcessAction, &context->error);
     if ((NULL != context->error) && (0 != strcmp("", context->error)))
     {
         (void) LOGGER_log(context->logger, L_ERROR, "Couldn't verify module:\n%s\n", context->error);
@@ -469,12 +381,7 @@ l_cleanup:
     return status_code;
 }
 
-/**
- * @brief Add O1 optimization passes to the pass manager.
- *
- * @param[in,out] context the context to use.
- */
-void main_add_o1_optimizations(t_main_context *context)
+static void add_o1_optimizations(t_main_context *context)
 {
     (void) LLVMAddDeadArgEliminationPass(context->pass_manager);
     (void) LLVMAddCalledValuePropagationPass(context->pass_manager);
@@ -506,16 +413,7 @@ void main_add_o1_optimizations(t_main_context *context)
     (void) LLVMAddLowerExpectIntrinsicPass(context->pass_manager);
 }
 
-/**
- * @brief Optimize the IR before saving it based on the optimization level.
- *
- * @param[in,out] context the context to use.
- *
- * @return
- * - LUKA_SUCCESS on success.
- * - LUKA_GENERAL_ERROR if the pass manager failed optimizing.
- */
-t_return_code main_optimize(t_main_context *context)
+static t_return_code optimize(t_main_context *context)
 {
     t_return_code status_code = LUKA_UNINITIALIZED;
 
@@ -529,7 +427,7 @@ t_return_code main_optimize(t_main_context *context)
 
     if ('0' != context->optimization)
     {
-        (void) main_add_o1_optimizations(context);
+        (void) add_o1_optimizations(context);
         if ('s' != context->optimization)
         {
             (void) LLVMAddSimplifyLibCallsPass(context->pass_manager);
@@ -556,7 +454,7 @@ t_return_code main_optimize(t_main_context *context)
         (void) LLVMAddPromoteMemoryToRegisterPass(context->pass_manager);
 
     }
-    if (!LLVMRunPassManager(context->pass_manager, context->module))
+    if (!LLVMRunPassManager(context->pass_manager, context->llvm_module))
     {
         status_code = LUKA_GENERAL_ERROR;
     }
@@ -565,25 +463,18 @@ t_return_code main_optimize(t_main_context *context)
     return status_code;
 }
 
-/**
- * @brief Generate output to the filesystem based on arguments from the user.
- *
- * @param[in,out] context the context to use.
- *
- * @return LUKA_SUCCESS.
- */
-t_return_code main_generate_output(t_main_context *context)
+static t_return_code generate_output(t_main_context *context)
 {
     t_return_code status_code = LUKA_UNINITIALIZED;
 
     if (context->verbosity > 0)
     {
-        (void) LLVMDumpModule(context->module);
+        (void) LLVMDumpModule(context->llvm_module);
     }
 
     if (context->bitcode)
     {
-        (void) LLVMWriteBitcodeToFile(context->module, context->output_path);
+        (void) LLVMWriteBitcodeToFile(context->llvm_module, context->output_path);
     }
     else
     {
@@ -601,7 +492,7 @@ t_return_code main_generate_output(t_main_context *context)
                 goto l_cleanup;
             }
 
-            if(LLVMTargetMachineEmitToFile(context->target_machine, context->module, object_template, LLVMObjectFile, &context->error))
+            if(LLVMTargetMachineEmitToFile(context->target_machine, context->llvm_module, object_template, LLVMObjectFile, &context->error))
             {
                 status_code = LUKA_LLVM_ERROR;
                 goto l_cleanup;
@@ -622,7 +513,7 @@ t_return_code main_generate_output(t_main_context *context)
                 goto l_cleanup;
             }
 
-            if(LLVMTargetMachineEmitToFile(context->target_machine, context->module, asm_template, LLVMAssemblyFile, &context->error))
+            if(LLVMTargetMachineEmitToFile(context->target_machine, context->llvm_module, asm_template, LLVMAssemblyFile, &context->error))
             {
                 status_code = LUKA_LLVM_ERROR;
                 goto l_cleanup;
@@ -680,35 +571,78 @@ l_cleanup:
     return status_code;
 }
 
+static t_return_code frontend(t_main_context * context, const char * file_path)
+{
+    t_return_code status_code = LUKA_UNINITIALIZED;
+    RAISE_LUKA_STATUS_ON_ERROR(lex(context, file_path), status_code, l_cleanup);
+
+    if (NULL != context->file_contents) {
+      (void) free(context->file_contents);
+      context->file_contents = NULL;
+    }
+
+    RAISE_LUKA_STATUS_ON_ERROR(parse(context, file_path), status_code, l_cleanup);
+
+    status_code = LUKA_SUCCESS;
+
+ l_cleanup:
+    return status_code;
+}
+
+static t_return_code backend(t_main_context *context, const char *file_path)
+{
+  t_return_code status_code = LUKA_UNINITIALIZED;
+  RAISE_LUKA_STATUS_ON_ERROR(initialize_llvm(context, file_path),
+                             status_code, l_cleanup);
+  RAISE_LUKA_STATUS_ON_ERROR(code_generation(context), status_code,
+                             l_cleanup);
+  RAISE_LUKA_STATUS_ON_ERROR(optimize(context), status_code, l_cleanup);
+  RAISE_LUKA_STATUS_ON_ERROR(generate_output(context), status_code,
+                             l_cleanup);
+
+  status_code = LUKA_SUCCESS;
+
+l_cleanup:
+  return status_code;
+}
+
+static t_return_code do_file(t_main_context *context, const char *file_path)
+{
+  t_return_code status_code = LUKA_UNINITIALIZED;
+  RAISE_LUKA_STATUS_ON_ERROR(frontend(context, file_path), status_code, l_cleanup);
+  RAISE_LUKA_STATUS_ON_ERROR(backend(context, file_path), status_code, l_cleanup);
+
+  status_code = LUKA_SUCCESS;
+
+l_cleanup:
+  return status_code;
+}
+
 int main(int argc, char **argv)
 {
     t_return_code status_code = LUKA_UNINITIALIZED;
     t_main_context context;
 
-    (void) main_context_initialize(&context, argc, argv);
+    (void) LLVMInitializeCore(LLVMGetGlobalPassRegistry());
+    (void) LLVMInitializeAllTargets();
+    (void) LLVMInitializeAllTargetInfos();
+    (void) LLVMInitializeAllTargetMCs();
+    (void) LLVMInitializeAllAsmPrinters();
+    (void) LLVMInitializeAllAsmParsers();
 
-    RAISE_LUKA_STATUS_ON_ERROR(main_get_args(&context), status_code, l_cleanup);
+    (void) context_initialize(&context, argc, argv);
+
+    RAISE_LUKA_STATUS_ON_ERROR(get_args(&context), status_code, l_cleanup);
 
     context.logger = LOGGER_initialize(DEFAULT_LOG_PATH, context.verbosity);
 
-    RAISE_LUKA_STATUS_ON_ERROR(main_lex(&context), status_code, l_cleanup);
 
-    if (NULL != context.file_contents)
-    {
-        (void) free(context.file_contents);
-        context.file_contents = NULL;
-    }
-
-    RAISE_LUKA_STATUS_ON_ERROR(main_parse(&context), status_code, l_cleanup);
-    RAISE_LUKA_STATUS_ON_ERROR(main_initialize_llvm(&context), status_code, l_cleanup);
-    RAISE_LUKA_STATUS_ON_ERROR(main_code_generation(&context), status_code, l_cleanup);
-    RAISE_LUKA_STATUS_ON_ERROR(main_optimize(&context), status_code, l_cleanup);
-    RAISE_LUKA_STATUS_ON_ERROR(main_generate_output(&context), status_code, l_cleanup);
+    RAISE_LUKA_STATUS_ON_ERROR(do_file(&context, context.file_path), status_code, l_cleanup);
 
     status_code = LUKA_SUCCESS;
 
 l_cleanup:
-    (void) main_context_destruct(&context);
+    (void) context_destruct(&context);
     (void) LLVMResetFatalErrorHandler();
     (void) LLVMShutdown();
 

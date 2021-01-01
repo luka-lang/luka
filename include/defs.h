@@ -422,4 +422,11 @@ typedef t_enum_field* t_enum_field_ptr; /**< A type alias for getting this type 
 #define RAISE_STATUS_ON_ERROR(expr, status_variable, label) RAISE_STATUS_ON_ERROR_INTERNAL(expr, status_variable, int, 0, label)
 #define RAISE_LUKA_STATUS_ON_ERROR(expr, status_variable, label) RAISE_STATUS_ON_ERROR_INTERNAL(expr, status_variable, t_return_code, LUKA_SUCCESS, label)
 #define ON_ERROR(expr) if (0 != (expr))
+
+typedef struct {
+    t_vector *enums;
+    t_vector *functions;
+    t_vector *structs;
+} t_module;
+
 #endif // __DEFS_H__
