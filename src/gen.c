@@ -1786,7 +1786,7 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
     if (NULL == func)
     {
         (void) LOGGER_log(
-            logger, L_WARNING,
+            logger, L_ERROR,
             "Couldn't find a function named `%s`, are you sure you defined it "
             "or wrote a proper extern line for it?\n",
             node->call_expr.name);

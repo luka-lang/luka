@@ -1,7 +1,20 @@
 /** @file io.c */
 #include "io.h"
 
+#include <ctype.h>
+#include <libgen.h>
+
 #define BLOCK_SIZE 512
+
+#ifdef _WIN32
+#define PATH_SEPERATOR ('\\')
+#include <windows.h>
+#define PATH_MAX MAX_PATH
+#else
+#define PATH_SEPERATOR ('/')
+#include <linux/limits.h>
+#endif
+#define FILE_EXTENSION (".luka")
 
 char *IO_get_file_contents(const char *file_path)
 {
@@ -95,4 +108,41 @@ l_cleanup:
     }
 
     return status_code;
+}
+
+bool io_is_absolute(const char *path)
+{
+    return '/' == path[0]
+        || (isalpha(path[0]) && (':' == path[1]) && ('\\' == path[2]));
+}
+
+char *IO_resolve_path(const char *requested_path, const char *current_path)
+{
+    char *path = NULL, *abs_path = NULL;
+    const char sep_string[2] = {PATH_SEPERATOR, '\0'};
+
+    if (io_is_absolute(requested_path))
+    {
+        path = calloc(PATH_MAX, sizeof(char));
+        path = strcat(path, requested_path);
+        path = strcat(path, FILE_EXTENSION);
+        return path;
+    }
+
+    path = realpath(current_path, NULL);
+    path = dirname(path);
+    if (path[strlen(path) - 1] != PATH_SEPERATOR)
+    {
+        path = strcat(path, sep_string);
+    }
+    path = strcat(path, requested_path);
+    path = strcat(path, FILE_EXTENSION);
+    abs_path = realpath(path, abs_path);
+    if (NULL == abs_path)
+    {
+        return path;
+    }
+
+    (void) free(path);
+    return abs_path;
 }

@@ -1,6 +1,8 @@
 /** @file parser.c */
 #include "parser.h"
 #include "ast.h"
+#include "defs.h"
+#include "io.h"
 #include "lib.h"
 #include "type.h"
 
@@ -506,16 +508,15 @@ void PARSER_free(t_parser *parser)
 
 t_module *PARSER_parse_file(t_parser *parser)
 {
+    t_return_code status_code = LUKA_UNINITIALIZED;
     t_module *module = NULL;
     t_token *token = NULL;
     t_ast_node *node = NULL;
-    char *name = NULL;
+    char *name = NULL, *path = NULL, *resolved_path = NULL;
     t_vector *fields = NULL;
 
-    if (LUKA_SUCCESS != LIB_initialize_module(&module, parser->logger))
-    {
-        goto l_cleanup;
-    }
+    RAISE_LUKA_STATUS_ON_ERROR(LIB_initialize_module(&module, parser->logger),
+                               status_code, l_cleanup);
 
     while (parser->index < parser->tokens->size)
     {
@@ -565,7 +566,7 @@ t_module *PARSER_parse_file(t_parser *parser)
                 {
                     EXPECT_ADVANCE(
                         parser, T_IDENTIFIER,
-                        "Expected an identifier after keywork 'enum'");
+                        "Expected an identifier after keyword 'enum'");
                     token = VECTOR_GET_AS(t_token_ptr, parser->tokens,
                                           parser->index);
                     name = strdup(token->content);
@@ -583,6 +584,20 @@ t_module *PARSER_parse_file(t_parser *parser)
                     parser->index -= 1;
                     break;
                 }
+            case T_IMPORT:
+                {
+                    EXPECT_ADVANCE(parser, T_STRING,
+                                   "Expected a path after keyword 'import'");
+                    token = VECTOR_GET_AS(t_token_ptr, parser->tokens,
+                                          parser->index);
+                    path = strdup(token->content);
+                    EXPECT_ADVANCE(
+                        parser, T_SEMI_COLON,
+                        "Expected a `;` at the end of an import statement.");
+                    resolved_path = IO_resolve_path(path, parser->file_path);
+                    (void) vector_push_front(module->imports, &resolved_path);
+                    break;
+                }
             case T_EOF:
                 break;
             default:
@@ -591,7 +606,8 @@ t_module *PARSER_parse_file(t_parser *parser)
                                       "Syntax error at %s %ld:%ld - %s\n",
                                       parser->file_path, token->line,
                                       token->offset, token->content);
-                    break;
+                    status_code = LUKA_PARSER_FAILED;
+                    goto l_cleanup;
                 }
         }
         parser->index += 1;
@@ -599,9 +615,24 @@ t_module *PARSER_parse_file(t_parser *parser)
 
     (void) vector_shrink_to_fit(module->enums);
     (void) vector_shrink_to_fit(module->functions);
+    (void) vector_shrink_to_fit(module->imports);
     (void) vector_shrink_to_fit(module->structs);
 
+    status_code = LUKA_SUCCESS;
+
 l_cleanup:
+    if ((LUKA_SUCCESS != status_code) && (NULL != module))
+    {
+        (void) LIB_free_module(module, parser->logger);
+        module = NULL;
+    }
+
+    if (NULL != path)
+    {
+        (void) free(path);
+        path = NULL;
+    }
+
     return module;
 }
 

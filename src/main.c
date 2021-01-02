@@ -315,6 +315,7 @@ static t_return_code parse(t_main_context *context, const char *file_path)
 {
     t_return_code status_code = LUKA_UNINITIALIZED;
     t_module *module = NULL;
+    char *resolved_path = NULL;
 
     context->parser = calloc(1, sizeof(t_parser));
     if (NULL == context->parser)
@@ -337,6 +338,16 @@ static t_return_code parse(t_main_context *context, const char *file_path)
         return status_code;
     }
 
+    VECTOR_FOR_EACH(module->imports, iterator)
+    {
+        resolved_path = ITERATOR_GET_AS(t_char_ptr, &iterator);
+        (void) LOGGER_log(context->logger, "Importing file %s\n",
+                          resolved_path);
+
+        RAISE_LUKA_STATUS_ON_ERROR(do_file(context, resolved_path), status_code,
+                                   l_cleanup);
+    }
+
     VECTOR_FOR_EACH(module->functions, iterator)
     {
         context->node = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
@@ -346,8 +357,10 @@ static t_return_code parse(t_main_context *context, const char *file_path)
     (void) AST_print_functions(module->functions, 0, context->logger);
 
     context->modules[context->file_index] = module;
+    context->current_module = module;
 
     status_code = LUKA_SUCCESS;
+l_cleanup:
     return status_code;
 }
 
@@ -476,7 +489,7 @@ static t_return_code code_generation(t_main_context *context)
 
     (void) GEN_codegen_initialize();
 
-    module = context->modules[context->file_index];
+    module = context->current_module;
     RAISE_LUKA_STATUS_ON_ERROR(codegen_nodes(context, module->structs),
                                status_code, l_cleanup);
     RAISE_LUKA_STATUS_ON_ERROR(codegen_nodes(context, module->enums),
@@ -505,6 +518,13 @@ l_cleanup:
     {
         (void) LLVMDisposeMessage(context->error);
         context->error = NULL;
+    }
+
+    if (module != context->modules[context->file_index])
+    {
+        (void) LIB_free_module(context->current_module, context->logger);
+        context->current_module = NULL;
+        module = NULL;
     }
 
     return status_code;
@@ -729,8 +749,6 @@ static t_return_code backend(t_main_context *context)
     t_return_code status_code = LUKA_UNINITIALIZED;
     RAISE_LUKA_STATUS_ON_ERROR(code_generation(context), status_code,
                                l_cleanup);
-    RAISE_LUKA_STATUS_ON_ERROR(optimize(context), status_code, l_cleanup);
-
     status_code = LUKA_SUCCESS;
 
 l_cleanup:
@@ -777,6 +795,7 @@ int main(int argc, char **argv)
             status_code, l_cleanup);
     }
 
+    RAISE_LUKA_STATUS_ON_ERROR(optimize(&context), status_code, l_cleanup);
     RAISE_LUKA_STATUS_ON_ERROR(generate_output(&context), status_code,
                                l_cleanup);
 
