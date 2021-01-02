@@ -764,12 +764,14 @@ int main(int argc, char **argv)
     RAISE_LUKA_STATUS_ON_ERROR(initialize_llvm(&context), status_code,
                                l_cleanup);
 
-    (void) printf("%zu Files\n", context.files_count);
+    (void) LOGGER_log(context.logger, L_INFO, "%zu Files\n",
+                      context.files_count);
     for (context.file_index = 0; context.file_index < context.files_count;
          ++context.file_index)
     {
-        (void) printf("File %zu: %s\n", context.file_index,
-                      context.file_paths[context.file_index]);
+        (void) LOGGER_log(context.logger, L_INFO, "File %zu: %s\n",
+                          context.file_index,
+                          context.file_paths[context.file_index]);
         RAISE_LUKA_STATUS_ON_ERROR(
             do_file(&context, context.file_paths[context.file_index]),
             status_code, l_cleanup);
