@@ -1,10 +1,6 @@
-extern printf(format: string, ...: any): s32;
-extern exit(status: s32): void;
-extern malloc(size: u64): any*;
-extern free(ptr: any*): void;
-extern srand(seed: u32): void;
-extern rand(): s32;
-extern time(tloc: s32*): s32;
+import "lib/stdio";
+import "lib/stdlib";
+import "lib/time";
 
 enum RETURN_CODES {
     SUCCESS = 0,

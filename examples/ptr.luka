@@ -1,9 +1,6 @@
-extern printf(format: s8*, ...: any*): s32;
-extern malloc(size: u64): any*;
-extern realloc(ptr: any*, size: u64): any*;
-extern strcpy(ptr: string, str: string): string;
-extern strcat(ptr: string, str: string): string;
-extern free(ptr: any*): void;
+import "lib/stdio";
+import "lib/stdlib";
+import "lib/string";
 
 fn main() {
     // Pointers to stack memory

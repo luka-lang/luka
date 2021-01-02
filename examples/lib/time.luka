@@ -1,0 +1,1 @@
+extern time(tloc: s64*): s64;

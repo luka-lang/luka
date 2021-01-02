@@ -1,4 +1,4 @@
-extern putchar(char);
+import "lib/stdio";
 
 fn main() {
     let a = 2;

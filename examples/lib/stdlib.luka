@@ -1,0 +1,9 @@
+extern malloc(size: u64): any mut*;
+extern realloc(ptr: any mut*, size: u64): any mut*;
+extern free(ptr: any mut*): void;
+
+extern rand(): s32;
+extern srand(seed: u32): void;
+extern rand_r(seedp: u32*): s32;
+
+extern exit(status: s32): void;

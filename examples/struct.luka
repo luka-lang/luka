@@ -1,4 +1,4 @@
-extern printf(format: string, ...: any): s32;
+import "lib/stdio";
 
 struct Person {
     name: u8*,

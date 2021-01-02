@@ -1,7 +1,7 @@
-// Incomplete luka stdio wrapper
 extern puts(str: u8*): s32;
 extern printf(format: u8*, ...: any): s32;
 extern scanf(format: u8*, ...: mut any): s32;
+extern putchar(ch: int): s32;
 
 let EOF = -1;
 

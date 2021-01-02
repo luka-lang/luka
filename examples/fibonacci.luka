@@ -1,5 +1,4 @@
-extern printf(format: string, ...: any): s32;
-extern scanf(format: string, ...: any): s32;
+import "lib/stdio";
 
 fn fib(n: u64): u64 {
     if n <= 0 {

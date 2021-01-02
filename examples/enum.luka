@@ -1,4 +1,4 @@
-extern printf(format: string, ...: any);
+import "lib/stdio";
 
 enum Weekday {
     Sunday = 1,
