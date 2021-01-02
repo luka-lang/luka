@@ -4,7 +4,7 @@ fn main(): s32 {
     let a: s32 = 3;
     let b: s32 = 5;
 
-    print("Hello World!");
+    println("Hello World!");
     printf("%d + %d = %d\n", a, b, a + b);
     print("Enter a number for a: ");
     scan_s32(&a);

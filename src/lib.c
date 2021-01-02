@@ -113,20 +113,29 @@ t_return_code LIB_initialize_module(t_module **module, t_logger *logger)
     (*module)->functions = NULL;
     (*module)->imports = NULL;
     (*module)->structs = NULL;
+    (*module)->variables = NULL;
 
     RAISE_LUKA_STATUS_ON_ERROR(
         lib_intialize_list(&(*module)->enums, sizeof(t_ast_node_ptr), logger),
         status_code, l_cleanup);
+
     RAISE_LUKA_STATUS_ON_ERROR(lib_intialize_list(&(*module)->functions,
                                                   sizeof(t_ast_node_ptr),
                                                   logger),
                                status_code, l_cleanup);
+
     RAISE_LUKA_STATUS_ON_ERROR(
         lib_intialize_list(&(*module)->imports, sizeof(char *), logger),
         status_code, l_cleanup);
+
     RAISE_LUKA_STATUS_ON_ERROR(
         lib_intialize_list(&(*module)->structs, sizeof(t_ast_node_ptr), logger),
         status_code, l_cleanup);
+
+    RAISE_LUKA_STATUS_ON_ERROR(lib_intialize_list(&(*module)->variables,
+                                                  sizeof(t_ast_node_ptr),
+                                                  logger),
+                               status_code, l_cleanup);
 
     status_code = LUKA_SUCCESS;
     return status_code;
@@ -152,6 +161,11 @@ void LIB_free_module(t_module *module, t_logger *logger)
         if (NULL != module->structs)
         {
             (void) lib_free_nodes_vector(module->structs, logger);
+        }
+
+        if (NULL != module->variables)
+        {
+            (void) lib_free_nodes_vector(module->variables, logger);
         }
 
         if (NULL != module->enums)

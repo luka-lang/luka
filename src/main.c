@@ -424,8 +424,7 @@ static t_return_code codegen_nodes(t_main_context *context, t_vector *nodes)
     VECTOR_FOR_EACH(nodes, iterator)
     {
         context->node = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
-        is_function = (AST_TYPE_STRUCT_DEFINITION != context->node->type)
-                   && (AST_TYPE_ENUM_DEFINITION != context->node->type);
+        is_function = AST_TYPE_FUNCTION == context->node->type;
         is_prototype = is_function && context->node->function.body == NULL;
         if (is_function)
         {
@@ -487,17 +486,19 @@ static t_return_code code_generation(t_main_context *context)
     t_return_code status_code = LUKA_UNINITIALIZED;
     t_module *module = NULL;
 
-    (void) GEN_codegen_initialize();
-
     module = context->current_module;
+
+    RAISE_LUKA_STATUS_ON_ERROR(codegen_nodes(context, module->variables),
+                               status_code, l_cleanup);
+
     RAISE_LUKA_STATUS_ON_ERROR(codegen_nodes(context, module->structs),
                                status_code, l_cleanup);
+
     RAISE_LUKA_STATUS_ON_ERROR(codegen_nodes(context, module->enums),
                                status_code, l_cleanup);
+
     RAISE_LUKA_STATUS_ON_ERROR(codegen_nodes(context, module->functions),
                                status_code, l_cleanup);
-
-    (void) GEN_codegen_reset();
 
     (void) LLVMVerifyModule(context->llvm_module, LLVMAbortProcessAction,
                             &context->error);
@@ -782,6 +783,8 @@ int main(int argc, char **argv)
     RAISE_LUKA_STATUS_ON_ERROR(initialize_llvm(&context), status_code,
                                l_cleanup);
 
+    (void) GEN_codegen_initialize();
+
     (void) LOGGER_log(context.logger, L_INFO, "%zu Files\n",
                       context.files_count);
     for (context.file_index = 0; context.file_index < context.files_count;
@@ -803,6 +806,7 @@ int main(int argc, char **argv)
 
 l_cleanup:
     (void) context_destruct(&context);
+    (void) GEN_codegen_reset();
     (void) LLVMResetFatalErrorHandler();
     (void) LLVMShutdown();
 

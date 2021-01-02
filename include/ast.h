@@ -90,10 +90,11 @@ t_ast_node *AST_new_return_stmt(t_ast_node *expr);
  *
  * @param[in] var an AST node of the variable the expression is bound to.
  * @param[in] expr the expression that the variable will be bound to.
+ * @param[in] is_global whether the variable is global or not.
  *
- * @return an AST node of a let statement with the passed in var and expr.
+ * @return an AST node of a let statement with the passed in var, expr and is_global.
  */
-t_ast_node *AST_new_let_stmt(t_ast_node *var, t_ast_node *expr);
+t_ast_node *AST_new_let_stmt(t_ast_node *var, t_ast_node *expr, bool is_global);
 
 /**
  * @brief Creates a new AST node of a let statement.

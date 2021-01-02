@@ -1,4 +1,4 @@
-program =  { ( function_declaration | function_definition | struct_definition | enum_definition | import_statement ) } ;
+program =  { ( function_declaration | function_definition | struct_definition | enum_definition | import_statement | let_statement ) } ;
 
 function_prototype = identifier "(" argument_list ")" [ type ] ;
 function_declration = "extern" function_prototype ;

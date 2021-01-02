@@ -311,6 +311,7 @@ typedef struct
 {
     t_ast_node *var;  /**< The declared variable */
     t_ast_node *expr; /**< The expression to bind to the variable */
+    bool is_global;   /**< Whether the variable is a global variable or not */
 } t_ast_let_stmt;     /**< An AST node for let statements */
 
 typedef struct
@@ -466,6 +467,7 @@ typedef struct
     t_vector *functions;
     t_vector *imports;
     t_vector *structs;
+    t_vector *variables;
 } t_module;
 
 typedef char
