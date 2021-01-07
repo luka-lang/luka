@@ -1,8 +1,11 @@
 /** @file parser.c */
 #include "parser.h"
 #include "ast.h"
+#include "defs.h"
+#include "io.h"
 #include "lib.h"
 #include "type.h"
+#include "vector.h"
 
 #include <string.h>
 
@@ -164,6 +167,16 @@ t_ast_node *parser_parse_function(t_parser *parser);
  * @return a function prototype AST node.
  */
 t_ast_node *parser_parse_prototype(t_parser *parser);
+
+/**
+ * @brief Parse a let statement.
+ *
+ * @param[in,out] parser the parser to parse with.
+ * @param[in] is_global whether this function is called from the global context.
+ *
+ * @return a let statement AST node.
+ */
+t_ast_node *parser_parse_let_statement(t_parser *parser, bool is_global);
 
 /**
  * @brief Report a parser error.
@@ -506,16 +519,15 @@ void PARSER_free(t_parser *parser)
 
 t_module *PARSER_parse_file(t_parser *parser)
 {
+    t_return_code status_code = LUKA_UNINITIALIZED;
     t_module *module = NULL;
     t_token *token = NULL;
     t_ast_node *node = NULL;
-    char *name = NULL;
+    char *name = NULL, *path = NULL, *resolved_path = NULL;
     t_vector *fields = NULL;
 
-    if (LUKA_SUCCESS != LIB_initialize_module(&module, parser->logger))
-    {
-        goto l_cleanup;
-    }
+    RAISE_LUKA_STATUS_ON_ERROR(LIB_initialize_module(&module, parser->logger),
+                               status_code, l_cleanup);
 
     while (parser->index < parser->tokens->size)
     {
@@ -565,7 +577,7 @@ t_module *PARSER_parse_file(t_parser *parser)
                 {
                     EXPECT_ADVANCE(
                         parser, T_IDENTIFIER,
-                        "Expected an identifier after keywork 'enum'");
+                        "Expected an identifier after keyword 'enum'");
                     token = VECTOR_GET_AS(t_token_ptr, parser->tokens,
                                           parser->index);
                     name = strdup(token->content);
@@ -583,6 +595,28 @@ t_module *PARSER_parse_file(t_parser *parser)
                     parser->index -= 1;
                     break;
                 }
+            case T_IMPORT:
+                {
+                    EXPECT_ADVANCE(parser, T_STRING,
+                                   "Expected a path after keyword 'import'");
+                    token = VECTOR_GET_AS(t_token_ptr, parser->tokens,
+                                          parser->index);
+                    path = strdup(token->content);
+                    EXPECT_ADVANCE(
+                        parser, T_SEMI_COLON,
+                        "Expected a `;` at the end of an import statement.");
+                    resolved_path = IO_resolve_path(path, parser->file_path);
+                    (void) vector_push_front(module->imports, &resolved_path);
+                    break;
+                }
+
+            case T_LET:
+                {
+                    node = parser_parse_let_statement(parser, true);
+                    (void) vector_push_front(module->variables, &node);
+                    parser->index -= 1;
+                    break;
+                }
             case T_EOF:
                 break;
             default:
@@ -591,7 +625,8 @@ t_module *PARSER_parse_file(t_parser *parser)
                                       "Syntax error at %s %ld:%ld - %s\n",
                                       parser->file_path, token->line,
                                       token->offset, token->content);
-                    break;
+                    status_code = LUKA_PARSER_FAILED;
+                    goto l_cleanup;
                 }
         }
         parser->index += 1;
@@ -599,9 +634,24 @@ t_module *PARSER_parse_file(t_parser *parser)
 
     (void) vector_shrink_to_fit(module->enums);
     (void) vector_shrink_to_fit(module->functions);
+    (void) vector_shrink_to_fit(module->imports);
     (void) vector_shrink_to_fit(module->structs);
 
+    status_code = LUKA_SUCCESS;
+
 l_cleanup:
+    if ((LUKA_SUCCESS != status_code) && (NULL != module))
+    {
+        (void) LIB_free_module(module, parser->logger);
+        module = NULL;
+    }
+
+    if (NULL != path)
+    {
+        (void) free(path);
+        path = NULL;
+    }
+
     return module;
 }
 
@@ -1343,6 +1393,35 @@ t_ast_node *parser_parse_assignment(t_parser *parser)
     return lhs;
 }
 
+t_ast_node *parser_parse_let_statement(t_parser *parser, bool is_global)
+{
+    t_ast_node *node = NULL, *expr = NULL, *var = NULL;
+    bool mutable = false;
+    t_type *type = NULL;
+    t_token *token = NULL;
+
+    if (EXPECT(parser, T_MUT))
+    {
+        ADVANCE(parser);
+        mutable = true;
+    }
+    EXPECT_ADVANCE(parser, T_IDENTIFIER,
+                   "Expected an identifier after a 'let'");
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    if (EXPECT(parser, T_COLON))
+    {
+        type = parser_parse_type(parser, true);
+    }
+    EXPECT_ADVANCE(parser, T_EQUALS,
+                   "Expected a '=' after ident in variable declaration");
+    ADVANCE(parser);
+    expr = parser_parse_expression(parser);
+    var = AST_new_variable(strdup(token->content), type, mutable);
+    node = AST_new_let_stmt(var, expr, is_global);
+    MATCH_ADVANCE(parser, T_SEMI_COLON, "Expected a ';' after let statement");
+    return node;
+}
+
 /**
  * @brief Parse a statement.
  *
@@ -1352,10 +1431,8 @@ t_ast_node *parser_parse_assignment(t_parser *parser)
  */
 t_ast_node *parser_parse_statement(t_parser *parser)
 {
-    t_ast_node *node = NULL, *expr = NULL, *var = NULL;
+    t_ast_node *node = NULL, *expr = NULL;
     t_token *token = NULL;
-    bool mutable = false;
-    t_type *type = NULL;
     char *name = NULL;
     t_vector *fields = NULL;
 
@@ -1374,29 +1451,7 @@ t_ast_node *parser_parse_statement(t_parser *parser)
             }
         case T_LET:
             {
-                if (EXPECT(parser, T_MUT))
-                {
-                    ADVANCE(parser);
-                    mutable = true;
-                }
-                EXPECT_ADVANCE(parser, T_IDENTIFIER,
-                               "Expected an identifier after a 'let'");
-                token
-                    = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-                if (EXPECT(parser, T_COLON))
-                {
-                    type = parser_parse_type(parser, true);
-                }
-                EXPECT_ADVANCE(
-                    parser, T_EQUALS,
-                    "Expected a '=' after ident in variable declaration");
-                ADVANCE(parser);
-                expr = parser_parse_expression(parser);
-                var = AST_new_variable(strdup(token->content), type, mutable);
-                node = AST_new_let_stmt(var, expr);
-                MATCH_ADVANCE(parser, T_SEMI_COLON,
-                              "Expected a ';' after let statement");
-                return node;
+                return parser_parse_let_statement(parser, false);
             }
         case T_BREAK:
             {

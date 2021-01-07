@@ -151,12 +151,13 @@ t_ast_node *AST_new_variable(char *name, t_type *type, bool mutable)
     return node;
 }
 
-t_ast_node *AST_new_let_stmt(t_ast_node *var, t_ast_node *expr)
+t_ast_node *AST_new_let_stmt(t_ast_node *var, t_ast_node *expr, bool is_global)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_LET_STMT;
     node->let_stmt.var = var;
     node->let_stmt.expr = expr;
+    node->let_stmt.is_global = is_global;
     return node;
 }
 

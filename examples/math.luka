@@ -1,4 +1,4 @@
-extern printf(format: string, ...: any): s32;
+import "lib/stdio";
 
 fn add(a: s32, b: s32): s32 {
     a + b

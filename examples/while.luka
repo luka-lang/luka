@@ -1,4 +1,4 @@
-extern putchar(ch: int);
+import "lib/stdio";
 
 fn main() {
     let mut num = 20;

@@ -16,6 +16,7 @@ typedef struct
     size_t file_index;
     t_vector *tokens;
     t_module **modules;
+    t_module *current_module;
     t_parser *parser;
     t_ast_node *node;
     LLVMModuleRef llvm_module;

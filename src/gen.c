@@ -1231,7 +1231,6 @@ LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
     block = LLVMAppendBasicBlock(func, "entry");
     (void) LLVMPositionBuilderAtEnd(builder, block);
 
-    gen_named_values_clear();
     for (i = 0; i < arity; ++i)
     {
         val = malloc(sizeof(t_named_value));
@@ -1591,6 +1590,7 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node, LLVMModuleRef module,
     LLVMValueRef expr = NULL;
     t_ast_variable variable;
     t_named_value *val = NULL;
+    bool is_global = node->let_stmt.is_global;
 
     variable = node->let_stmt.var->variable;
     expr = GEN_codegen(node->let_stmt.expr, module, builder, logger);
@@ -1613,17 +1613,28 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node, LLVMModuleRef module,
         val->ttype = TYPE_dup_type(variable.type);
         val->type = gen_type_to_llvm_type(val->ttype, logger);
     }
-    val->alloca_inst = gen_create_entry_block_allca(
-        LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder)), val->type,
-        val->name);
+
     if (LLVMTypeOf(expr) != val->type)
     {
         expr = gen_codegen_cast(builder, expr, val->type, logger);
     }
-    LLVMSetAlignment(LLVMBuildStore(builder, expr, val->alloca_inst),
-                     LLVMGetAlignment(val->alloca_inst)
-                         ? LLVMGetAlignment(val->alloca_inst)
-                         : 8);
+
+    if (is_global)
+    {
+        val->alloca_inst = LLVMAddGlobal(module, val->type, val->name);
+        (void) LLVMSetInitializer(val->alloca_inst, expr);
+    }
+    else
+    {
+        val->alloca_inst = gen_create_entry_block_allca(
+            LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder)), val->type,
+            val->name);
+        (void) LLVMSetAlignment(LLVMBuildStore(builder, expr, val->alloca_inst),
+                         LLVMGetAlignment(val->alloca_inst)
+                             ? LLVMGetAlignment(val->alloca_inst)
+                             : 8);
+    }
+
     val->mutable = variable.mutable;
     HASH_ADD_KEYPTR(hh, named_values, val->name, strlen(val->name), val);
 
@@ -1786,7 +1797,7 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
     if (NULL == func)
     {
         (void) LOGGER_log(
-            logger, L_WARNING,
+            logger, L_ERROR,
             "Couldn't find a function named `%s`, are you sure you defined it "
             "or wrote a proper extern line for it?\n",
             node->call_expr.name);
