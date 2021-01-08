@@ -98,7 +98,6 @@ t_type *gen_llvm_type_to_ttype(LLVMTypeRef type, t_logger *logger)
     else if (LLVMStructTypeKind == LLVMGetTypeKind(type))
     {
         ttype->type = TYPE_STRUCT;
-        ttype->payload = (void *) strdup(LLVMGetStructName(type));
     }
     else
     {
@@ -1625,6 +1624,11 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node, LLVMModuleRef module,
     {
         val->type = LLVMTypeOf(expr);
         val->ttype = gen_llvm_type_to_ttype(val->type, logger);
+        if (TYPE_STRUCT == val->ttype->type)
+        {
+            val->ttype->payload
+                = strdup(node->let_stmt.expr->struct_value.name);
+        }
     }
     else
     {
@@ -1828,20 +1832,22 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
 
     if (!vararg && node->call_expr.args->size != required_params_count)
     {
-        (void) LOGGER_log(
-            logger, L_ERROR,
-            "Function %s not called with enough arguments, expected %d arguments but got %d arguments.\n",
-            node->call_expr.name, node->call_expr.args->size, required_params_count);
+        (void) LOGGER_log(logger, L_ERROR,
+                          "Function %s not called with enough arguments, "
+                          "expected %d arguments but got %d arguments.\n",
+                          node->call_expr.name, node->call_expr.args->size,
+                          required_params_count);
         (void) exit(LUKA_CODEGEN_ERROR);
     }
 
     if (vararg && node->call_expr.args->size < required_params_count)
     {
-        (void) LOGGER_log(logger, L_ERROR,
-                          "Function %s is variadic but not called with enough arguments, "
-                          "expected at least %d arguments but got %d arguments.\n",
-                          node->call_expr.name, node->call_expr.args->size,
-                          required_params_count);
+        (void) LOGGER_log(
+            logger, L_ERROR,
+            "Function %s is variadic but not called with enough arguments, "
+            "expected at least %d arguments but got %d arguments.\n",
+            node->call_expr.name, node->call_expr.args->size,
+            required_params_count);
         (void) exit(LUKA_CODEGEN_ERROR);
     }
 

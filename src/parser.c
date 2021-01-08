@@ -657,7 +657,7 @@ t_module *PARSER_parse_file(t_parser *parser)
                         (void) LOGGER_log(
                             parser->logger, L_ERROR,
                             "Couldn't allocate memory for type alias struct.");
-                        (void) exit(LUKA_CODEGEN_ERROR);
+                        (void) exit(LUKA_CANT_ALLOC_MEMORY);
                     }
                     type_alias->name = name;
                     type_alias->type = type;
