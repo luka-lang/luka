@@ -1,11 +1,14 @@
 /** @file gen.c */
 #include "gen.h"
 
+#include <llvm-c/Core.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "ast.h"
+#include "defs.h"
 #include "type.h"
+#include "uthash.h"
 
 t_named_value *named_values = NULL;
 t_struct_info *struct_infos = NULL;
@@ -95,7 +98,6 @@ t_type *gen_llvm_type_to_ttype(LLVMTypeRef type, t_logger *logger)
     else if (LLVMStructTypeKind == LLVMGetTypeKind(type))
     {
         ttype->type = TYPE_STRUCT;
-        ttype->payload = (void *) LLVMGetStructName(type);
     }
     else
     {
@@ -301,7 +303,7 @@ LLVMTypeRef gen_type_to_llvm_type(t_type *type, t_logger *logger)
                 gen_type_to_llvm_type(type->inner_type, logger), 0);
         case TYPE_STRUCT:
             HASH_FIND_STR(struct_infos, (char *) type->payload, struct_info);
-            if (NULL != struct_info)
+            if ((NULL != struct_info) && (NULL != struct_info->struct_type))
             {
                 return struct_info->struct_type;
             }
@@ -310,9 +312,15 @@ LLVMTypeRef gen_type_to_llvm_type(t_type *type, t_logger *logger)
                 logger, L_ERROR,
                 "gen_type_to_llvm_type: I don't know how to translate struct "
                 "named %s to LLVM types without a previous definition.\n",
-                type);
+                (char *) type->payload);
             (void) exit(LUKA_CODEGEN_ERROR);
 
+        case TYPE_ALIAS:
+            (void) LOGGER_log(
+                logger, L_ERROR,
+                "Unresolved alias %s got to gen_type_to_llvm_type.\n",
+                (char *) type->payload);
+            (void) exit(LUKA_CODEGEN_ERROR);
         default:
             (void) LOGGER_log(logger, L_ERROR,
                               "gen_type_to_llvm_type: I don't know how to "
@@ -1308,6 +1316,7 @@ LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
     if (1 == LLVMVerifyFunction(func, LLVMPrintMessageAction))
     {
         (void) LOGGER_log(logger, L_ERROR, "Invalid function.\n");
+        (void) LLVMDumpModule(module);
         (void) LLVMDeleteFunction(func);
         (void) exit(LUKA_CODEGEN_ERROR);
     }
@@ -1363,6 +1372,7 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n, LLVMModuleRef module,
                  func = NULL, incoming_values[2] = {NULL, NULL};
     LLVMBasicBlockRef cond_block = NULL, then_block = NULL, else_block = NULL,
                       merge_block = NULL;
+    bool has_return_stmt = false;
 
     func = LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder));
 
@@ -1399,10 +1409,14 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n, LLVMModuleRef module,
     (void) LLVMAppendExistingBasicBlock(func, then_block);
     (void) LLVMPositionBuilderAtEnd(builder, then_block);
 
-    then_value = gen_codegen_stmts(n->if_expr.then_body, module, builder, NULL,
-                                   logger);
+    then_value = gen_codegen_stmts(n->if_expr.then_body, module, builder,
+                                   &has_return_stmt, logger);
 
-    (void) LLVMBuildBr(builder, merge_block);
+    if (!has_return_stmt)
+    {
+        (void) LLVMBuildBr(builder, merge_block);
+    }
+    has_return_stmt = false;
 
     then_block = LLVMGetInsertBlock(builder);
 
@@ -1411,8 +1425,11 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n, LLVMModuleRef module,
         (void) LLVMAppendExistingBasicBlock(func, else_block);
         (void) LLVMPositionBuilderAtEnd(builder, else_block);
         else_value = gen_codegen_stmts(n->if_expr.else_body, module, builder,
-                                       NULL, logger);
-        (void) LLVMBuildBr(builder, merge_block);
+                                       &has_return_stmt, logger);
+        if (!has_return_stmt)
+        {
+            (void) LLVMBuildBr(builder, merge_block);
+        }
     }
 
     else_block = LLVMGetInsertBlock(builder);
@@ -1607,6 +1624,11 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node, LLVMModuleRef module,
     {
         val->type = LLVMTypeOf(expr);
         val->ttype = gen_llvm_type_to_ttype(val->type, logger);
+        if (TYPE_STRUCT == val->ttype->type)
+        {
+            val->ttype->payload
+                = strdup(node->let_stmt.expr->struct_value.name);
+        }
     }
     else
     {
@@ -1630,9 +1652,9 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node, LLVMModuleRef module,
             LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder)), val->type,
             val->name);
         (void) LLVMSetAlignment(LLVMBuildStore(builder, expr, val->alloca_inst),
-                         LLVMGetAlignment(val->alloca_inst)
-                             ? LLVMGetAlignment(val->alloca_inst)
-                             : 8);
+                                LLVMGetAlignment(val->alloca_inst)
+                                    ? LLVMGetAlignment(val->alloca_inst)
+                                    : 8);
     }
 
     val->mutable = variable.mutable;
@@ -1810,12 +1832,23 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
 
     if (!vararg && node->call_expr.args->size != required_params_count)
     {
-        goto l_cleanup;
+        (void) LOGGER_log(logger, L_ERROR,
+                          "Function %s not called with enough arguments, "
+                          "expected %d arguments but got %d arguments.\n",
+                          node->call_expr.name, node->call_expr.args->size,
+                          required_params_count);
+        (void) exit(LUKA_CODEGEN_ERROR);
     }
 
     if (vararg && node->call_expr.args->size < required_params_count)
     {
-        goto l_cleanup;
+        (void) LOGGER_log(
+            logger, L_ERROR,
+            "Function %s is variadic but not called with enough arguments, "
+            "expected at least %d arguments but got %d arguments.\n",
+            node->call_expr.name, node->call_expr.args->size,
+            required_params_count);
+        (void) exit(LUKA_CODEGEN_ERROR);
     }
 
     args = calloc(node->call_expr.args->size, sizeof(LLVMValueRef));
@@ -2011,7 +2044,9 @@ LLVMValueRef gen_codegen_struct_definition(t_ast_node *node,
 
     struct_type = LLVMStructCreateNamed(LLVMGetGlobalContext(),
                                         node->struct_definition.name);
-
+    struct_info->struct_type = struct_type;
+    HASH_ADD_KEYPTR(hh, struct_infos, struct_info->struct_name,
+                    strlen(struct_info->struct_name), struct_info);
     for (size_t i = 0; i < elements_count; ++i)
     {
         element_types[i] = gen_type_to_llvm_type(
@@ -2025,11 +2060,9 @@ LLVMValueRef gen_codegen_struct_definition(t_ast_node *node,
                          ->name);
     }
 
-    LLVMStructSetBody(struct_type, element_types, elements_count, false);
+    (void) LLVMStructSetBody(struct_type, element_types, elements_count, false);
 
     struct_info->struct_type = struct_type;
-    HASH_ADD_KEYPTR(hh, struct_infos, struct_info->struct_name,
-                    strlen(struct_info->struct_name), struct_info);
 
     error = false;
 

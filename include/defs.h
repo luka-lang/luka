@@ -45,7 +45,7 @@ typedef enum
 } t_return_code;     /**< An enum of possible luka return codes */
 
 #define NUMBER_OF_KEYWORDS                                                     \
-    34 /**< Number of keywords in the luka programming language */
+    35 /**< Number of keywords in the luka programming language */
 extern const char *
     keywords[NUMBER_OF_KEYWORDS]; /**< string representations of the keywords */
 
@@ -65,9 +65,11 @@ typedef enum
     T_STRUCT,       /**< A "struct" token */
     T_ENUM,         /**< A "enum" token */
     T_IMPORT,       /**< A "import" token */
-    T_NULL,         /**< A "null" token */
-    T_TRUE,         /**< A "true" token */
-    T_FALSE,        /**< A "false" token */
+    T_TYPE,         /**< A "type" token */
+
+    T_NULL,  /**< A "null" token */
+    T_TRUE,  /**< A "true" token */
+    T_FALSE, /**< A "false" token */
 
     T_INT_TYPE,    /**< A "int" token */
     T_CHAR_TYPE,   /**< A "char" token */
@@ -207,6 +209,7 @@ typedef enum
     TYPE_STRUCT, /**< Struct type */
     TYPE_ENUM,   /**< Enum type */
     TYPE_ARRAY,  /**< Array type */
+    TYPE_ALIAS,  /**< Alias type */
 } t_base_type;   /**< An enum for different value types */
 
 typedef struct s_type
@@ -469,6 +472,12 @@ typedef struct
     t_vector *structs;
     t_vector *variables;
 } t_module;
+
+typedef struct
+{
+    char *name;
+    t_type *type;
+} t_type_alias;
 
 typedef char
     *t_char_ptr; /**< A type alias for getting this type from a vector */

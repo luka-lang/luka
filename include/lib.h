@@ -13,6 +13,16 @@
 void LIB_free_tokens_vector(t_vector *tokens);
 
 /**
+ * @brief Deallocates all memory allocated by the @p type_alises vector.
+ *
+ * @param[in,out] type_alises the type aliases vector to free.
+ */
+void LIB_free_type_aliases_vector(t_vector *type_alises);
+
+t_return_code LIB_intialize_list(t_vector **items, size_t item_size,
+                                 t_logger *logger);
+
+/**
  * @brief Initializes a module.
  *
  * @param[in,out] module the module to free.

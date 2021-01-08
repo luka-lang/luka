@@ -9,7 +9,7 @@
 /** A string representation of the keywords in the Luka programming language */
 const char *keywords[NUMBER_OF_KEYWORDS]
     = {"fn", "return", "if", "else", "let", "mut", "extern", "while", "break",
-       "as", "struct", "enum", "import",
+       "as", "struct", "enum", "import", "type",
 
        /* Literals */
        "null", "true", "false",
@@ -483,7 +483,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                         break;
                     }
 
-                    if (isalpha(character))
+                    if (isalpha(character) || ('_' == character))
                     {
                         token->type = T_IDENTIFIER;
                         identifier = lexer_lex_identifier(source, &i);

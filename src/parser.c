@@ -146,9 +146,19 @@ t_enum_field *parser_parse_enum_field(t_parser *parser);
  * @param[in] parser the parser to parse with.
  * @param[in] ident_name the identifier to check.
  *
- * @return whether the @p ident_name is a name of a enum.
+ * @return whether the @p ident_name is a name of an enum.
  */
 bool parser_is_enum_name(t_parser *parser, const char *ident_name);
+
+/**
+ * @brief Check if an identifier is a type alias name known by the parser.
+ *
+ * @param[in] parser the parser to parse with.
+ * @param[in] ident_name the identifier to check.
+ *
+ * @return the type pointed by the alias if the type is a type alias or NULL.
+ */
+t_type *parser_get_type_alias(t_parser *parser, const char *ident_name);
 
 /**
  * @brief Parse a function.
@@ -420,10 +430,9 @@ t_type *parser_parse_type(t_parser *parser, bool parse_prefix)
                 break;
             }
 
-            (void) LOGGER_log(parser->logger, L_ERROR,
-                              "Unknown type %d %s. Fallbacking to s32.\n",
-                              token->type, token->content);
-            type->type = TYPE_SINT32;
+            type->type = TYPE_ALIAS;
+            type->payload = (void *) strdup(token->content);
+
     }
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
@@ -471,7 +480,8 @@ t_type *parser_parse_type(t_parser *parser, bool parse_prefix)
 }
 
 void PARSER_initialize(t_parser *parser, t_vector *tokens,
-                       const char *file_path, t_logger *logger)
+                       const char *file_path, t_logger *logger,
+                       t_vector *type_aliases)
 {
     (void) assert(parser != NULL);
 
@@ -498,6 +508,8 @@ void PARSER_initialize(t_parser *parser, t_vector *tokens,
     }
 
     (void) vector_setup(parser->enum_names, 1, sizeof(char *));
+
+    parser->type_aliases = type_aliases;
 }
 
 void PARSER_free(t_parser *parser)
@@ -525,6 +537,9 @@ t_module *PARSER_parse_file(t_parser *parser)
     t_ast_node *node = NULL;
     char *name = NULL, *path = NULL, *resolved_path = NULL;
     t_vector *fields = NULL;
+    t_type *type = NULL;
+    t_type_alias *type_alias = NULL;
+    char type_str[512] = {0};
 
     RAISE_LUKA_STATUS_ON_ERROR(LIB_initialize_module(&module, parser->logger),
                                status_code, l_cleanup);
@@ -563,12 +578,12 @@ t_module *PARSER_parse_file(t_parser *parser)
                         parser, T_OPEN_BRACE,
                         "Expected a '{' after identifier in struct definition");
                     ADVANCE(parser);
+                    (void) vector_push_front(parser->struct_names, &name);
                     fields = parser_parse_struct_fields(parser);
                     MATCH_ADVANCE(parser, T_CLOSE_BRACE,
                                   "Expected a '}' after struct fields in "
                                   "struct definition");
                     node = AST_new_struct_definition(name, fields);
-                    (void) vector_push_front(parser->struct_names, &name);
                     (void) vector_push_front(module->structs, &node);
                     parser->index -= 1;
                     break;
@@ -609,12 +624,44 @@ t_module *PARSER_parse_file(t_parser *parser)
                     (void) vector_push_front(module->imports, &resolved_path);
                     break;
                 }
-
             case T_LET:
                 {
                     node = parser_parse_let_statement(parser, true);
                     (void) vector_push_front(module->variables, &node);
                     parser->index -= 1;
+                    break;
+                }
+            case T_TYPE:
+                {
+                    EXPECT_ADVANCE(
+                        parser, T_IDENTIFIER,
+                        "Expected a type name after keyword 'type'.");
+                    token = VECTOR_GET_AS(t_token_ptr, parser->tokens,
+                                          parser->index);
+                    name = strdup(token->content);
+                    EXPECT_ADVANCE(parser, T_EQUALS,
+                                   "Expected an '=' after type name");
+                    type = parser_parse_type(parser, false);
+                    EXPECT_ADVANCE(
+                        parser, T_SEMI_COLON,
+                        "Expected a `;` at the end of an import statement.");
+                    (void) memset(type_str, 0, 512);
+                    (void) TYPE_to_string(type, parser->logger, type_str, 512);
+                    (void) LOGGER_log(parser->logger, L_INFO,
+                                      "Type %s is equal to %s\n", name,
+                                      type_str);
+
+                    type_alias = calloc(1, sizeof(t_type_alias));
+                    if (NULL == type_alias)
+                    {
+                        (void) LOGGER_log(
+                            parser->logger, L_ERROR,
+                            "Couldn't allocate memory for type alias struct.");
+                        (void) exit(LUKA_CANT_ALLOC_MEMORY);
+                    }
+                    type_alias->name = name;
+                    type_alias->type = type;
+                    (void) vector_push_front(parser->type_aliases, &type_alias);
                     break;
                 }
             case T_EOF:
@@ -770,6 +817,21 @@ bool parser_is_enum_name(t_parser *parser, const char *ident_name)
     }
 
     return false;
+}
+
+t_type *parser_get_type_alias(t_parser *parser, const char *ident_name)
+{
+    t_type_alias *value = NULL;
+    VECTOR_FOR_EACH(parser->type_aliases, iterator)
+    {
+        value = ITERATOR_GET_AS(t_type_alias *, &iterator);
+        if (0 == strcmp(value->name, ident_name))
+        {
+            return value->type;
+        }
+    }
+
+    return NULL;
 }
 
 /**

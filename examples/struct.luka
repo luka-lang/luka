@@ -1,12 +1,12 @@
 import "lib/stdio";
 
 struct Person {
-    name: u8*,
-    age: u8
+    name: mut u8*,
+    age: mut u8
 }
 
 fn main() {
-    let mut bob: Person = Person { name: "Bob", age: 14 };
+    let mut bob = Person { name: "Bob", age: 14 as u8 };
 
     printf("Person\n\tName: %s\n\tAge: %d\n", bob.name, bob.age);
 
