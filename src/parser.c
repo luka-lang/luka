@@ -432,7 +432,6 @@ t_type *parser_parse_type(t_parser *parser, bool parse_prefix)
 
             type->type = TYPE_ALIAS;
             type->payload = (void *) strdup(token->content);
-
     }
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
@@ -1390,7 +1389,23 @@ t_ast_node *parser_parse_expression(t_parser *parser)
                 if (EXPECT(parser, T_ELSE))
                 {
                     ADVANCE(parser);
-                    else_body = parser_parse_statements(parser);
+                    if (EXPECT(parser, T_IF))
+                    {
+                        ADVANCE(parser);
+                        node = AST_new_expression_stmt(
+                            parser_parse_expression(parser));
+                        else_body = calloc(1, sizeof(t_vector));
+                        if (NULL == else_body)
+                        {
+                            return NULL;
+                        }
+                        (void) vector_setup(else_body, 1, sizeof(t_ast_node *));
+                        (void) vector_push_front(else_body, &node);
+                    }
+                    else
+                    {
+                        else_body = parser_parse_statements(parser);
+                    }
                 }
                 else
                 {
