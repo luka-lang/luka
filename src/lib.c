@@ -5,6 +5,7 @@
 
 #include "ast.h"
 #include "defs.h"
+#include "type.h"
 
 void LIB_free_tokens_vector(t_vector *tokens)
 {
@@ -68,7 +69,41 @@ void lib_free_strings_vector(t_vector *strings)
     strings = NULL;
 }
 
-t_return_code lib_intialize_list(t_vector **items, size_t item_size,
+void LIB_free_type_aliases_vector(t_vector *type_alises)
+{
+    t_type_alias *type_alias = NULL;
+    t_iterator iterator = vector_begin(type_alises);
+    t_iterator last = vector_end(type_alises);
+
+    for (; !iterator_equals(&iterator, &last); iterator_increment(&iterator))
+    {
+        type_alias = *(t_type_alias **) iterator_get(&iterator);
+        if (NULL != type_alias)
+        {
+            if (NULL != type_alias->name)
+            {
+                (void) free(type_alias->name);
+                type_alias->name = NULL;
+            }
+
+            if (NULL != type_alias->type)
+            {
+                (void) TYPE_free_type(type_alias->type);
+                type_alias->type = NULL;
+            }
+
+            (void) free(type_alias);
+            type_alias = NULL;
+        }
+    }
+
+    (void) vector_clear(type_alises);
+    (void) vector_destroy(type_alises);
+    (void) free(type_alises);
+    type_alises = NULL;
+}
+
+t_return_code LIB_intialize_list(t_vector **items, size_t item_size,
                                  t_logger *logger)
 {
     t_return_code status_code = LUKA_UNINITIALIZED;
@@ -116,23 +151,23 @@ t_return_code LIB_initialize_module(t_module **module, t_logger *logger)
     (*module)->variables = NULL;
 
     RAISE_LUKA_STATUS_ON_ERROR(
-        lib_intialize_list(&(*module)->enums, sizeof(t_ast_node_ptr), logger),
+        LIB_intialize_list(&(*module)->enums, sizeof(t_ast_node_ptr), logger),
         status_code, l_cleanup);
 
-    RAISE_LUKA_STATUS_ON_ERROR(lib_intialize_list(&(*module)->functions,
+    RAISE_LUKA_STATUS_ON_ERROR(LIB_intialize_list(&(*module)->functions,
                                                   sizeof(t_ast_node_ptr),
                                                   logger),
                                status_code, l_cleanup);
 
     RAISE_LUKA_STATUS_ON_ERROR(
-        lib_intialize_list(&(*module)->imports, sizeof(char *), logger),
+        LIB_intialize_list(&(*module)->imports, sizeof(char *), logger),
         status_code, l_cleanup);
 
     RAISE_LUKA_STATUS_ON_ERROR(
-        lib_intialize_list(&(*module)->structs, sizeof(t_ast_node_ptr), logger),
+        LIB_intialize_list(&(*module)->structs, sizeof(t_ast_node_ptr), logger),
         status_code, l_cleanup);
 
-    RAISE_LUKA_STATUS_ON_ERROR(lib_intialize_list(&(*module)->variables,
+    RAISE_LUKA_STATUS_ON_ERROR(LIB_intialize_list(&(*module)->variables,
                                                   sizeof(t_ast_node_ptr),
                                                   logger),
                                status_code, l_cleanup);

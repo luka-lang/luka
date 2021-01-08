@@ -4,8 +4,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "defs.h"
 #include "lib.h"
 #include "type.h"
+#include "vector.h"
 
 t_ast_node *AST_new_number(t_type *type, void *value)
 {
@@ -339,6 +341,134 @@ t_ast_node *AST_fix_function_last_expression_stmt(t_ast_node *node)
         }
     }
 
+    return node;
+}
+
+t_type *ast_resolve_type(t_type *aliased_type, t_vector *type_aliases,
+                         t_logger *logger)
+{
+    t_type_alias *type_alias = NULL;
+    if (NULL != aliased_type->inner_type)
+    {
+        aliased_type->inner_type
+            = ast_resolve_type(aliased_type->inner_type, type_aliases, logger);
+    }
+
+    if (TYPE_ALIAS != aliased_type->type)
+    {
+        return aliased_type;
+    }
+
+    VECTOR_FOR_EACH(type_aliases, it_type_aliases)
+    {
+        type_alias = *(t_type_alias **) iterator_get(&it_type_aliases);
+        if (0 == strcmp((char *) aliased_type->payload, type_alias->name))
+        {
+            return TYPE_dup_type(
+                ast_resolve_type(type_alias->type, type_aliases, logger));
+        }
+    }
+
+    (void) LOGGER_log(logger, L_ERROR, "Unknown type %s.\n",
+                      (char *) aliased_type->payload);
+    (void) exit(LUKA_GENERAL_ERROR);
+}
+
+t_ast_node *AST_resolve_type_aliases(t_ast_node *node, t_vector *type_aliases,
+                                     t_logger *logger)
+{
+    size_t i = 0;
+    switch (node->type)
+    {
+        case AST_TYPE_PROTOTYPE:
+            {
+                for (i = 0; i < node->prototype.arity; ++i)
+                {
+                    node->prototype.types[i] = ast_resolve_type(
+                        node->prototype.types[i], type_aliases, logger);
+                }
+                node->prototype.return_type = ast_resolve_type(
+                    node->prototype.return_type, type_aliases, logger);
+                break;
+            }
+        case AST_TYPE_CAST_EXPR:
+            {
+                node->cast_expr.type = ast_resolve_type(node->cast_expr.type,
+                                                        type_aliases, logger);
+                break;
+            }
+        case AST_TYPE_VARIABLE:
+            {
+                if (NULL != node->variable.type)
+                {
+                    node->variable.type = ast_resolve_type(
+                        node->variable.type, type_aliases, logger);
+                }
+                break;
+            }
+        case AST_TYPE_FUNCTION:
+            {
+                node->function.prototype = AST_resolve_type_aliases(
+                    node->function.prototype, type_aliases, logger);
+                if (NULL != node->function.body)
+                {
+                    t_vector *ast_nodes = NULL;
+                    t_ast_node *ast_node = NULL;
+                    size_t i = 0;
+
+                    ast_nodes = node->struct_definition.struct_fields;
+                    for (i = 0; i < ast_nodes->size; ++i)
+                    {
+                        ast_node = *(t_ast_node **) vector_get(ast_nodes, i);
+                        ast_node = AST_resolve_type_aliases(
+                            ast_node, type_aliases, logger);
+                        if (vector_assign(ast_nodes, i, &ast_node))
+                        {
+                            (void) LOGGER_log(logger, L_ERROR,
+                                              "Failed while assigning ast node "
+                                              "to the vector");
+                            (void) exit(LUKA_VECTOR_FAILURE);
+                        }
+                    }
+                    break;
+                }
+                break;
+            }
+        case AST_TYPE_LET_STMT:
+            {
+                if (NULL != node->let_stmt.var)
+                {
+                    node->let_stmt.var = AST_resolve_type_aliases(
+                        node->let_stmt.var, type_aliases, logger);
+                }
+                break;
+            }
+        case AST_TYPE_STRUCT_DEFINITION:
+            {
+                t_vector *struct_fields = NULL;
+                t_struct_field *struct_field = NULL;
+                size_t i = 0;
+
+                struct_fields = node->struct_definition.struct_fields;
+                for (i = 0; i < struct_fields->size; ++i)
+                {
+                    struct_field
+                        = *(t_struct_field **) vector_get(struct_fields, i);
+                    struct_field->type = ast_resolve_type(struct_field->type,
+                                                          type_aliases, logger);
+                    if (vector_assign(struct_fields, i, &struct_field))
+                    {
+                        (void) LOGGER_log(logger, L_ERROR,
+                                          "Failed while assigning struct field "
+                                          "to the vector");
+                        (void) exit(LUKA_VECTOR_FAILURE);
+                    }
+                }
+                break;
+            }
+        default:
+            break;
+    }
     return node;
 }
 

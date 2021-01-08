@@ -79,6 +79,7 @@ static void context_initialize(t_main_context *context, int argc, char **argv)
     context->modules = NULL;
     context->parser = NULL;
     context->node = NULL;
+    context->type_aliases = NULL;
     context->llvm_module = NULL;
     context->builder = NULL;
     context->pass_manager = NULL;
@@ -146,6 +147,12 @@ static void context_destruct(t_main_context *context)
         (void) PARSER_free(context->parser);
         (void) free(context->parser);
         context->parser = NULL;
+    }
+
+    if (NULL != context->type_aliases)
+    {
+        (void) LIB_free_type_aliases_vector(context->type_aliases);
+        context->type_aliases = NULL;
     }
 
     if (NULL != context->target_data)
@@ -327,7 +334,7 @@ static t_return_code parse(t_main_context *context, const char *file_path)
     }
 
     (void) PARSER_initialize(context->parser, context->tokens, file_path,
-                             context->logger);
+                             context->logger, context->type_aliases);
 
     (void) PARSER_print_parser_tokens(context->parser);
 
@@ -337,6 +344,14 @@ static t_return_code parse(t_main_context *context, const char *file_path)
         status_code = LUKA_PARSER_FAILED;
         return status_code;
     }
+
+    VECTOR_FOR_EACH(module->functions, iterator)
+    {
+        context->node = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
+        context->node = AST_fix_function_last_expression_stmt(context->node);
+    }
+
+    (void) AST_print_functions(module->functions, 0, context->logger);
 
     VECTOR_FOR_EACH(module->imports, iterator)
     {
@@ -348,13 +363,20 @@ static t_return_code parse(t_main_context *context, const char *file_path)
                                    l_cleanup);
     }
 
+    VECTOR_FOR_EACH(module->structs, iterator)
+    {
+        context->node = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
+        context->node = AST_resolve_type_aliases(
+            context->node, context->type_aliases, context->logger);
+    }
+
     VECTOR_FOR_EACH(module->functions, iterator)
     {
         context->node = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
-        context->node = AST_fix_function_last_expression_stmt(context->node);
+        context->node = AST_resolve_type_aliases(
+            context->node, context->type_aliases, context->logger);
     }
 
-    (void) AST_print_functions(module->functions, 0, context->logger);
 
     context->modules[context->file_index] = module;
     context->current_module = module;
@@ -790,12 +812,30 @@ int main(int argc, char **argv)
     for (context.file_index = 0; context.file_index < context.files_count;
          ++context.file_index)
     {
+        context.type_aliases = calloc(1, sizeof(t_vector));
+        if (NULL == context.type_aliases)
+        {
+            (void) LOGGER_log(context.logger, L_ERROR,
+                              "Couldn't allocate memory for type aliases.");
+            status_code = LUKA_CANT_ALLOC_MEMORY;
+            goto l_cleanup;
+        }
+
+        if (vector_setup(context.type_aliases, 5, sizeof(t_type_alias *)))
+        {
+            status_code = LUKA_VECTOR_FAILURE;
+            goto l_cleanup;
+        }
+
         (void) LOGGER_log(context.logger, L_INFO, "File %zu: %s\n",
                           context.file_index,
                           context.file_paths[context.file_index]);
         RAISE_LUKA_STATUS_ON_ERROR(
             do_file(&context, context.file_paths[context.file_index]),
             status_code, l_cleanup);
+
+        LIB_free_type_aliases_vector(context.type_aliases);
+        context.type_aliases = NULL;
     }
 
     RAISE_LUKA_STATUS_ON_ERROR(optimize(&context), status_code, l_cleanup);

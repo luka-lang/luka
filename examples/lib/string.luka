@@ -1,2 +1,9 @@
-extern strcpy(ptr: string, str: string): string;
-extern strcat(ptr: string, str: string): string;
+import "stddef";
+
+extern strcpy(dest: u8*, src: u8*): u8*;
+extern strncpy(dest: u8*, src: u8*, n: size_t): u8*;
+
+extern strcat(dest: u8*, src: u8*): u8*;
+extern strcat(dest: u8*, src: u8*, n: size_t): u8*;
+
+extern strlen(s: u8*): size_t;

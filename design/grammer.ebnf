@@ -12,6 +12,8 @@ enum_definition = "enum" identifier "{" enum_fields "}" ;
 enum_fields = enum_fields "," enum_field | enum_field ;
 enum_field = identifier | identifier "=" number ;
 
+type_alias = "type" identifier "=" base_type ;
+
 block = "{" { statements } "}" ;
 
 statements = statements statement | statement ;
@@ -72,13 +74,13 @@ escape_character = "\n" | "\t" | "\\" "\"" ;
 argument_list = argument | argument_list "," argument | argument_list "," "..." [ type ] ;
 argument = identifier [ type ] ;
 
-type = ":" type_keyword ;
+type = ":" base_type ;
 base_type = "any"  | "bool" | "int"   | "string"
           | "u8"   | "u16"  | "u32"   | "u64"
           | "s8"   | "s16"  | "s32"   | "s64"
           | "f32"  | "f64"  | "float" | "double"
           | "void" | "char" | base_type_ptr
-          | base_type_array | base_type_mut ;
+          | base_type_array | base_type_mut | identifier ;
 base_type_ptr = base_type "*" ;
 base_type_array = base_type "[" "]" ;
 base_type_mut = "mut" base_type ;

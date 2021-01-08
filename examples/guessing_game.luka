@@ -1,23 +1,34 @@
 import "lib/stdio";
 import "lib/stdlib";
 import "lib/time";
+import "lib/string";
 
 fn main() {
     let mut num = 0;
     let mut guess = 101;
+
     let mut res = 0;
+    let mut tries = 0;
 
     // Make sure we get a random number each time.
     srand(time(0));
     num = rand() % 100 + 1;
 
-    while num != guess {
+    println("Welcome to the guessing game!\nIn this game you need to guess a number between 1 and 100 in the smallest amount of tries.\nGood Luck!");
+
+    while true {
         print("Guess a number: ");
         if EOF == scan_s32(&guess) {
             break;
         }
 
-        if num < guess {
+        tries = tries + 1;
+
+        if guess == num {
+            break;
+        }
+
+        if guess > num {
             println("Your guess was higher than the number.");
         } else {
             println("Your guess was lower than the number.");
@@ -26,7 +37,29 @@ fn main() {
 
     if (num == guess) {
         printf("You are right! The number was %d!\n", num);
+        printf("Number of Tries: %d\n", tries);
     }
 
-    0
+    let mut name: u8* = malloc(20);
+    if (null == name) {
+        return 1;
+    }
+    print("Enter your name: ");
+    scanf("%s", &name);
+
+    let buf: u8* = malloc(1024);
+    if (null == buf) {
+        return 1;
+    }
+
+    snprintf(buf, 1024, "%s guessed correctly the number %d in %d tries!\n", &name, num, tries);
+
+    let fp: FILE* = fopen("records.txt", "a");
+    if (null != fp) {
+        println("Adding your record to the records file.");
+        fwrite(buf, 1, strlen(buf), fp);
+        fclose(fp);
+    }
+
+    free(buf);
 }

@@ -1,1 +1,2 @@
-extern time(tloc: s64*): s64;
+type time_t = s64;
+extern time(tloc: time_t*): time_t;

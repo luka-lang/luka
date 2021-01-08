@@ -18,6 +18,7 @@ typedef struct
     t_module **modules;
     t_module *current_module;
     t_parser *parser;
+    t_vector *type_aliases;
     t_ast_node *node;
     LLVMModuleRef llvm_module;
     LLVMBuilderRef builder;

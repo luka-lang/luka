@@ -1,5 +1,6 @@
 /** @file type.c */
 #include "type.h"
+#include "defs.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -189,10 +190,16 @@ const char *TYPE_to_string(t_type *type, t_logger *logger, char *buffer,
                                   buffer_size);
             (void) snprintf(buffer + strlen(buffer), buffer_size, "[]");
             break;
+        case TYPE_ENUM:
+        case TYPE_STRUCT:
+        case TYPE_ALIAS:
+            (void) snprintf(buffer + strlen(buffer), buffer_size, "%s",
+                            (char *) type->payload);
+            break;
         default:
             (void) LOGGER_log(logger, L_ERROR,
-                              "ast_type_to_string: I don't know how to "
-                              "translate type %d to LLVM types.\n",
+                              "TYPE_to_string: I don't know how to "
+                              "translate type %d to string.\n",
                               type);
             (void) snprintf(buffer, buffer_size, "s32");
             break;
