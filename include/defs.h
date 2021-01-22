@@ -129,11 +129,12 @@ typedef enum
 
 typedef struct
 {
-    long line;      /**< The line of the token*/
-    long offset;    /**< The offset of the token inside the line */
-    t_toktype type; /**< The type of the token */
-    char *content;  /**< The string representation of the token */
-} t_token;          /**< A struct that represents a token */
+    long line;             /**< The line of the token*/
+    long offset;           /**< The offset of the token inside the line */
+    t_toktype type;        /**< The type of the token */
+    char *content;         /**< The string representation of the token */
+    const char *file_path; /**< The file path the token came from */
+} t_token;                 /**< A struct that represents a token */
 
 typedef t_token
     *t_token_ptr; /**< A type alias for getting this type from a vector */
@@ -410,6 +411,7 @@ typedef struct s_ast_node
         t_ast_array_deref array_deref; /**< Array dereference AST node value */
         t_ast_literal literal;         /**< Literal AST node value */
     };                                 /**< All possible AST node values */
+    t_token *token;                    /**< The origin token of the node */
 } t_ast_node;                          /**< A struct for AST nodes */
 
 typedef t_ast_node
