@@ -864,9 +864,9 @@ LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
                     return val->alloca_inst;
                 }
 
-                (void) LOGGER_log(logger, L_ERROR,
-                                  "Variable %s is undefined.\n",
-                                  node->variable.name);
+                LOGGER_LOG_LOC(logger, L_ERROR, node->token,
+                               "Variable %s is undefined.\n",
+                               node->variable.name);
                 (void) exit(LUKA_CODEGEN_ERROR);
             }
         case AST_TYPE_GET_EXPR:
@@ -875,17 +875,17 @@ LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
 
                 if (NULL == node->get_expr.variable)
                 {
-                    (void) LOGGER_log(logger, L_WARNING,
-                                      "Get expr variable name is null.\n");
+                    LOGGER_LOG_LOC(logger, L_ERROR, node->token,
+                                   "Get expr variable name is null.\n", NULL);
                     (void) exit(LUKA_CODEGEN_ERROR);
                 }
 
                 HASH_FIND_STR(named_values, node->get_expr.variable, variable);
                 if (NULL == variable)
                 {
-                    (void) LOGGER_log(logger, L_ERROR,
-                                      "Couldn't find a variable named `%s`.\n",
-                                      node->get_expr.variable);
+                    LOGGER_LOG_LOC(logger, L_ERROR, node->token,
+                                   "Couldn't find a variable named `%s`.\n",
+                                   node->get_expr.variable);
                     (void) exit(LUKA_CODEGEN_ERROR);
                 }
 
@@ -902,9 +902,9 @@ LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
 
                 if (NULL == val)
                 {
-                    (void) LOGGER_log(logger, L_ERROR,
-                                      "Variable %s is undefined.\n",
-                                      node->array_deref.variable);
+                    LOGGER_LOG_LOC(logger, L_ERROR, node->token,
+                                   "Variable %s is undefined.\n",
+                                   node->array_deref.variable);
                     (void) exit(LUKA_CODEGEN_ERROR);
                 }
 
@@ -913,10 +913,10 @@ LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
                 if ((LLVMArrayTypeKind != val_type_kind)
                     && (LLVMPointerTypeKind != val_type_kind))
                 {
-                    (void) LOGGER_log(
-                        logger, L_ERROR,
+                    LOGGER_LOG_LOC(
+                        logger, L_ERROR, node->token,
                         "Variable %s is not an array or a pointer.\n",
-                        node->variable.name);
+                        node->array_deref.variable);
                     (void) exit(LUKA_CODEGEN_ERROR);
                 }
 
@@ -924,17 +924,20 @@ LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
                                     logger);
                 if (NULL == index)
                 {
-                    (void) LOGGER_log(
-                        logger, L_ERROR,
-                        "Couldn't generate index in array dereference.\n");
+                    LOGGER_LOG_LOC(
+                        logger, L_ERROR, node->array_deref.index->token,
+                        "Couldn't generate index in array dereference.\n",
+                        NULL);
                     (void) exit(LUKA_CODEGEN_ERROR);
                 }
 
                 if (LLVMIntegerTypeKind != LLVMGetTypeKind(LLVMTypeOf(index)))
                 {
-                    (void) LOGGER_log(logger, L_ERROR,
-                                      "Index in array dereference should "
-                                      "resolve to an integer.\n");
+                    LOGGER_LOG_LOC(logger, L_ERROR,
+                                   node->array_deref.index->token,
+                                   "Index in array dereference should "
+                                   "resolve to an integer.\n",
+                                   NULL);
                     (void) exit(LUKA_CODEGEN_ERROR);
                 }
 
@@ -974,8 +977,8 @@ LLVMValueRef gen_codegen_unexpr(t_ast_node *n, LLVMModuleRef module,
 
     if (NULL == rhs)
     {
-        (void) LOGGER_log(logger, L_ERROR,
-                          "Couldn't codegen rhs for unary expression.\n");
+        LOGGER_LOG_LOC(logger, L_ERROR, n->unary_expr.rhs->token,
+                       "Couldn't codegen rhs for unary expression.\n", NULL);
         (void) exit(LUKA_CODEGEN_ERROR);
     }
 
@@ -1013,10 +1016,10 @@ LLVMValueRef gen_codegen_unexpr(t_ast_node *n, LLVMModuleRef module,
             }
         default:
             {
-                (void) LOGGER_log(logger, L_ERROR,
-                                  "Currently not supporting %d operator in "
-                                  "unary expression.\n",
-                                  n->unary_expr.operator);
+                LOGGER_LOG_LOC(logger, L_ERROR, n->token,
+                               "Currently not supporting %d operator in "
+                               "unary expression.\n",
+                               n->unary_expr.operator);
                 (void) exit(LUKA_CODEGEN_ERROR);
             }
     }
@@ -1832,11 +1835,12 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
 
     if (!vararg && node->call_expr.args->size != required_params_count)
     {
-        (void) LOGGER_log(logger, L_ERROR,
-                          "Function %s not called with enough arguments, "
-                          "expected %d arguments but got %d arguments.\n",
-                          node->call_expr.name, node->call_expr.args->size,
-                          required_params_count);
+        (void) LOGGER_log(
+            logger, L_ERROR,
+            "Function %s called with incorrect number of arguments, "
+            "expected %d arguments but got %d arguments.\n",
+            node->call_expr.name, required_params_count,
+            node->call_expr.args->size);
         (void) exit(LUKA_CODEGEN_ERROR);
     }
 

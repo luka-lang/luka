@@ -4,6 +4,7 @@
 #include "defs.h"
 #include "io.h"
 #include "lib.h"
+#include "logger.h"
 #include "type.h"
 #include "vector.h"
 
@@ -199,11 +200,10 @@ void ERR(t_parser *parser, const char *message)
     t_token *token = NULL;
     token = *(t_token_ptr *) vector_get(parser->tokens, parser->index + 1);
 
-    (void) LOGGER_log(parser->logger, L_ERROR, "%s\n", message);
+    (void) LOGGER_log(parser->logger, L_ERROR, "%s:%ld:%ld: error: %s\n",
+                      parser->file_path, token->line, token->offset, message);
 
-    (void) LOGGER_log(parser->logger, L_ERROR, "Error at %s %ld:%ld - %s\n",
-                      parser->file_path, token->line, token->offset,
-                      token->content);
+    (void) IO_print_error(parser->file_path, token->line, token->offset);
     (void) exit(1);
 }
 
