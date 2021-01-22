@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.17)
 
 project(luka)
 
-add_compile_options(-Wall -Wextra -pedantic -Werror)
-
 find_package(LLVM REQUIRED)
 include_directories(${LLVM_INCLUDE_DIRS})
 link_directories(${LLVM_LIBRARY_DIRS})
@@ -23,8 +21,13 @@ file(GLOB_RECURSE LIBS    libs/*)
 
 add_executable(luka ${SOURCES})
 
-target_link_libraries(luka ${LLVM_LIBRARIES} ${LIBS})
+add_library(vector STATIC libs/vector.c)
+target_link_libraries(luka vector)
+target_link_libraries(luka ${LLVM_LIBRARIES})
+target_compile_options(luka PRIVATE -Wall -Wextra -pedantic -Werror)
 
 add_custom_target(docs cd ${PROJECT_SOURCE_DIR}/docs
   COMMAND doxygen && cd -
   DEPENDS ${PROJECT_SOURCE_DIR}/docs/Doxyfile)
+
+install(TARGETS luka DESTINATION bin)
