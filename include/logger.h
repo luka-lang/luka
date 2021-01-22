@@ -6,6 +6,7 @@
 #include <stdio.h>
 
 #include "defs.h"
+#include "io.h"
 
 typedef struct
 {
@@ -38,6 +39,32 @@ t_logger *LOGGER_initialize(char *file_path, size_t verbosity);
  * @param[in] ... additional arguments to the log formatter.
  */
 void LOGGER_log(t_logger *logger, const char *level, const char *format, ...);
+
+/**
+ * @brief Log a new message to the log file.
+ *
+ * @param[in] logger the logger to log with.
+ * @param[in] level the severity level of the log message.
+ * @param[in] token the token that contains the location of the logged message.
+ * @param[in] format the format of the log message.
+ * @param[in] ... additional arguments to the log formatter.
+ */
+#define LOGGER_LOG_LOC(logger, level, token, format, ...)                      \
+    do                                                                         \
+    {                                                                          \
+        if (NULL != token)                                                     \
+        {                                                                      \
+            (void) LOGGER_log(logger, level,                                   \
+                              "%s:%ld:%ld: error: ", token->file_path,         \
+                              token->line, token->offset);                     \
+        }                                                                      \
+        (void) LOGGER_log(logger, level, format, __VA_ARGS__);                 \
+        if (NULL != token)                                                     \
+        {                                                                      \
+            (void) IO_print_error(token->file_path, token->line,               \
+                                  token->offset);                              \
+        }                                                                      \
+    } while (0)
 
 /**
  * @brief Deallocates all memory allocated by @p logger.
