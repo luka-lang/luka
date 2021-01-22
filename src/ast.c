@@ -13,6 +13,7 @@ t_ast_node *AST_new_number(t_type *type, void *value)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_NUMBER;
+    node->token = NULL;
     node->number.type = type;
     switch (node->number.type->type)
     {
@@ -57,6 +58,7 @@ t_ast_node *AST_new_string(char *value)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_STRING;
+    node->token = NULL;
     node->string.value = value;
     node->string.length = strlen(value);
     return node;
@@ -66,6 +68,7 @@ t_ast_node *AST_new_unary_expr(t_ast_unop_type operator, t_ast_node * rhs)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_UNARY_EXPR;
+    node->token = NULL;
     node->unary_expr.operator= operator;
     node->unary_expr.rhs = rhs;
     return node;
@@ -76,6 +79,7 @@ t_ast_node *AST_new_binary_expr(t_ast_binop_type operator, t_ast_node * lhs,
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_BINARY_EXPR;
+    node->token = NULL;
     node->binary_expr.operator= operator;
     node->binary_expr.lhs = lhs;
     node->binary_expr.rhs = rhs;
@@ -87,6 +91,7 @@ t_ast_node *AST_new_prototype(char *name, char **args, t_type **types,
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_PROTOTYPE;
+    node->token = NULL;
     node->prototype.name = name;
     node->prototype.args = args;
     node->prototype.types = types;
@@ -101,6 +106,7 @@ t_ast_node *AST_new_function(t_ast_node *prototype, t_vector *body)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_FUNCTION;
+    node->token = NULL;
     node->function.prototype = prototype;
     node->function.body = body;
     return node;
@@ -110,6 +116,7 @@ t_ast_node *AST_new_return_stmt(t_ast_node *expr)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_RETURN_STMT;
+    node->token = NULL;
     node->return_stmt.expr = expr;
     return node;
 }
@@ -119,6 +126,7 @@ t_ast_node *AST_new_if_expr(t_ast_node *cond, t_vector *then_body,
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_IF_EXPR;
+    node->token = NULL;
     node->if_expr.cond = cond;
     node->if_expr.then_body = then_body;
     node->if_expr.else_body = else_body;
@@ -129,6 +137,7 @@ t_ast_node *AST_new_while_expr(t_ast_node *cond, t_vector *body)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_WHILE_EXPR;
+    node->token = NULL;
     node->while_expr.cond = cond;
     node->while_expr.body = body;
     return node;
@@ -138,6 +147,7 @@ t_ast_node *AST_new_cast_expr(t_ast_node *expr, t_type *type)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_CAST_EXPR;
+    node->token = NULL;
     node->cast_expr.expr = expr;
     node->cast_expr.type = type;
     return node;
@@ -147,6 +157,7 @@ t_ast_node *AST_new_variable(char *name, t_type *type, bool mutable)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_VARIABLE;
+    node->token = NULL;
     node->variable.name = name;
     node->variable.type = type;
     node->variable.mutable = mutable;
@@ -157,6 +168,7 @@ t_ast_node *AST_new_let_stmt(t_ast_node *var, t_ast_node *expr, bool is_global)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_LET_STMT;
+    node->token = NULL;
     node->let_stmt.var = var;
     node->let_stmt.expr = expr;
     node->let_stmt.is_global = is_global;
@@ -167,6 +179,7 @@ t_ast_node *AST_new_assignment_expr(t_ast_node *lhs, t_ast_node *rhs)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_ASSIGNMENT_EXPR;
+    node->token = NULL;
     node->assignment_expr.lhs = lhs;
     node->assignment_expr.rhs = rhs;
     return node;
@@ -176,6 +189,7 @@ t_ast_node *AST_new_call_expr(char *name, t_vector *args)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_CALL_EXPR;
+    node->token = NULL;
     node->call_expr.name = name;
     node->call_expr.args = args;
     return node;
@@ -185,6 +199,7 @@ t_ast_node *AST_new_expression_stmt(t_ast_node *expr)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_EXPRESSION_STMT;
+    node->token = NULL;
     node->expression_stmt.expr = expr;
     return node;
 }
@@ -193,6 +208,7 @@ t_ast_node *AST_new_break_stmt()
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_BREAK_STMT;
+    node->token = NULL;
     return node;
 }
 
@@ -200,6 +216,7 @@ t_ast_node *AST_new_struct_definition(char *name, t_vector *struct_fields)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_STRUCT_DEFINITION;
+    node->token = NULL;
     node->struct_definition.name = name;
     node->struct_definition.struct_fields = struct_fields;
     return node;
@@ -209,6 +226,7 @@ t_ast_node *AST_new_struct_value(char *name, t_vector *struct_values)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_STRUCT_VALUE;
+    node->token = NULL;
     node->struct_value.name = name;
     node->struct_value.struct_values = struct_values;
     return node;
@@ -218,6 +236,7 @@ t_ast_node *AST_new_enum_definition(char *name, t_vector *enum_fields)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_ENUM_DEFINITION;
+    node->token = NULL;
     node->enum_definition.name = name;
     node->enum_definition.enum_fields = enum_fields;
     return node;
@@ -227,6 +246,7 @@ t_ast_node *AST_new_get_expr(char *variable, char *key, bool is_enum)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_GET_EXPR;
+    node->token = NULL;
     node->get_expr.variable = variable;
     node->get_expr.key = key;
     node->get_expr.is_enum = is_enum;
@@ -237,6 +257,7 @@ t_ast_node *AST_new_array_deref(char *variable, t_ast_node *index)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_ARRAY_DEREF;
+    node->token = NULL;
     node->array_deref.variable = variable;
     node->array_deref.index = index;
     return node;
@@ -246,6 +267,7 @@ t_ast_node *AST_new_literal(t_ast_literal_type type)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_LITERAL;
+    node->token = NULL;
     node->literal.type = type;
     return node;
 }

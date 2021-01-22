@@ -411,6 +411,7 @@ typedef struct s_ast_node
         t_ast_array_deref array_deref; /**< Array dereference AST node value */
         t_ast_literal literal;         /**< Literal AST node value */
     };                                 /**< All possible AST node values */
+    t_token *token;                    /**< The origin token of the node */
 } t_ast_node;                          /**< A struct for AST nodes */
 
 typedef t_ast_node
