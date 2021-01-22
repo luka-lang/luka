@@ -532,7 +532,7 @@ t_module *PARSER_parse_file(t_parser *parser)
 {
     t_return_code status_code = LUKA_UNINITIALIZED;
     t_module *module = NULL;
-    t_token *token = NULL;
+    t_token *token = NULL, *starting_token = NULL;
     t_ast_node *node = NULL;
     char *name = NULL, *path = NULL, *resolved_path = NULL;
     t_vector *fields = NULL;
@@ -551,14 +551,20 @@ t_module *PARSER_parse_file(t_parser *parser)
         {
             case T_FN:
                 {
+                    starting_token = *(t_token_ptr *) vector_get(parser->tokens,
+                                                                 parser->index);
                     node = parser_parse_function(parser);
+                    node->token = starting_token;
                     (void) vector_push_back(module->functions, &node);
                     break;
                 }
             case T_EXTERN:
                 {
+                    starting_token = *(t_token_ptr *) vector_get(parser->tokens,
+                                                                 parser->index);
                     node = parser_parse_prototype(parser);
                     node = AST_new_function(node, NULL);
+                    node->token = starting_token;
                     (void) vector_push_back(module->functions, &node);
                     EXPECT_ADVANCE(
                         parser, T_SEMI_COLON,
@@ -567,6 +573,8 @@ t_module *PARSER_parse_file(t_parser *parser)
                 }
             case T_STRUCT:
                 {
+                    starting_token = *(t_token_ptr *) vector_get(parser->tokens,
+                                                                 parser->index);
                     EXPECT_ADVANCE(
                         parser, T_IDENTIFIER,
                         "Expected an identifier after keyword 'struct'");
@@ -583,12 +591,15 @@ t_module *PARSER_parse_file(t_parser *parser)
                                   "Expected a '}' after struct fields in "
                                   "struct definition");
                     node = AST_new_struct_definition(name, fields);
+                    node->token = starting_token;
                     (void) vector_push_front(module->structs, &node);
                     parser->index -= 1;
                     break;
                 }
             case T_ENUM:
                 {
+                    starting_token = *(t_token_ptr *) vector_get(parser->tokens,
+                                                                 parser->index);
                     EXPECT_ADVANCE(
                         parser, T_IDENTIFIER,
                         "Expected an identifier after keyword 'enum'");
@@ -604,6 +615,7 @@ t_module *PARSER_parse_file(t_parser *parser)
                         parser, T_CLOSE_BRACE,
                         "Expected a '}' after enum fields in enum definition");
                     node = AST_new_enum_definition(name, fields);
+                    node->token = starting_token;
                     (void) vector_push_front(parser->enum_names, &name);
                     (void) vector_push_front(module->enums, &node);
                     parser->index -= 1;
@@ -625,7 +637,10 @@ t_module *PARSER_parse_file(t_parser *parser)
                 }
             case T_LET:
                 {
+                    starting_token = *(t_token_ptr *) vector_get(parser->tokens,
+                                                                 parser->index);
                     node = parser_parse_let_statement(parser, true);
+                    node->token = starting_token;
                     (void) vector_push_front(module->variables, &node);
                     parser->index -= 1;
                     break;
@@ -782,9 +797,12 @@ t_ast_binop_type parser_parse_binop(t_token *token, t_logger *logger)
 t_ast_node *parser_parse_paren_expr(t_parser *parser)
 {
     t_ast_node *expr;
+    t_token *starting_token = NULL;
+    starting_token = *(t_token_ptr *) vector_get(parser->tokens, parser->index);
     MATCH_ADVANCE(parser, T_OPEN_PAREN, "Expected '('");
     expr = parser_parse_expression(parser);
     MATCH_ADVANCE(parser, T_CLOSE_PAREN, "Expected ')'");
+    expr->token = starting_token;
     return expr;
 }
 
@@ -850,8 +868,8 @@ t_type *parser_get_type_alias(t_parser *parser, const char *ident_name)
  */
 t_ast_node *parser_parse_ident_expr(t_parser *parser)
 {
-    t_token *token;
-    t_ast_node *expr = NULL;
+    t_token *token = NULL, *starting_token = NULL;
+    t_ast_node *expr = NULL, *node = NULL;
     char *ident_name = NULL;
     t_vector *args = NULL;
     bool mutable = false;
@@ -859,6 +877,7 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
     t_struct_value_field *struct_value_field = NULL;
     bool is_enum = false;
 
+    starting_token = *(t_token_ptr *) vector_get(parser->tokens, parser->index);
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     ident_name = strdup(token->content);
 
@@ -872,7 +891,9 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
         ADVANCE(parser);
 
-        return AST_new_get_expr(ident_name, strdup(token->content), is_enum);
+        node = AST_new_get_expr(ident_name, strdup(token->content), is_enum);
+        node->token = starting_token;
+        return node;
     }
     else if (MATCH(parser, T_OPEN_BRACE)
              && parser_is_struct_name(parser, ident_name))
@@ -921,7 +942,9 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
                           "Expected '}' or ',' after struct value field.\n");
         }
 
-        return AST_new_struct_value(ident_name, struct_value_fields);
+        node = AST_new_struct_value(ident_name, struct_value_fields);
+        node->token = starting_token;
+        return node;
     }
     else if (MATCH(parser, T_OPEN_BRACKET))
     {
@@ -930,7 +953,9 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
         MATCH_ADVANCE(parser, T_CLOSE_BRACKET,
                       "Expected ']' after index in array dereference.\n");
 
-        return AST_new_array_deref(ident_name, expr);
+        node = AST_new_array_deref(ident_name, expr);
+        node->token = starting_token;
+        return node;
     }
     else if (T_OPEN_PAREN != token->type)
     {
@@ -939,8 +964,10 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
             ADVANCE(parser);
             mutable = true;
         }
-        return AST_new_variable(ident_name, parser_parse_type(parser, true),
+        node = AST_new_variable(ident_name, parser_parse_type(parser, true),
                                 mutable);
+        node->token = starting_token;
+        return node;
     }
 
     ADVANCE(parser);
@@ -974,7 +1001,9 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
     ADVANCE(parser);
     (void) vector_shrink_to_fit(args);
 
-    return AST_new_call_expr(ident_name, args);
+    node = AST_new_call_expr(ident_name, args);
+    node->token = starting_token;
+    return node;
 
 l_cleanup:
     if (NULL != args)
@@ -1069,10 +1098,11 @@ l_cleanup:
 
 t_ast_node *parser_parse_equality(t_parser *parser)
 {
-    t_ast_node *lhs = NULL, *rhs = NULL;
-    t_token *token = NULL;
+    t_ast_node *lhs = NULL, *rhs = NULL, *node = NULL;
+    t_token *token = NULL, *starting_token = NULL;
     t_ast_binop_type operator= BINOP_NEQ;
 
+    starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     lhs = parser_parse_comparison(parser);
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     switch (token->type)
@@ -1095,15 +1125,18 @@ t_ast_node *parser_parse_equality(t_parser *parser)
 
     ADVANCE(parser);
     rhs = parser_parse_comparison(parser);
-    return AST_new_binary_expr(operator, lhs, rhs);
+    node = AST_new_binary_expr(operator, lhs, rhs);
+    node->token = starting_token;
+    return node;
 }
 
 t_ast_node *parser_parse_comparison(t_parser *parser)
 {
-    t_ast_node *lhs = NULL, *rhs = NULL;
-    t_token *token = NULL;
+    t_ast_node *lhs = NULL, *rhs = NULL, *node = NULL;
+    t_token *token = NULL, *starting_token = NULL;
     t_ast_binop_type operator= BINOP_GREATER;
 
+    starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     lhs = parser_parse_term(parser);
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     switch (token->type)
@@ -1136,14 +1169,18 @@ t_ast_node *parser_parse_comparison(t_parser *parser)
 
     ADVANCE(parser);
     rhs = parser_parse_term(parser);
-    return AST_new_binary_expr(operator, lhs, rhs);
+    node = AST_new_binary_expr(operator, lhs, rhs);
+    node->token = starting_token;
+    return node;
 }
 
 t_ast_node *parser_parse_term(t_parser *parser)
 {
-    t_ast_node *lhs = NULL, *rhs = NULL;
-    t_token *token = NULL;
+    t_ast_node *lhs = NULL, *rhs = NULL, *node = NULL;
+    t_token *token = NULL, *starting_token = NULL;
     t_ast_binop_type operator= BINOP_SUBTRACT;
+
+    starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
 
     lhs = parser_parse_factor(parser);
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
@@ -1167,14 +1204,18 @@ t_ast_node *parser_parse_term(t_parser *parser)
 
     ADVANCE(parser);
     rhs = parser_parse_factor(parser);
-    return AST_new_binary_expr(operator, lhs, rhs);
+    node = AST_new_binary_expr(operator, lhs, rhs);
+    node->token = starting_token;
+    return node;
 }
 
 t_ast_node *parser_parse_factor(t_parser *parser)
 {
-    t_ast_node *lhs = NULL, *rhs = NULL;
-    t_token *token = NULL;
+    t_ast_node *lhs = NULL, *rhs = NULL, *node = NULL;
+    t_token *token = NULL, *starting_token = NULL;
     t_ast_binop_type operator= BINOP_DIVIDE;
+
+    starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
 
     lhs = parser_parse_unary(parser);
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
@@ -1203,13 +1244,18 @@ t_ast_node *parser_parse_factor(t_parser *parser)
 
     ADVANCE(parser);
     rhs = parser_parse_unary(parser);
-    return AST_new_binary_expr(operator, lhs, rhs);
+    node = AST_new_binary_expr(operator, lhs, rhs);
+    node->token = starting_token;
+    return node;
 }
 
 t_ast_node *parser_parse_unary(t_parser *parser)
 {
-    t_token *token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-    t_ast_node *unary = NULL;
+    t_ast_node *unary = NULL, *node = NULL;
+    t_token *token = NULL, *starting_token = NULL;
+
+    starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    token = starting_token;
 
     switch (token->type)
     {
@@ -1217,47 +1263,59 @@ t_ast_node *parser_parse_unary(t_parser *parser)
             {
                 ADVANCE(parser);
                 unary = parser_parse_unary(parser);
-                return AST_new_unary_expr(UNOP_NOT, unary);
+                node = AST_new_unary_expr(UNOP_NOT, unary);
+                break;
             }
         case T_MINUS:
             {
                 ADVANCE(parser);
                 unary = parser_parse_unary(parser);
-                return AST_new_unary_expr(UNOP_MINUS, unary);
+                node = AST_new_unary_expr(UNOP_MINUS, unary);
+                break;
             }
         case T_AMPERCENT:
             {
                 ADVANCE(parser);
                 unary = parser_parse_unary(parser);
-                return AST_new_unary_expr(UNOP_REF, unary);
+                node = AST_new_unary_expr(UNOP_REF, unary);
+                break;
             }
         case T_STAR:
             {
                 ADVANCE(parser);
                 unary = parser_parse_unary(parser);
-                return AST_new_unary_expr(UNOP_DEREF, unary);
+                node = AST_new_unary_expr(UNOP_DEREF, unary);
+                break;
             }
         default:
             {
-                return parser_parse_primary(parser);
+                node = parser_parse_primary(parser);
+                break;
             }
     }
+
+    node->token = starting_token;
+    return node;
 }
 
 t_ast_node *parser_parse_primary(t_parser *parser)
 {
     t_ast_node *n;
-    t_token *token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    t_token *token = NULL, *starting_token = NULL;
     t_type *type = NULL;
     int32_t s32;
     double f64;
     float f32;
 
+    starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+
     switch (token->type)
     {
         case T_IDENTIFIER:
             {
-                return parser_parse_ident_expr(parser);
+                n = parser_parse_ident_expr(parser);
+                break;
             }
         case T_NUMBER:
             {
@@ -1283,35 +1341,36 @@ t_ast_node *parser_parse_primary(t_parser *parser)
                     n = AST_new_number(type, &s32);
                 }
                 ADVANCE(parser);
-                return n;
+                break;
             }
         case T_OPEN_PAREN:
             {
-                return parser_parse_paren_expr(parser);
+                n = parser_parse_paren_expr(parser);
+                break;
             }
         case T_STRING:
             {
                 n = AST_new_string(strdup(token->content));
                 ADVANCE(parser);
-                return n;
+                break;
             }
         case T_NULL:
             {
                 n = AST_new_literal(AST_LITERAL_NULL);
                 ADVANCE(parser);
-                return n;
+                break;
             }
         case T_TRUE:
             {
                 n = AST_new_literal(AST_LITERAL_TRUE);
                 ADVANCE(parser);
-                return n;
+                break;
             }
         case T_FALSE:
             {
                 n = AST_new_literal(AST_LITERAL_FALSE);
                 ADVANCE(parser);
-                return n;
+                break;
             }
 
         default:
@@ -1320,6 +1379,9 @@ t_ast_node *parser_parse_primary(t_parser *parser)
                               token->line, token->offset, token->content);
             (void) exit(1);
     }
+
+    n->token = starting_token;
+    return n;
 }
 
 /**
@@ -1373,10 +1435,11 @@ t_ast_node *parser_parse_expression(t_parser *parser)
 {
     t_ast_node *node = NULL, *cond = false;
     t_vector *then_body = NULL, *else_body = NULL, *body = NULL;
-    t_token *token = NULL;
+    t_token *token = NULL, *starting_token = NULL;
     t_type *type = NULL;
 
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    starting_token = token;
 
     switch (token->type)
     {
@@ -1436,16 +1499,19 @@ t_ast_node *parser_parse_expression(t_parser *parser)
     {
         type = parser_parse_type(parser, false);
         ADVANCE(parser);
-        return AST_new_cast_expr(node, type);
+        node = AST_new_cast_expr(node, type);
     }
 
+    node->token = starting_token;
     return node;
 }
 
 t_ast_node *parser_parse_assignment(t_parser *parser)
 {
     t_ast_node *lhs = NULL, *rhs = NULL;
+    t_token *starting_token = NULL;
 
+    starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     lhs = parser_parse_equality(parser);
 
     if (MATCH(parser, T_EQUALS))
@@ -1467,6 +1533,7 @@ t_ast_node *parser_parse_assignment(t_parser *parser)
         (void) exit(LUKA_GENERAL_ERROR);
     }
 
+    lhs->token = starting_token;
     return lhs;
 }
 
@@ -1475,7 +1542,9 @@ t_ast_node *parser_parse_let_statement(t_parser *parser, bool is_global)
     t_ast_node *node = NULL, *expr = NULL, *var = NULL;
     bool mutable = false;
     t_type *type = NULL;
-    t_token *token = NULL;
+    t_token *token = NULL, *starting_token = NULL;
+
+    starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
 
     if (EXPECT(parser, T_MUT))
     {
@@ -1496,6 +1565,7 @@ t_ast_node *parser_parse_let_statement(t_parser *parser, bool is_global)
     var = AST_new_variable(strdup(token->content), type, mutable);
     node = AST_new_let_stmt(var, expr, is_global);
     MATCH_ADVANCE(parser, T_SEMI_COLON, "Expected a ';' after let statement");
+    node->token = starting_token;
     return node;
 }
 
@@ -1509,11 +1579,13 @@ t_ast_node *parser_parse_let_statement(t_parser *parser, bool is_global)
 t_ast_node *parser_parse_statement(t_parser *parser)
 {
     t_ast_node *node = NULL, *expr = NULL;
-    t_token *token = NULL;
+    t_token *token = NULL, *starting_token = NULL;
     char *name = NULL;
     t_vector *fields = NULL;
 
-    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+
+    token = starting_token;
     switch (token->type)
     {
         case T_RETURN:
@@ -1524,18 +1596,23 @@ t_ast_node *parser_parse_statement(t_parser *parser)
                     parser, T_SEMI_COLON,
                     "Expected a ';' at the end of a return statement");
                 node = AST_new_return_stmt(expr);
+                node->token = starting_token;
                 return node;
             }
         case T_LET:
             {
-                return parser_parse_let_statement(parser, false);
+                node = parser_parse_let_statement(parser, false);
+                node->token = starting_token;
+                return node;
             }
         case T_BREAK:
             {
                 EXPECT_ADVANCE(parser, T_SEMI_COLON,
                                "Expected a ';' after 'break'");
                 ADVANCE(parser);
-                return AST_new_break_stmt();
+                node = AST_new_break_stmt();
+                node->token = starting_token;
+                return node;
             }
         case T_STRUCT:
             {
@@ -1554,6 +1631,7 @@ t_ast_node *parser_parse_statement(t_parser *parser)
                     "Expected a '}' after struct fields in struct definition");
                 node = AST_new_struct_definition(name, fields);
                 (void) vector_push_front(parser->struct_names, &name);
+                node->token = starting_token;
                 return node;
             }
         case T_ENUM:
@@ -1573,6 +1651,7 @@ t_ast_node *parser_parse_statement(t_parser *parser)
                     "Expected a '}' after enum fields in enum definition");
                 node = AST_new_enum_definition(name, fields);
                 (void) vector_push_front(parser->enum_names, &name);
+                node->token = starting_token;
                 return node;
             }
         default:
@@ -1587,11 +1666,13 @@ t_ast_node *parser_parse_statement(t_parser *parser)
                     /* Expression Statement */
                     ADVANCE(parser);
                     node = AST_new_expression_stmt(expr);
+                    node->token = starting_token;
                     return node;
                 }
 
                 if (parser_should_finish_expression(token))
                 {
+                    expr->token = starting_token;
                     return expr;
                 }
                 (void) LOGGER_log(parser->logger, L_ERROR,
@@ -1609,6 +1690,7 @@ t_vector *parser_parse_statements(t_parser *parser)
     t_vector *stmts = NULL;
     t_ast_node *stmt = NULL;
     t_token *token = NULL;
+
     stmts = calloc(1, sizeof(t_vector));
     if (NULL == stmts)
     {
@@ -1651,7 +1733,10 @@ t_ast_node *parser_parse_prototype(t_parser *parser)
     size_t allocated = 6;
     bool vararg = false;
 
-    t_token *token = NULL;
+    t_token *token = NULL, *starting_token = NULL;
+    t_ast_node *node = NULL;
+
+    starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
 
     EXPECT_ADVANCE(parser, T_IDENTIFIER,
                    "Expected an identifier after 'fn' keyword");
@@ -1667,7 +1752,9 @@ t_ast_node *parser_parse_prototype(t_parser *parser)
         // No args
         ADVANCE(parser);
         return_type = parser_parse_type(parser, true);
-        return AST_new_prototype(name, NULL, NULL, 0, return_type, vararg);
+        node = AST_new_prototype(name, NULL, NULL, 0, return_type, vararg);
+        node->token = starting_token;
+        return node;
     }
 
     ADVANCE(parser);
@@ -1797,7 +1884,9 @@ t_ast_node *parser_parse_prototype(t_parser *parser)
         types = new_types;
     }
 
-    return AST_new_prototype(name, args, types, arity, return_type, vararg);
+    node = AST_new_prototype(name, args, types, arity, return_type, vararg);
+    node->token = starting_token;
+    return node;
 
 l_cleanup:
     if (NULL != args)
