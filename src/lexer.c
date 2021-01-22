@@ -227,7 +227,7 @@ char *lexer_lex_string(const char *source, size_t *index, t_logger *logger)
 }
 
 t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
-                                    t_logger *logger)
+                                    t_logger *logger, const char *file_path)
 {
     long line = 1, offset = 0;
     size_t length = strlen(source);
@@ -264,6 +264,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
         token->offset = offset;
         token->type = T_UNKNOWN;
         token->content = "AAAA";
+        token->file_path = file_path;
 
         switch (character)
         {

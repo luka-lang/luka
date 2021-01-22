@@ -303,7 +303,8 @@ t_return_code lex(t_main_context *context, const char *file_path)
     }
 
     RAISE_LUKA_STATUS_ON_ERROR(
-        LEXER_tokenize_source(context->tokens, file_contents, context->logger),
+        LEXER_tokenize_source(context->tokens, file_contents, context->logger,
+                              file_path),
         status_code, l_cleanup);
 
     status_code = LUKA_SUCCESS;
