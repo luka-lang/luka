@@ -3,6 +3,8 @@
 
 #include <ctype.h>
 #include <libgen.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define BLOCK_SIZE 512
 
@@ -49,9 +51,81 @@ l_cleanup:
     if (NULL != fp)
     {
         (void) fclose(fp);
+        fp = NULL;
     }
 
     return file_contents;
+}
+
+size_t io_linelen(const char *buf, int start)
+{
+    const char *p = buf + start;
+    while (*p != '\0')
+    {
+        if (*p == '\n')
+        {
+            break;
+        }
+        ++p;
+    }
+
+    return p - (buf + start) + 1;
+}
+
+int number_len(int num)
+{
+    int len = 0;
+
+    if (num < 0)
+    {
+        ++len;
+        num *= -1;
+    }
+
+    while (num != 0)
+    {
+        num /= 10;
+        ++len;
+    }
+
+    return len;
+}
+
+void IO_print_error(const char *file_path, int line, int offset)
+{
+    char *contents = IO_get_file_contents(file_path);
+    size_t i = 0, length = strlen(contents), line_length = 0;
+    int cur_line = 0;
+    char *err_line = NULL;
+    int line_num_length = number_len(line);
+
+    for (i = 0; i < length && cur_line < line - 1; ++i)
+    {
+        if (contents[i] == '\n')
+        {
+            cur_line++;
+        }
+    }
+
+    line_length = io_linelen(contents, i);
+    err_line = malloc(line_length + 1);
+    if (NULL == err_line)
+    {
+        (void) perror("Couldn't allocate memory for line");
+        goto l_cleanup;
+    }
+    (void) strncpy(err_line, contents + i, line_length);
+    err_line[line_length] = '\0';
+
+    (void) printf(" %d | %s", line, err_line);
+    (void) printf("%*s^\n", 4 + line_num_length + offset - 1, "");
+
+l_cleanup:
+    if (NULL != contents)
+    {
+        (void) free(contents);
+        contents = NULL;
+    }
 }
 
 t_return_code IO_copy(const char *original_file_path, const char *new_file_path)
