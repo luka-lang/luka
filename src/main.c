@@ -354,7 +354,7 @@ static t_return_code parse(t_main_context *context, const char *file_path)
 
     (void) AST_print_functions(module->functions, 0, context->logger);
 
-    VECTOR_FOR_EACH(module->imports, iterator)
+    VECTOR_FOR_EACH(module->import_paths, iterator)
     {
         resolved_path = ITERATOR_GET_AS(t_char_ptr, &iterator);
         (void) LOGGER_log(context->logger, "Importing file %s\n",
@@ -362,6 +362,7 @@ static t_return_code parse(t_main_context *context, const char *file_path)
 
         RAISE_LUKA_STATUS_ON_ERROR(do_file(context, resolved_path), status_code,
                                    l_cleanup);
+        vector_push_back(module->imports, &(context->current_module));
     }
 
     VECTOR_FOR_EACH(module->structs, iterator)
@@ -377,7 +378,6 @@ static t_return_code parse(t_main_context *context, const char *file_path)
         context->node = AST_resolve_type_aliases(
             context->node, context->type_aliases, context->logger);
     }
-
 
     context->modules[context->file_index] = module;
     context->current_module = module;

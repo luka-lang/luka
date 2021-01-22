@@ -470,6 +470,7 @@ typedef struct
 {
     t_vector *enums;
     t_vector *functions;
+    t_vector *import_paths;
     t_vector *imports;
     t_vector *structs;
     t_vector *variables;

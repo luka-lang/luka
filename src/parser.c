@@ -632,7 +632,8 @@ t_module *PARSER_parse_file(t_parser *parser)
                         parser, T_SEMI_COLON,
                         "Expected a `;` at the end of an import statement.");
                     resolved_path = IO_resolve_path(path, parser->file_path);
-                    (void) vector_push_front(module->imports, &resolved_path);
+                    (void) vector_push_front(module->import_paths,
+                                             &resolved_path);
                     break;
                 }
             case T_LET:
@@ -695,7 +696,7 @@ t_module *PARSER_parse_file(t_parser *parser)
 
     (void) vector_shrink_to_fit(module->enums);
     (void) vector_shrink_to_fit(module->functions);
-    (void) vector_shrink_to_fit(module->imports);
+    (void) vector_shrink_to_fit(module->import_paths);
     (void) vector_shrink_to_fit(module->structs);
 
     status_code = LUKA_SUCCESS;
