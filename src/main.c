@@ -30,6 +30,7 @@
 #include "logger.h"
 #include "main_internal.h"
 #include "parser.h"
+#include "type_checker.h"
 #include "vector.h"
 
 #define DEFAULT_LOG_PATH ("/tmp/luka.log")
@@ -381,6 +382,29 @@ static t_return_code parse(t_main_context *context, const char *file_path)
 
     context->modules[context->file_index] = module;
     context->current_module = module;
+
+    status_code = LUKA_SUCCESS;
+l_cleanup:
+    return status_code;
+}
+
+static t_return_code type_check(t_main_context *context)
+{
+    t_return_code status_code = LUKA_UNINITIALIZED;
+    t_module *module = context->current_module;
+    t_ast_node *node = NULL;
+    bool success = false;
+
+    VECTOR_FOR_EACH(module->functions, iterator)
+    {
+        node = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
+        success = CHECK_function(module, node, context->logger);
+        if (!success)
+        {
+            status_code = LUKA_TYPE_CHECK_ERROR;
+            goto l_cleanup;
+        }
+    }
 
     status_code = LUKA_SUCCESS;
 l_cleanup:
@@ -761,6 +785,8 @@ static t_return_code frontend(t_main_context *context, const char *file_path)
 
     RAISE_LUKA_STATUS_ON_ERROR(parse(context, file_path), status_code,
                                l_cleanup);
+
+    RAISE_LUKA_STATUS_ON_ERROR(type_check(context), status_code, l_cleanup);
 
     status_code = LUKA_SUCCESS;
 

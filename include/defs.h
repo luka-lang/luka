@@ -38,6 +38,7 @@ typedef enum
     LUKA_LEXER_FAILED,      /**< The lexer failed */
     LUKA_PARSER_FAILED,     /**< The parser failed */
     LUKA_CODEGEN_ERROR,     /**< There was a problem in the codegen phase */
+    LUKA_TYPE_CHECK_ERROR,  /**< There was a problem in the type check phase */
     LUKA_VECTOR_FAILURE,    /**< There was a problem in the vector library */
     LUKA_IO_ERROR,   /**< There was a problem with input output operations */
     LUKA_LLVM_ERROR, /**< Signifies that a problem occured when calling an LLVM

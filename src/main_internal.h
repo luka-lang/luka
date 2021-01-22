@@ -101,6 +101,19 @@ static t_return_code lex(t_main_context *context, const char *file_path);
 static t_return_code parse(t_main_context *context, const char *file_path);
 
 /**
+ * @brief Perform a type check on the current module.
+ *
+ * @param[in,out] context the context use.
+ *
+ * @return
+ * - LUKA_SUCCESS if everything went fine.
+ * - LUKA_CANT_ALLOC_MEMORY if the memory for tokens couldn't have been
+ * allocated.
+ * - LUKA_VECTOR_FAILURE if the tokens vector couldn't have been setup.
+ */
+static t_return_code type_check(t_main_context *context);
+
+/**
  * @brief Initalize all LLVM related things both in global scope and in context
  * variable.
  *

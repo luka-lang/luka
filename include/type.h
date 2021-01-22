@@ -34,11 +34,22 @@ bool TYPE_is_floating_type(t_type *type);
 t_type *TYPE_initialize_type(t_base_type type);
 
 /**
+ * @brief Checks if two types are equal based on all of their properties.
+ *
+ * @param[in] type1 the first type.
+ * @param[in] type2 the second type.
+ *
+ * @return a boolean that represents if the types are equal.
+ */
+bool TYPE_equal(const t_type *type1, const t_type *type2);
+
+/**
  * @brief Duplicate a Luka type.
  *
  * @param[in] type the Luka type to duplicate.
  *
- * @return a Luka type that is identical to @p type but resides in new memory.
+ * @return a Luka type that is identical to @p type but resides in new
+ * memory.
  */
 t_type *TYPE_dup_type(t_type *type);
 
@@ -78,5 +89,15 @@ bool TYPE_is_signed(t_type *type);
  */
 const char *TYPE_to_string(t_type *type, t_logger *logger, char *buffer,
                            size_t buffer_size);
+
+/**
+ * @brief Get the type of @p node.
+ *
+ * @param[in] node the node of which the type should be extracted.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @returns TYPE_ANY type if the type is any or not uniquly handled or the type of the handled node.
+ */
+t_type *TYPE_get_type(const t_ast_node *node, t_logger *logger);
 
 #endif // __TYPE_H_

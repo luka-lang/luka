@@ -1,6 +1,7 @@
 /** @file type.c */
 #include "type.h"
 #include "defs.h"
+#include "logger.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -36,6 +37,50 @@ t_type *TYPE_initialize_type(t_base_type type)
     ttype->payload = NULL;
     ttype->mutable = false;
     return ttype;
+}
+
+bool type_is_payload_type(const t_type *type)
+{
+    switch (type->type)
+    {
+        case TYPE_STRUCT:
+        case TYPE_ENUM:
+        case TYPE_ALIAS:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool TYPE_equal(const t_type *type1, const t_type *type2)
+{
+    bool equal = false;
+
+    if ((NULL == type1) && (NULL == type2))
+    {
+        return true;
+    }
+    else if (NULL == type1)
+    {
+        return false;
+    }
+    else if (NULL == type2)
+    {
+        return false;
+    }
+
+    equal = type1->type == type2->type;
+    equal = equal && TYPE_equal(type1->inner_type, type2->inner_type);
+    equal
+        = equal && (type_is_payload_type(type1) == type_is_payload_type(type2));
+    equal = type_is_payload_type(type1)
+              ? equal
+                    && (strncmp(type1->payload, type2->payload,
+                                strlen(type1->payload)))
+              : equal;
+    equal = equal || ((type1->type == TYPE_ANY) || (type2->type == TYPE_ANY));
+    equal = equal && type1->mutable == type2->mutable;
+    return equal;
 }
 
 t_type *TYPE_dup_type(t_type *type)
@@ -130,6 +175,12 @@ bool TYPE_is_signed(t_type *type)
 const char *TYPE_to_string(t_type *type, t_logger *logger, char *buffer,
                            size_t buffer_size)
 {
+    if (NULL == type)
+    {
+        (void) snprintf(buffer, buffer_size, "(unknown type - null)");
+        return buffer;
+    }
+
     if (type->mutable)
     {
         (void) snprintf(buffer, buffer_size, "mut ");
@@ -211,4 +262,29 @@ const char *TYPE_to_string(t_type *type, t_logger *logger, char *buffer,
     }
 
     return buffer;
+}
+
+t_type *TYPE_get_type(const t_ast_node *node, t_logger *logger)
+{
+    t_type *type = NULL;
+    switch (node->type)
+    {
+        case AST_TYPE_NUMBER:
+            return node->number.type;
+        case AST_TYPE_STRING:
+            type = TYPE_initialize_type(TYPE_PTR);
+            type->inner_type = TYPE_initialize_type(TYPE_UINT8);
+            return type;
+        case AST_TYPE_VARIABLE:
+            return node->variable.type;
+        case AST_TYPE_CAST_EXPR:
+            return node->cast_expr.type;
+        case AST_TYPE_RETURN_STMT:
+            return TYPE_get_type(node->return_stmt.expr, logger);
+        default:
+            LOGGER_LOG_LOC(logger, L_ERROR, node->token,
+                           "TYPE_get_type: Unhandled node type %d\n",
+                           node->type);
+            return TYPE_initialize_type(TYPE_ANY);
+    }
 }
