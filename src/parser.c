@@ -338,7 +338,7 @@ t_type *parser_parse_type(t_parser *parser, bool parse_prefix)
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
         if (T_COLON != token->type)
         {
-            type->type = TYPE_SINT32;
+            type->type = TYPE_ANY;
             return type;
         }
 
@@ -1779,12 +1779,11 @@ t_ast_node *parser_parse_prototype(t_parser *parser)
     if (T_THREE_DOTS == token->type)
     {
         types[0] = parser_parse_type(parser, true);
-        if (TYPE_ANY != types[0])
+        if (TYPE_ANY != types[0]->type)
         {
             types[0]->type = TYPE_ANY;
             types[0]->inner_type = NULL;
             types[0]->payload = NULL;
-            types[0]->mutable = false;
         }
         vararg = true;
     }
@@ -1835,7 +1834,7 @@ t_ast_node *parser_parse_prototype(t_parser *parser)
         if (T_THREE_DOTS == token->type)
         {
             types[arity - 1] = parser_parse_type(parser, true);
-            if (TYPE_ANY != types[arity - 1])
+            if (TYPE_ANY != types[arity - 1]->type)
             {
                 types[arity - 1]->type = TYPE_ANY;
                 if (NULL != types[arity - 1]->inner_type)
@@ -1849,7 +1848,6 @@ t_ast_node *parser_parse_prototype(t_parser *parser)
                     (void) free(types[arity - 1]->payload);
                 }
                 types[arity - 1]->payload = NULL;
-                types[arity - 1]->mutable = false;
             }
             vararg = true;
         }

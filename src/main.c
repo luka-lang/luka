@@ -62,7 +62,8 @@ static void print_help(void)
         "  -v/--verbose         Increase verbosity level.\n"
         "  -b/--bitcode         Don't compile bitcode to native machine code.\n"
         "  -O/--optimization    Optimization level (-O0 for no optimization).\n"
-        "                       Optimization levels: 0, 1, 2, 3, s (optimize for space)\n"
+        "                       Optimization levels: 0, 1, 2, 3, s (optimize "
+        "for space)\n"
         "  -t/--triple          The LLVM Target to codegen for.\n"
         "  -c                   Compile and assemble, but do not link.\n"
         "  -S                   Compile only; do not assemble or link.\n"
@@ -351,6 +352,7 @@ static t_return_code parse(t_main_context *context, const char *file_path)
     {
         context->node = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
         context->node = AST_fix_function_last_expression_stmt(context->node);
+        (void) AST_fill_parameter_types(context->node, context->logger);
     }
 
     (void) AST_print_functions(module->functions, 0, context->logger);

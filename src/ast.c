@@ -279,6 +279,10 @@ t_ast_node *AST_fix_function_last_expression_stmt(t_ast_node *node)
     {
         if (NULL != node->function.body)
         {
+            if (node->function.body->size == 0)
+            {
+                return node;
+            }
             last_stmt = VECTOR_GET_AS(t_ast_node_ptr, node->function.body,
                                       node->function.body->size - 1);
             if (AST_TYPE_EXPRESSION_STMT == last_stmt->type)
@@ -301,6 +305,10 @@ t_ast_node *AST_fix_function_last_expression_stmt(t_ast_node *node)
     {
         if (NULL != node->if_expr.then_body)
         {
+            if (node->if_expr.then_body->size == 0)
+            {
+                return node;
+            }
             last_stmt = VECTOR_GET_AS(t_ast_node_ptr, node->if_expr.then_body,
                                       node->if_expr.then_body->size - 1);
             if (AST_TYPE_EXPRESSION_STMT == last_stmt->type)
@@ -321,6 +329,10 @@ t_ast_node *AST_fix_function_last_expression_stmt(t_ast_node *node)
 
         if (NULL != node->if_expr.else_body)
         {
+            if (node->if_expr.else_body->size == 0)
+            {
+                return node;
+            }
             last_stmt = VECTOR_GET_AS(t_ast_node_ptr, node->if_expr.else_body,
                                       node->if_expr.else_body->size - 1);
             if (AST_TYPE_EXPRESSION_STMT == last_stmt->type)
@@ -343,6 +355,10 @@ t_ast_node *AST_fix_function_last_expression_stmt(t_ast_node *node)
     {
         if (NULL != node->while_expr.body)
         {
+            if (node->while_expr.body->size == 0)
+            {
+                return node;
+            }
             last_stmt = VECTOR_GET_AS(t_ast_node_ptr, node->while_expr.body,
                                       node->while_expr.body->size - 1);
             if (AST_TYPE_EXPRESSION_STMT == last_stmt->type)
@@ -492,6 +508,134 @@ t_ast_node *AST_resolve_type_aliases(t_ast_node *node, t_vector *type_aliases,
             break;
     }
     return node;
+}
+
+void ast_fill_parameter_type(t_ast_node *node, const char *var_name,
+                             t_type *new_type, t_logger *logger)
+{
+    t_ast_node *stmt = NULL;
+    if (NULL == node)
+    {
+        return;
+    }
+
+    switch (node->type)
+    {
+        case AST_TYPE_FUNCTION:
+            {
+                if (NULL == node->function.body)
+                {
+                    return;
+                }
+                VECTOR_FOR_EACH(node->function.body, stmts)
+                {
+                    stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
+                    (void) ast_fill_parameter_type(stmt, var_name, new_type,
+                                                   logger);
+                }
+                break;
+            }
+        case AST_TYPE_VARIABLE:
+            {
+                if (NULL != node->variable.type)
+                {
+                    (void) TYPE_free_type(node->variable.type);
+                    node->variable.type = NULL;
+                }
+
+                node->variable.type = TYPE_dup_type(new_type);
+                break;
+            }
+        case AST_TYPE_WHILE_EXPR:
+            {
+                if (NULL != node->while_expr.body)
+                {
+                    VECTOR_FOR_EACH(node->while_expr.body, stmts)
+                    {
+                        stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
+                        (void) ast_fill_parameter_type(stmt, var_name, new_type,
+                                                       logger);
+                    }
+                }
+
+                break;
+            }
+        case AST_TYPE_IF_EXPR:
+            {
+                if (NULL != node->if_expr.then_body)
+                {
+                    VECTOR_FOR_EACH(node->if_expr.then_body, stmts)
+                    {
+                        stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
+                        (void) ast_fill_parameter_type(stmt, var_name, new_type,
+                                                       logger);
+                    }
+                }
+
+                if (NULL != node->if_expr.else_body)
+                {
+                    VECTOR_FOR_EACH(node->if_expr.else_body, stmts)
+                    {
+                        stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
+                        (void) ast_fill_parameter_type(stmt, var_name, new_type,
+                                                       logger);
+                    }
+                }
+
+                break;
+            }
+        case AST_TYPE_CALL_EXPR:
+            {
+                if (NULL != node->call_expr.args)
+                {
+                    VECTOR_FOR_EACH(node->call_expr.args, args)
+                    {
+                        stmt = ITERATOR_GET_AS(t_ast_node_ptr, &args);
+                        (void) ast_fill_parameter_type(stmt, var_name, new_type,
+                                                       logger);
+                    }
+                }
+
+                break;
+            }
+        case AST_TYPE_EXPRESSION_STMT:
+            {
+                (void) ast_fill_parameter_type(node->expression_stmt.expr,
+                                               var_name, new_type, logger);
+                break;
+            }
+        default:
+            (void) LOGGER_log(logger, L_INFO,
+                              "ast_fill_parameter_type: default case %d\n",
+                              node->type);
+            break;
+    }
+}
+
+void AST_fill_parameter_types(t_ast_node *function, t_logger *logger)
+{
+    t_ast_node *proto = NULL;
+    t_vector *body = NULL;
+    size_t i = 0;
+
+    if (NULL == function)
+    {
+        return;
+    }
+
+    proto = function->function.prototype;
+    body = function->function.body;
+
+    if ((NULL == proto) || (NULL == body))
+    {
+        return;
+    }
+
+    for (i = 0; i < proto->prototype.arity; ++i)
+    {
+        (void) ast_fill_parameter_type(function, proto->prototype.args[i],
+                                       proto->prototype.types[i], logger);
+    }
 }
 
 bool AST_is_expression(t_ast_node *node)
@@ -1287,6 +1431,14 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
                 {
                     (void) LOGGER_log(logger, L_DEBUG, "%*c\b Name: %s\n",
                                       offset + 2, ' ', node->variable.name);
+                }
+                if (NULL != node->variable.type)
+                {
+                    (void) memset(type_str, 0, sizeof(type_str));
+                    TYPE_to_string(node->variable.type, logger, type_str,
+                                   sizeof(type_str));
+                    (void) LOGGER_log(logger, L_DEBUG, "%*c\b Type: %s\n",
+                                      offset + 2, ' ', type_str);
                 }
                 break;
             }
