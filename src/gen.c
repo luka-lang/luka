@@ -7,6 +7,7 @@
 
 #include "ast.h"
 #include "defs.h"
+#include "logger.h"
 #include "type.h"
 #include "uthash.h"
 
@@ -880,12 +881,13 @@ LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
                     (void) exit(LUKA_CODEGEN_ERROR);
                 }
 
-                HASH_FIND_STR(named_values, node->get_expr.variable, variable);
+                HASH_FIND_STR(named_values,
+                              node->get_expr.variable->variable.name, variable);
                 if (NULL == variable)
                 {
                     LOGGER_LOG_LOC(logger, L_ERROR, node->token,
                                    "Couldn't find a variable named `%s`.\n",
-                                   node->get_expr.variable);
+                                   node->get_expr.variable->variable.name);
                     (void) exit(LUKA_CODEGEN_ERROR);
                 }
 
@@ -898,13 +900,14 @@ LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
                 LLVMTypeKind val_type_kind = LLVMIntegerTypeKind;
                 LLVMValueRef index = NULL;
 
-                HASH_FIND_STR(named_values, node->array_deref.variable, val);
+                HASH_FIND_STR(named_values,
+                              node->array_deref.variable->variable.name, val);
 
                 if (NULL == val)
                 {
                     LOGGER_LOG_LOC(logger, L_ERROR, node->token,
                                    "Variable %s is undefined.\n",
-                                   node->array_deref.variable);
+                                   node->array_deref.variable->variable.name);
                     (void) exit(LUKA_CODEGEN_ERROR);
                 }
 
@@ -916,7 +919,7 @@ LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
                     LOGGER_LOG_LOC(
                         logger, L_ERROR, node->token,
                         "Variable %s is not an array or a pointer.\n",
-                        node->array_deref.variable);
+                        node->array_deref.variable->variable.name);
                     (void) exit(LUKA_CODEGEN_ERROR);
                 }
 
@@ -1716,13 +1719,14 @@ LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node, LLVMModuleRef module,
         else if (AST_TYPE_GET_EXPR == node->assignment_expr.lhs->type)
         {
             variable = node->assignment_expr.lhs;
-            HASH_FIND_STR(named_values, variable->get_expr.variable, val);
+            HASH_FIND_STR(named_values,
+                          variable->get_expr.variable->variable.name, val);
             if (NULL == val)
             {
-                (void) LOGGER_log(
-                    logger, L_ERROR,
+                LOGGER_LOG_LOC(
+                    logger, L_ERROR, node->token,
                     "get_expr: Cannot assign to undeclared variable '%s'.\n",
-                    val->name);
+                    variable->get_expr.variable->variable.name);
                 (void) exit(LUKA_CODEGEN_ERROR);
             }
 
@@ -1741,13 +1745,14 @@ LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node, LLVMModuleRef module,
         else if (AST_TYPE_ARRAY_DEREF == node->assignment_expr.lhs->type)
         {
             variable = node->assignment_expr.lhs;
-            HASH_FIND_STR(named_values, variable->array_deref.variable, val);
+            HASH_FIND_STR(named_values,
+                          variable->array_deref.variable->variable.name, val);
             if (NULL == val)
             {
-                (void) LOGGER_log(
-                    logger, L_ERROR,
+                LOGGER_LOG_LOC(
+                    logger, L_ERROR, node->token,
                     "array_deref: Cannot assign to undeclared variable '%s'.\n",
-                    val->name);
+                    variable->array_deref.variable->variable.name);
                 (void) exit(LUKA_CODEGEN_ERROR);
             }
 
@@ -2251,11 +2256,15 @@ LLVMValueRef gen_codegen_get_expr(t_ast_node *node, LLVMModuleRef module,
 
     if (node->get_expr.is_enum)
     {
-        HASH_FIND_STR(enum_infos, (char *) node->get_expr.variable, enum_info);
+        HASH_FIND_STR(enum_infos,
+                      (char *) node->get_expr.variable->variable.name,
+                      enum_info);
 
         if (NULL == enum_info)
         {
-            (void) LOGGER_log(logger, L_ERROR, "Couldn't find enum info.\n");
+            LOGGER_LOG_LOC(logger, L_ERROR, node->token,
+                           "Couldn't find enum info for enum %s.\n",
+                           node->get_expr.variable->variable.name);
             (void) exit(LUKA_CODEGEN_ERROR);
         }
 

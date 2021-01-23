@@ -358,16 +358,16 @@ typedef struct
 
 typedef struct
 {
-    char *variable; /**< The name of the variable */
-    char *key;      /**< The requested field/enumerated value */
-    bool is_enum;   /**< Whether the get is an enum or struct get */
-} t_ast_get_expr;   /**< An AST node for get expressions */
+    t_ast_node *variable; /**< A reference to the variable */
+    char *key;            /**< The requested field/enumerated value */
+    bool is_enum;         /**< Whether the get is an enum or struct get */
+} t_ast_get_expr;         /**< An AST node for get expressions */
 
 typedef struct
 {
-    char *variable;    /**< The name of the variable */
-    t_ast_node *index; /**< The index to dereference at */
-} t_ast_array_deref;   /**< An AST node for array dereferences */
+    t_ast_node *variable; /**< A reference to the variable */
+    t_ast_node *index;    /**< The index to dereference at */
+} t_ast_array_deref;      /**< An AST node for array dereferences */
 
 typedef enum
 {

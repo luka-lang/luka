@@ -6,6 +6,7 @@
 
 #include "defs.h"
 #include "lib.h"
+#include "logger.h"
 #include "type.h"
 #include "vector.h"
 
@@ -242,7 +243,7 @@ t_ast_node *AST_new_enum_definition(char *name, t_vector *enum_fields)
     return node;
 }
 
-t_ast_node *AST_new_get_expr(char *variable, char *key, bool is_enum)
+t_ast_node *AST_new_get_expr(t_ast_node *variable, char *key, bool is_enum)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_GET_EXPR;
@@ -253,7 +254,7 @@ t_ast_node *AST_new_get_expr(char *variable, char *key, bool is_enum)
     return node;
 }
 
-t_ast_node *AST_new_array_deref(char *variable, t_ast_node *index)
+t_ast_node *AST_new_array_deref(t_ast_node *variable, t_ast_node *index)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_ARRAY_DEREF;
@@ -1049,7 +1050,7 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
             {
                 if (NULL != node->get_expr.variable)
                 {
-                    (void) free(node->get_expr.variable);
+                    (void) AST_free_node(node->get_expr.variable, logger);
                     node->get_expr.variable = NULL;
                 }
 
@@ -1065,7 +1066,7 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
             {
                 if (NULL != node->array_deref.variable)
                 {
-                    (void) free(node->array_deref.variable);
+                    (void) AST_free_node(node->array_deref.variable, logger);
                     node->array_deref.variable = NULL;
                 }
 
@@ -1691,7 +1692,16 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
                     (void) LOGGER_log(
                         logger, L_DEBUG, "%*c\b %s - %s\n", offset + 2, ' ',
                         node->get_expr.is_enum ? "Enum" : "Variable",
-                        node->get_expr.variable);
+                        node->get_expr.variable->variable.name);
+                    if (NULL != node->get_expr.variable->variable.type)
+                    {
+                        (void) memset(type_str, 0, sizeof(type_str));
+                        (void) TYPE_to_string(
+                            node->get_expr.variable->variable.type, logger,
+                            type_str, sizeof(type_str));
+                        (void) LOGGER_log(logger, L_DEBUG, "%*c\b Type: %s\n",
+                                          offset + 2, ' ', type_str);
+                    }
                 }
 
                 if (NULL != node->get_expr.key)
@@ -1708,9 +1718,9 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
                                   offset, ' ');
                 if (NULL != node->array_deref.variable)
                 {
-                    (void) LOGGER_log(logger, L_DEBUG, "%*c\b Variable - %s\n",
-                                      offset + 2, ' ',
-                                      node->array_deref.variable);
+                    (void) LOGGER_log(
+                        logger, L_DEBUG, "%*c\b Variable - %s\n", offset + 2,
+                        ' ', node->array_deref.variable->variable.name);
                 }
 
                 if (NULL != node->array_deref.index)

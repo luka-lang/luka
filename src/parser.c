@@ -877,6 +877,7 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
     t_vector *struct_value_fields = NULL;
     t_struct_value_field *struct_value_field = NULL;
     bool is_enum = false;
+    t_type *type = NULL;
 
     starting_token = *(t_token_ptr *) vector_get(parser->tokens, parser->index);
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
@@ -892,7 +893,12 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
         ADVANCE(parser);
 
-        node = AST_new_get_expr(ident_name, strdup(token->content), is_enum);
+        type = is_enum ? TYPE_initialize_type(TYPE_ENUM)
+                       : TYPE_initialize_type(TYPE_STRUCT);
+        type->payload = strdup(ident_name);
+
+        node = AST_new_get_expr(AST_new_variable(ident_name, type, false),
+                                strdup(token->content), is_enum);
         node->token = starting_token;
         return node;
     }
@@ -954,7 +960,8 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
         MATCH_ADVANCE(parser, T_CLOSE_BRACKET,
                       "Expected ']' after index in array dereference.\n");
 
-        node = AST_new_array_deref(ident_name, expr);
+        node = AST_new_array_deref(AST_new_variable(ident_name, NULL, false),
+                                   expr);
         node->token = starting_token;
         return node;
     }

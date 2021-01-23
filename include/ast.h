@@ -251,7 +251,7 @@ t_ast_node *AST_new_enum_definition(char *name, t_vector *enum_fields);
  * Enum get expressions look like `Enum::Value` while struct get expression look
  * like `Struct.Field`.
  *
- * @param[in] variable the name of the variable used.
+ * @param[in] variable a reference to the variable used.
  * @param[in] key the field of the struct or the value of the enum requested.
  * @param[in] is_enum whether this is an enum get expression or not.
  *
@@ -259,7 +259,7 @@ t_ast_node *AST_new_enum_definition(char *name, t_vector *enum_fields);
  * is_enum.
  */
 
-t_ast_node *AST_new_get_expr(char *variable, char *key, bool is_enum);
+t_ast_node *AST_new_get_expr(t_ast_node *variable, char *key, bool is_enum);
 
 /**
  * @brief Creates a new AST node of an array derefrence.
@@ -267,13 +267,13 @@ t_ast_node *AST_new_get_expr(char *variable, char *key, bool is_enum);
  * @details Array derefrences are used to get a value from an array or pointer
  * based on the offset notated by `index`.
  *
- * @param[in] variable the name of the variable.
+ * @param[in] variable a reference to the variable.
  * @param[in] index an expression that evalutes to the requested offset.
  *
  * @return an AST node of an array dereference with the passed in variable and
  * index.
  */
-t_ast_node *AST_new_array_deref(char *variable, t_ast_node *index);
+t_ast_node *AST_new_array_deref(t_ast_node *variable, t_ast_node *index);
 
 /**
  * @brief Creates a new AST node of a literal.
