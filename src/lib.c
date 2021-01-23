@@ -304,3 +304,49 @@ char *LIB_stringify(const char *source, size_t source_length, t_logger *logger)
     str[char_count] = '\0';
     return str;
 }
+
+t_ast_node *LIB_resolve_func_name(const t_module *module, const char *name)
+{
+    t_ast_node *func = NULL;
+    t_module *imported_module = NULL;
+
+    if (NULL == module->functions)
+    {
+        return NULL;
+    }
+
+    VECTOR_FOR_EACH(module->functions, functions)
+    {
+        func = ITERATOR_GET_AS(t_ast_node_ptr, &functions);
+        if (NULL == func->function.prototype)
+        {
+            continue;
+        }
+
+        if (NULL == func->function.prototype->prototype.name)
+        {
+            continue;
+        }
+
+        if (0 != strcmp(name, func->function.prototype->prototype.name))
+        {
+            continue;
+        }
+
+        return func;
+    }
+
+    VECTOR_FOR_EACH(module->imports, imports)
+    {
+        imported_module = *(t_module **) iterator_get(&imports);
+        func = LIB_resolve_func_name(imported_module, name);
+        if (NULL == func)
+        {
+            continue;
+        }
+
+        return func;
+    }
+
+    return NULL;
+}

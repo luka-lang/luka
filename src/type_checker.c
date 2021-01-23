@@ -1,62 +1,16 @@
 #include "type_checker.h"
 #include "defs.h"
 #include "io.h"
+#include "lib.h"
 #include "logger.h"
 #include "type.h"
 #include "vector.h"
 #include <string.h>
 
-t_ast_node *check_resolve_func_name(const t_module *module, const char *name);
 bool check_expr(const t_module *module, const t_ast_node *expr,
                 t_logger *logger);
 bool check_stmt(const t_module *module, const t_ast_node *stmt,
                 t_logger *logger);
-
-t_ast_node *check_resolve_func_name(const t_module *module, const char *name)
-{
-    t_ast_node *func = NULL;
-    t_module *imported_module = NULL;
-
-    if (NULL == module->functions)
-    {
-        return NULL;
-    }
-
-    VECTOR_FOR_EACH(module->functions, functions)
-    {
-        func = ITERATOR_GET_AS(t_ast_node_ptr, &functions);
-        if (NULL == func->function.prototype)
-        {
-            continue;
-        }
-
-        if (NULL == func->function.prototype->prototype.name)
-        {
-            continue;
-        }
-
-        if (0 != strcmp(name, func->function.prototype->prototype.name))
-        {
-            continue;
-        }
-
-        return func;
-    }
-
-    VECTOR_FOR_EACH(module->imports, imports)
-    {
-        imported_module = *(t_module **) iterator_get(&imports);
-        func = check_resolve_func_name(imported_module, name);
-        if (NULL == func)
-        {
-            continue;
-        }
-
-        return func;
-    }
-
-    return NULL;
-}
 
 bool check_expr(const t_module *module, const t_ast_node *expr,
                 t_logger *logger)
@@ -78,7 +32,7 @@ bool check_expr(const t_module *module, const t_ast_node *expr,
                     return true;
                 }
 
-                func = check_resolve_func_name(module, expr->call_expr.name);
+                func = LIB_resolve_func_name(module, expr->call_expr.name);
                 if (NULL == func)
                 {
                     LOGGER_LOG_LOC(logger, L_ERROR, expr->token,
