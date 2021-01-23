@@ -683,10 +683,7 @@ t_module *PARSER_parse_file(t_parser *parser)
                 break;
             default:
                 {
-                    (void) LOGGER_log(parser->logger, L_ERROR,
-                                      "Syntax error at %s %ld:%ld - %s\n",
-                                      parser->file_path, token->line,
-                                      token->offset, token->content);
+                    (void) ERR(parser, "Syntax error: unexpected token\n");
                     status_code = LUKA_PARSER_FAILED;
                     goto l_cleanup;
                 }
