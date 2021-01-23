@@ -1566,10 +1566,19 @@ t_ast_node *parser_parse_let_statement(t_parser *parser, bool is_global)
     {
         type = parser_parse_type(parser, true);
     }
+    else
+    {
+        type = TYPE_initialize_type(TYPE_ANY);
+    }
     EXPECT_ADVANCE(parser, T_EQUALS,
                    "Expected a '=' after ident in variable declaration");
     ADVANCE(parser);
     expr = parser_parse_expression(parser);
+    if (NULL != type)
+    {
+        type->mutable = mutable;
+    }
+
     var = AST_new_variable(strdup(token->content), type, mutable);
     node = AST_new_let_stmt(var, expr, is_global);
     MATCH_ADVANCE(parser, T_SEMI_COLON, "Expected a ';' after let statement");
