@@ -161,7 +161,6 @@ typedef enum
     AST_TYPE_STRUCT_DEFINITION, /**< An AST node for struct defintions */
     AST_TYPE_STRUCT_VALUE,      /**< An AST node for struct values */
     AST_TYPE_ENUM_DEFINITION,   /**< An AST node for enum definitions */
-    AST_TYPE_ENUM_VALUE,        /**< An AST node for enum values */
     AST_TYPE_GET_EXPR,          /**< An AST node for get expressions */
     AST_TYPE_ARRAY_DEREF,       /**< An AST node for array dereferences */
     AST_TYPE_LITERAL,           /**< An AST node for literals */
