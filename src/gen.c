@@ -128,7 +128,8 @@ LLVMValueRef gen_get_struct_field_pointer(t_named_value *variable, char *key,
                                           LLVMBuilderRef builder,
                                           t_logger *logger)
 {
-    LLVMValueRef indices[2] = {LLVMConstInt(LLVMInt32Type(), 0, 0), NULL};
+    size_t index = 0;
+    bool found_field = false;
     t_struct_info *struct_info = NULL;
 
     if (NULL == variable)
@@ -160,16 +161,17 @@ LLVMValueRef gen_get_struct_field_pointer(t_named_value *variable, char *key,
         (void) exit(LUKA_CODEGEN_ERROR);
     }
 
-    for (size_t i = 0; i < struct_info->number_of_fields; ++i)
+    for (size_t i = 0; i < struct_info->number_of_fields && !found_field; ++i)
     {
         if ((NULL != struct_info->struct_fields)
             && (0 == strcmp(key, struct_info->struct_fields[i])))
         {
-            indices[1] = LLVMConstInt(LLVMInt32Type(), i, 0);
+            index = i;
+            found_field = true;
         }
     }
 
-    if (NULL == indices[1])
+    if (!found_field)
     {
         (void) LOGGER_log(logger, L_ERROR,
                           "`%s` is not a field in struct `%s`.\n", key,
@@ -177,7 +179,7 @@ LLVMValueRef gen_get_struct_field_pointer(t_named_value *variable, char *key,
         (void) exit(LUKA_CODEGEN_ERROR);
     }
 
-    return LLVMBuildGEP(builder, variable->alloca_inst, indices, 2, "geptmp");
+    return LLVMBuildStructGEP(builder, variable->alloca_inst, index, key);
 }
 
 /**
@@ -1443,14 +1445,12 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n, LLVMModuleRef module,
     (void) LLVMAppendExistingBasicBlock(func, then_block);
     (void) LLVMPositionBuilderAtEnd(builder, then_block);
 
-    then_value = gen_codegen_stmts(n->if_expr.then_body, module, builder,
-                                   &has_return_stmt, logger);
+    then_value = gen_codegen_stmts(n->if_expr.then_body, module, builder, &has_return_stmt, logger);
 
     if (!has_return_stmt)
     {
         (void) LLVMBuildBr(builder, merge_block);
     }
-    has_return_stmt = false;
 
     then_block = LLVMGetInsertBlock(builder);
 
@@ -1458,8 +1458,9 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n, LLVMModuleRef module,
     {
         (void) LLVMAppendExistingBasicBlock(func, else_block);
         (void) LLVMPositionBuilderAtEnd(builder, else_block);
-        else_value = gen_codegen_stmts(n->if_expr.else_body, module, builder,
-                                       &has_return_stmt, logger);
+        has_return_stmt = false;
+        else_value = gen_codegen_stmts(n->if_expr.else_body, module, builder, &has_return_stmt, logger);
+
         if (!has_return_stmt)
         {
             (void) LLVMBuildBr(builder, merge_block);
