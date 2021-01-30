@@ -1,6 +1,6 @@
 import "lib/stdio";
 
-fn main() {
+fn main(): s32 {
     let a = 2;
     let mut b = a + 2;
     let c = a * b;

@@ -3,7 +3,7 @@ import "lib/stdlib";
 import "lib/time";
 import "lib/string";
 
-fn main() {
+fn main(): s32 {
     let mut num = 0;
     let mut guess = 101;
 
@@ -35,19 +35,22 @@ fn main() {
         }
     }
 
-    if (num == guess) {
-        printf("You are right! The number was %d!\n", num);
-        printf("Number of Tries: %d\n", tries);
+    if num != guess {
+        return 0;
     }
+
+    printf("You are right! The number was %d!\n", num);
+    printf("Number of Tries: %d\n", tries);
 
     let mut name: u8* = malloc(20);
     if (null == name) {
         return 1;
     }
+
     print("Enter your name: ");
     scanf("%s", &name);
 
-    let buf: u8* = malloc(1024);
+    let mut buf: u8* = malloc(1024);
     if (null == buf) {
         return 1;
     }

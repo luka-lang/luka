@@ -338,7 +338,7 @@ t_type *parser_parse_type(t_parser *parser, bool parse_prefix)
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
         if (T_COLON != token->type)
         {
-            type->type = TYPE_SINT32;
+            type->type = TYPE_ANY;
             return type;
         }
 
@@ -632,7 +632,8 @@ t_module *PARSER_parse_file(t_parser *parser)
                         parser, T_SEMI_COLON,
                         "Expected a `;` at the end of an import statement.");
                     resolved_path = IO_resolve_path(path, parser->file_path);
-                    (void) vector_push_front(module->imports, &resolved_path);
+                    (void) vector_push_front(module->import_paths,
+                                             &resolved_path);
                     break;
                 }
             case T_LET:
@@ -682,10 +683,7 @@ t_module *PARSER_parse_file(t_parser *parser)
                 break;
             default:
                 {
-                    (void) LOGGER_log(parser->logger, L_ERROR,
-                                      "Syntax error at %s %ld:%ld - %s\n",
-                                      parser->file_path, token->line,
-                                      token->offset, token->content);
+                    (void) ERR(parser, "Syntax error: unexpected token\n");
                     status_code = LUKA_PARSER_FAILED;
                     goto l_cleanup;
                 }
@@ -695,7 +693,7 @@ t_module *PARSER_parse_file(t_parser *parser)
 
     (void) vector_shrink_to_fit(module->enums);
     (void) vector_shrink_to_fit(module->functions);
-    (void) vector_shrink_to_fit(module->imports);
+    (void) vector_shrink_to_fit(module->import_paths);
     (void) vector_shrink_to_fit(module->structs);
 
     status_code = LUKA_SUCCESS;
@@ -876,6 +874,7 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
     t_vector *struct_value_fields = NULL;
     t_struct_value_field *struct_value_field = NULL;
     bool is_enum = false;
+    t_type *type = NULL;
 
     starting_token = *(t_token_ptr *) vector_get(parser->tokens, parser->index);
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
@@ -891,7 +890,12 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
         token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
         ADVANCE(parser);
 
-        node = AST_new_get_expr(ident_name, strdup(token->content), is_enum);
+        type = is_enum ? TYPE_initialize_type(TYPE_ENUM)
+                       : TYPE_initialize_type(TYPE_STRUCT);
+        type->payload = strdup(ident_name);
+
+        node = AST_new_get_expr(AST_new_variable(ident_name, type, false),
+                                strdup(token->content), is_enum);
         node->token = starting_token;
         return node;
     }
@@ -953,7 +957,8 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
         MATCH_ADVANCE(parser, T_CLOSE_BRACKET,
                       "Expected ']' after index in array dereference.\n");
 
-        node = AST_new_array_deref(ident_name, expr);
+        node = AST_new_array_deref(AST_new_variable(ident_name, NULL, false),
+                                   expr);
         node->token = starting_token;
         return node;
     }
@@ -1253,6 +1258,7 @@ t_ast_node *parser_parse_unary(t_parser *parser)
 {
     t_ast_node *unary = NULL, *node = NULL;
     t_token *token = NULL, *starting_token = NULL;
+    bool mutable = false;
 
     starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     token = starting_token;
@@ -1263,28 +1269,37 @@ t_ast_node *parser_parse_unary(t_parser *parser)
             {
                 ADVANCE(parser);
                 unary = parser_parse_unary(parser);
-                node = AST_new_unary_expr(UNOP_NOT, unary);
+                node = AST_new_unary_expr(UNOP_NOT, unary, false);
                 break;
             }
         case T_MINUS:
             {
                 ADVANCE(parser);
                 unary = parser_parse_unary(parser);
-                node = AST_new_unary_expr(UNOP_MINUS, unary);
+                node = AST_new_unary_expr(UNOP_MINUS, unary, false);
                 break;
             }
         case T_AMPERCENT:
             {
                 ADVANCE(parser);
+                if (MATCH(parser, T_MUT))
+                {
+                    ADVANCE(parser);
+                    mutable = true;
+                }
+                else
+                {
+                    mutable = false;
+                }
                 unary = parser_parse_unary(parser);
-                node = AST_new_unary_expr(UNOP_REF, unary);
+                node = AST_new_unary_expr(UNOP_REF, unary, mutable);
                 break;
             }
         case T_STAR:
             {
                 ADVANCE(parser);
                 unary = parser_parse_unary(parser);
-                node = AST_new_unary_expr(UNOP_DEREF, unary);
+                node = AST_new_unary_expr(UNOP_DEREF, unary, false);
                 break;
             }
         default:
@@ -1558,10 +1573,19 @@ t_ast_node *parser_parse_let_statement(t_parser *parser, bool is_global)
     {
         type = parser_parse_type(parser, true);
     }
+    else
+    {
+        type = TYPE_initialize_type(TYPE_ANY);
+    }
     EXPECT_ADVANCE(parser, T_EQUALS,
                    "Expected a '=' after ident in variable declaration");
     ADVANCE(parser);
     expr = parser_parse_expression(parser);
+    if (NULL != type)
+    {
+        type->mutable = mutable;
+    }
+
     var = AST_new_variable(strdup(token->content), type, mutable);
     node = AST_new_let_stmt(var, expr, is_global);
     MATCH_ADVANCE(parser, T_SEMI_COLON, "Expected a ';' after let statement");
@@ -1778,12 +1802,11 @@ t_ast_node *parser_parse_prototype(t_parser *parser)
     if (T_THREE_DOTS == token->type)
     {
         types[0] = parser_parse_type(parser, true);
-        if (TYPE_ANY != types[0])
+        if (TYPE_ANY != types[0]->type)
         {
             types[0]->type = TYPE_ANY;
             types[0]->inner_type = NULL;
             types[0]->payload = NULL;
-            types[0]->mutable = false;
         }
         vararg = true;
     }
@@ -1834,7 +1857,7 @@ t_ast_node *parser_parse_prototype(t_parser *parser)
         if (T_THREE_DOTS == token->type)
         {
             types[arity - 1] = parser_parse_type(parser, true);
-            if (TYPE_ANY != types[arity - 1])
+            if (TYPE_ANY != types[arity - 1]->type)
             {
                 types[arity - 1]->type = TYPE_ANY;
                 if (NULL != types[arity - 1]->inner_type)
@@ -1848,7 +1871,6 @@ t_ast_node *parser_parse_prototype(t_parser *parser)
                     (void) free(types[arity - 1]->payload);
                 }
                 types[arity - 1]->payload = NULL;
-                types[arity - 1]->mutable = false;
             }
             vararg = true;
         }

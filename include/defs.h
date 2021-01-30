@@ -38,6 +38,7 @@ typedef enum
     LUKA_LEXER_FAILED,      /**< The lexer failed */
     LUKA_PARSER_FAILED,     /**< The parser failed */
     LUKA_CODEGEN_ERROR,     /**< There was a problem in the codegen phase */
+    LUKA_TYPE_CHECK_ERROR,  /**< There was a problem in the type check phase */
     LUKA_VECTOR_FAILURE,    /**< There was a problem in the vector library */
     LUKA_IO_ERROR,   /**< There was a problem with input output operations */
     LUKA_LLVM_ERROR, /**< Signifies that a problem occured when calling an LLVM
@@ -160,7 +161,6 @@ typedef enum
     AST_TYPE_STRUCT_DEFINITION, /**< An AST node for struct defintions */
     AST_TYPE_STRUCT_VALUE,      /**< An AST node for struct values */
     AST_TYPE_ENUM_DEFINITION,   /**< An AST node for enum definitions */
-    AST_TYPE_ENUM_VALUE,        /**< An AST node for enum values */
     AST_TYPE_GET_EXPR,          /**< An AST node for get expressions */
     AST_TYPE_ARRAY_DEREF,       /**< An AST node for array dereferences */
     AST_TYPE_LITERAL,           /**< An AST node for literals */
@@ -252,7 +252,9 @@ typedef struct
 {
     t_ast_unop_type operator; /**< The operator of the unary expression */
     t_ast_node *rhs;          /**< The operand of the unary expression */
-} t_ast_unary_expr;           /**< An AST node for unary expression */
+    bool mutable;   /**< In case of a UNOP_REF, this field tells whether the ref
+                       is mutable or not */
+} t_ast_unary_expr; /**< An AST node for unary expression */
 
 typedef struct
 {
@@ -357,16 +359,16 @@ typedef struct
 
 typedef struct
 {
-    char *variable; /**< The name of the variable */
-    char *key;      /**< The requested field/enumerated value */
-    bool is_enum;   /**< Whether the get is an enum or struct get */
-} t_ast_get_expr;   /**< An AST node for get expressions */
+    t_ast_node *variable; /**< A reference to the variable */
+    char *key;            /**< The requested field/enumerated value */
+    bool is_enum;         /**< Whether the get is an enum or struct get */
+} t_ast_get_expr;         /**< An AST node for get expressions */
 
 typedef struct
 {
-    char *variable;    /**< The name of the variable */
-    t_ast_node *index; /**< The index to dereference at */
-} t_ast_array_deref;   /**< An AST node for array dereferences */
+    t_ast_node *variable; /**< A reference to the variable */
+    t_ast_node *index;    /**< The index to dereference at */
+} t_ast_array_deref;      /**< An AST node for array dereferences */
 
 typedef enum
 {
@@ -470,6 +472,7 @@ typedef struct
 {
     t_vector *enums;
     t_vector *functions;
+    t_vector *import_paths;
     t_vector *imports;
     t_vector *structs;
     t_vector *variables;

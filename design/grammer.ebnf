@@ -43,7 +43,7 @@ equality = comparison [ ( "!=" | "==" ) comparison ] ;
 comparison = term [ ( ">" | ">=" | "<" | "<=" ) term ] ;
 term = factor [ ( "-" | "+" ) factor ] ;
 factor = unary [ ( "/" | "*" ) unary ] ;
-unary = ( "!" | "-" | "*" | "&" ) unary | primary ;
+unary = ( "!" | "-" | "*" | ( "&" [ "mut" ] ) ) unary | primary ;
 primary = number
         | string
         | identifer

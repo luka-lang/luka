@@ -236,6 +236,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
     int number = 0;
     char *identifier;
     t_return_code return_code = LUKA_UNINITIALIZED;
+    size_t i = 0, saved_i = 0;
 
     token = calloc(1, sizeof(t_token));
     if (NULL == token)
@@ -246,14 +247,14 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
         goto l_cleanup;
     }
 
-    for (size_t i = 0; i < length; ++i)
+    for (i = 0; i < length; ++i)
     {
         character = source[i];
         ++offset;
         if ('\n' == character)
         {
             ++line;
-            offset = 1;
+            offset = 0;
         }
         if (isspace(character))
         {
@@ -351,6 +352,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                     if (':' == source[i + 1])
                     {
                         ++i;
+                        ++offset;
                         token->type = T_DOUBLE_COLON;
                         token->content = "::";
                         break;
@@ -369,9 +371,11 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                     {
                         // Found a comment
                         ++i;
+                        ++offset;
                         while ('\n' != source[i + 1])
                         {
                             ++i;
+                            ++offset;
                         }
                         continue;
                     }
@@ -384,6 +388,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                     if ('=' == source[i + 1])
                     {
                         ++i;
+                        ++offset;
                         token->type = T_EQEQ;
                         token->content = "==";
                     }
@@ -399,6 +404,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                     if ('=' == source[i + 1])
                     {
                         ++i;
+                        ++offset;
                         token->type = T_LEQ;
                         token->content = "<=";
                     }
@@ -414,6 +420,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                     if ('=' == source[i + 1])
                     {
                         ++i;
+                        ++offset;
                         token->type = T_GEQ;
                         token->content = ">=";
                     }
@@ -429,6 +436,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                     if ('=' == source[i + 1])
                     {
                         ++i;
+                        ++offset;
                         token->type = T_NEQ;
                         token->content = "!=";
                     }
@@ -443,7 +451,10 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                 {
                     token->type = T_STRING;
                     ++i;
+                    ++offset;
+                    saved_i = i;
                     identifier = lexer_lex_string(source, &i, logger);
+                    offset += i - saved_i;
                     if (NULL == identifier)
                     {
                         (void) LOGGER_log(logger, L_ERROR,
@@ -459,6 +470,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                     if (('.' == source[i + 1]) && ('.' == source[i + 2]))
                     {
                         i += 2;
+                        offset += 2;
                         token->type = T_THREE_DOTS;
                         token->content = "...";
                     }
@@ -480,14 +492,18 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                     if (isdigit(character))
                     {
                         token->type = T_NUMBER;
+                        saved_i = i;
                         token->content = lexer_lex_number(source, &i, logger);
+                        offset += i - saved_i;
                         break;
                     }
 
                     if (isalpha(character) || ('_' == character))
                     {
                         token->type = T_IDENTIFIER;
+                        saved_i = i;
                         identifier = lexer_lex_identifier(source, &i);
+                        offset += i - saved_i;
                         if (NULL == identifier)
                         {
                             (void) LOGGER_log(logger, L_ERROR,

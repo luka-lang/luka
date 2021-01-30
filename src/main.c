@@ -30,6 +30,7 @@
 #include "logger.h"
 #include "main_internal.h"
 #include "parser.h"
+#include "type_checker.h"
 #include "vector.h"
 
 #define DEFAULT_LOG_PATH ("/tmp/luka.log")
@@ -61,7 +62,8 @@ static void print_help(void)
         "  -v/--verbose         Increase verbosity level.\n"
         "  -b/--bitcode         Don't compile bitcode to native machine code.\n"
         "  -O/--optimization    Optimization level (-O0 for no optimization).\n"
-        "                       Optimization levels: 0, 1, 2, 3, s (optimize for space)\n"
+        "                       Optimization levels: 0, 1, 2, 3, s (optimize "
+        "for space)\n"
         "  -t/--triple          The LLVM Target to codegen for.\n"
         "  -c                   Compile and assemble, but do not link.\n"
         "  -S                   Compile only; do not assemble or link.\n"
@@ -350,11 +352,13 @@ static t_return_code parse(t_main_context *context, const char *file_path)
     {
         context->node = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
         context->node = AST_fix_function_last_expression_stmt(context->node);
+        (void) AST_fill_parameter_types(context->node, context->logger);
+        (void) AST_fill_variable_types(context->node, context->logger, module);
     }
 
     (void) AST_print_functions(module->functions, 0, context->logger);
 
-    VECTOR_FOR_EACH(module->imports, iterator)
+    VECTOR_FOR_EACH(module->import_paths, iterator)
     {
         resolved_path = ITERATOR_GET_AS(t_char_ptr, &iterator);
         (void) LOGGER_log(context->logger, "Importing file %s\n",
@@ -362,6 +366,7 @@ static t_return_code parse(t_main_context *context, const char *file_path)
 
         RAISE_LUKA_STATUS_ON_ERROR(do_file(context, resolved_path), status_code,
                                    l_cleanup);
+        vector_push_back(module->imports, &(context->current_module));
     }
 
     VECTOR_FOR_EACH(module->structs, iterator)
@@ -378,9 +383,31 @@ static t_return_code parse(t_main_context *context, const char *file_path)
             context->node, context->type_aliases, context->logger);
     }
 
-
     context->modules[context->file_index] = module;
     context->current_module = module;
+
+    status_code = LUKA_SUCCESS;
+l_cleanup:
+    return status_code;
+}
+
+static t_return_code type_check(t_main_context *context)
+{
+    t_return_code status_code = LUKA_UNINITIALIZED;
+    t_module *module = context->current_module;
+    t_ast_node *node = NULL;
+    bool success = false;
+
+    VECTOR_FOR_EACH(module->functions, iterator)
+    {
+        node = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
+        success = CHECK_function(module, node, context->logger);
+        if (!success)
+        {
+            status_code = LUKA_TYPE_CHECK_ERROR;
+            goto l_cleanup;
+        }
+    }
 
     status_code = LUKA_SUCCESS;
 l_cleanup:
@@ -762,6 +789,7 @@ static t_return_code frontend(t_main_context *context, const char *file_path)
     RAISE_LUKA_STATUS_ON_ERROR(parse(context, file_path), status_code,
                                l_cleanup);
 
+    RAISE_LUKA_STATUS_ON_ERROR(type_check(context), status_code, l_cleanup);
     status_code = LUKA_SUCCESS;
 
 l_cleanup:

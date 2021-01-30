@@ -33,7 +33,7 @@ t_ast_node *AST_new_string(char *content);
  * @return an AST node of a unary expression with the passed in operator and
  * rhs.
  */
-t_ast_node *AST_new_unary_expr(t_ast_unop_type operator, t_ast_node * rhs);
+t_ast_node *AST_new_unary_expr(t_ast_unop_type operator, t_ast_node * rhs, bool mutable);
 
 /**
  * @brief Creates a new AST node of a binary expression.
@@ -251,7 +251,7 @@ t_ast_node *AST_new_enum_definition(char *name, t_vector *enum_fields);
  * Enum get expressions look like `Enum::Value` while struct get expression look
  * like `Struct.Field`.
  *
- * @param[in] variable the name of the variable used.
+ * @param[in] variable a reference to the variable used.
  * @param[in] key the field of the struct or the value of the enum requested.
  * @param[in] is_enum whether this is an enum get expression or not.
  *
@@ -259,7 +259,7 @@ t_ast_node *AST_new_enum_definition(char *name, t_vector *enum_fields);
  * is_enum.
  */
 
-t_ast_node *AST_new_get_expr(char *variable, char *key, bool is_enum);
+t_ast_node *AST_new_get_expr(t_ast_node *variable, char *key, bool is_enum);
 
 /**
  * @brief Creates a new AST node of an array derefrence.
@@ -267,13 +267,13 @@ t_ast_node *AST_new_get_expr(char *variable, char *key, bool is_enum);
  * @details Array derefrences are used to get a value from an array or pointer
  * based on the offset notated by `index`.
  *
- * @param[in] variable the name of the variable.
+ * @param[in] variable a reference to the variable.
  * @param[in] index an expression that evalutes to the requested offset.
  *
  * @return an AST node of an array dereference with the passed in variable and
  * index.
  */
-t_ast_node *AST_new_array_deref(char *variable, t_ast_node *index);
+t_ast_node *AST_new_array_deref(t_ast_node *variable, t_ast_node *index);
 
 /**
  * @brief Creates a new AST node of a literal.
@@ -304,8 +304,36 @@ t_ast_node *AST_new_literal(t_ast_literal_type type);
  */
 t_ast_node *AST_fix_function_last_expression_stmt(t_ast_node *node);
 
+/**
+ * @brief Resolve all type aliases inside @p node using @p type_aliases.
+ *
+ * @param[in] node the node to resolve type aliases in.
+ * @param[in] type_aliases a vector that contains all type_aliases in scope.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @returns @p node with resolved type aliases.
+ */
 t_ast_node *AST_resolve_type_aliases(t_ast_node *node, t_vector *type_aliases,
                                      t_logger *logger);
+
+/**
+ * @brief Populate types of variable reference to parameters of @p function with
+ * the correct types.
+ *
+ * @param[in,out] function the function to fill types in.
+ * @param[in] logger a logger that can be used to log messages.
+ */
+void AST_fill_parameter_types(t_ast_node *function, t_logger *logger);
+
+/**
+ * @brief Populate types of variable reference to variables declared in @p
+ * function with the correct types.
+ *
+ * @param[in,out] function the function to fill types in.
+ * @param[in] logger a logger that can be used to log messages.
+ */
+void AST_fill_variable_types(t_ast_node *function, t_logger *logger,
+                             const t_module *module);
 
 /**
  * @brief Helper function to know if a given node can be used as an

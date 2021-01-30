@@ -118,7 +118,7 @@ void IO_print_error(const char *file_path, int line, int offset)
     err_line[line_length] = '\0';
 
     (void) printf(" %d | %s", line, err_line);
-    (void) printf("%*s^\n", 4 + line_num_length + offset - 1, "");
+    (void) printf(" %*s | %*s^\n", line_num_length, "", offset - 1, "");
 
 l_cleanup:
     if (NULL != contents)
