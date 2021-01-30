@@ -43,7 +43,13 @@ char *IO_get_file_contents(const char *file_path)
         goto l_cleanup;
     }
 
-    (void) fread(file_contents, size, 1, fp);
+    if (fread(file_contents, size, 1, fp) != 1)
+    {
+        (void) perror("Failed while reading file.");
+        (void) free(file_contents);
+        goto l_cleanup;
+    }
+
     file_contents[size] = EOF;
     file_contents[size + 1] = '\0';
 
