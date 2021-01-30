@@ -1,6 +1,7 @@
 /** @file gen.c */
 #include "gen.h"
 
+#include <llvm-c/Analysis.h>
 #include <llvm-c/Core.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,6 +11,7 @@
 #include "logger.h"
 #include "type.h"
 #include "uthash.h"
+#include "vector.h"
 
 t_named_value *named_values = NULL;
 t_struct_info *struct_infos = NULL;
@@ -1342,11 +1344,12 @@ LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
 
     (void) LLVMBuildRet(builder, ret_val);
 
-    if (1 == LLVMVerifyFunction(func, LLVMPrintMessageAction))
+    if (1 == LLVMVerifyFunction(func, LLVMReturnStatusAction))
     {
+        (void) LLVMDumpModule(module);
         LOGGER_LOG_LOC(logger, L_ERROR, n->token, "Invalid function %s\n",
                        n->function.prototype->prototype.name);
-        (void) LLVMDumpModule(module);
+        (void) LLVMVerifyFunction(func, LLVMPrintMessageAction);
         (void) LLVMDeleteFunction(func);
         (void) exit(LUKA_CODEGEN_ERROR);
     }
@@ -1637,7 +1640,7 @@ LLVMValueRef gen_codegen_variable(t_ast_node *node,
 LLVMValueRef gen_codegen_let_stmt(t_ast_node *node, LLVMModuleRef module,
                                   LLVMBuilderRef builder, t_logger *logger)
 {
-    LLVMValueRef expr = NULL;
+    LLVMValueRef expr = NULL, expr_alloc = NULL;
     t_ast_variable variable;
     t_named_value *val = NULL;
     bool is_global = node->let_stmt.is_global;
@@ -1684,13 +1687,32 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node, LLVMModuleRef module,
         val->alloca_inst = gen_create_entry_block_allca(
             LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder)), val->type,
             val->name);
-        (void) LLVMSetAlignment(LLVMBuildStore(builder, expr, val->alloca_inst),
-                                LLVMGetAlignment(val->alloca_inst)
-                                    ? LLVMGetAlignment(val->alloca_inst)
-                                    : 8);
+        if (TYPE_STRUCT != val->ttype->type)
+        {
+            (void) LLVMSetAlignment(
+                LLVMBuildStore(builder, expr, val->alloca_inst),
+                LLVMGetAlignment(val->alloca_inst)
+                    ? LLVMGetAlignment(val->alloca_inst)
+                    : 8);
+        }
+        else
+        {
+            expr_alloc = gen_create_entry_block_allca(
+                LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder)), val->type,
+                val->name);
+            (void) LLVMBuildStore(builder, expr, expr_alloc);
+            LLVMBuildMemCpy(
+                builder,
+                LLVMBuildBitCast(builder, val->alloca_inst,
+                                 LLVMPointerType(LLVMInt8Type(), 0), ""),
+                8,
+                LLVMBuildBitCast(builder, expr_alloc,
+                                 LLVMPointerType(LLVMInt8Type(), 0), ""),
+                8, LLVMSizeOf(val->type));
+        }
     }
 
-    val->mutable = variable.mutable;
+    val->mutable = variable.mutable || variable.type->mutable;
     HASH_ADD_KEYPTR(hh, named_values, val->name, strlen(val->name), val);
 
     return NULL;
@@ -1731,15 +1753,6 @@ LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node, LLVMModuleRef module,
                 (void) exit(LUKA_CODEGEN_ERROR);
             }
 
-            if (!val->mutable)
-            {
-                LOGGER_LOG_LOC(
-                    logger, L_ERROR, node->token,
-                    "variable: Trying to assign to immutable variable '%s'.\n",
-                    val->name);
-                (void) exit(LUKA_CODEGEN_ERROR);
-            }
-
             lhs = gen_get_address(node->assignment_expr.lhs, module, builder,
                                   logger);
         }
@@ -1757,15 +1770,6 @@ LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node, LLVMModuleRef module,
                 (void) exit(LUKA_CODEGEN_ERROR);
             }
 
-            if (!val->mutable)
-            {
-                LOGGER_LOG_LOC(
-                    logger, L_ERROR, node->token,
-                    "get_expr: Trying to assign to immutable variable '%s'.\n",
-                    val->name);
-                (void) exit(LUKA_CODEGEN_ERROR);
-            }
-
             lhs = gen_get_address(node->assignment_expr.lhs, module, builder,
                                   logger);
         }
@@ -1780,15 +1784,6 @@ LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node, LLVMModuleRef module,
                     logger, L_ERROR, node->token,
                     "array_deref: Cannot assign to undeclared variable '%s'.\n",
                     variable->array_deref.variable->variable.name);
-                (void) exit(LUKA_CODEGEN_ERROR);
-            }
-
-            if (!val->mutable)
-            {
-                LOGGER_LOG_LOC(logger, L_ERROR, node->token,
-                               "array_deref: Trying to assign to immutable "
-                               "variable '%s'.\n",
-                               val->name);
                 (void) exit(LUKA_CODEGEN_ERROR);
             }
 
@@ -2143,25 +2138,37 @@ LLVMValueRef gen_codegen_struct_value(t_ast_node *node, LLVMModuleRef module,
                                       LLVMBuilderRef builder, t_logger *logger)
 {
     size_t elements_count = node->struct_value.struct_values->size;
+    t_struct_value_field *struct_value_field = NULL;
     LLVMValueRef struct_value = NULL,
                  *element_values = calloc(elements_count, sizeof(LLVMValueRef));
+    size_t i = 0;
     if (NULL == element_values)
     {
         return NULL;
     }
 
-    for (size_t i = 0; i < elements_count; ++i)
+    for (i = 0; i < elements_count; ++i)
     {
+        element_values[i] = NULL;
+    }
+
+    for (i = 0; i < elements_count; ++i)
+    {
+        struct_value_field = VECTOR_GET_AS(t_struct_value_field_ptr,
+                                           node->struct_value.struct_values, i);
         element_values[i]
-            = GEN_codegen((VECTOR_GET_AS(t_struct_value_field_ptr,
-                                         node->struct_value.struct_values, i))
-                              ->expr,
-                          module, builder, logger);
+            = GEN_codegen(struct_value_field->expr, module, builder, logger);
+    }
+
+    for (i = 0; i < elements_count; ++i)
+    {
+        if (NULL == element_values[i])
+        {
+            element_values[i] = LLVMConstInt(LLVMInt32Type(), 0, true);
+        }
     }
 
     struct_value = LLVMConstStruct(element_values, elements_count, false);
-
-    (void) free(element_values);
 
     return struct_value;
 }

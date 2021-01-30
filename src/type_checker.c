@@ -25,6 +25,10 @@ bool check_expr(const t_module *module, const t_ast_node *expr,
 
     switch (expr->type)
     {
+        case AST_TYPE_NUMBER:
+        case AST_TYPE_STRING:
+        case AST_TYPE_LITERAL:
+            return true;
         case AST_TYPE_CALL_EXPR:
             {
                 if (NULL == expr->call_expr.args)
@@ -93,10 +97,12 @@ bool check_expr(const t_module *module, const t_ast_node *expr,
                     return false;
                 }
 
-                for (i = 0; i < proto->prototype.arity && i < expr->call_expr.args->size; ++i)
+                for (i = 0; i < proto->prototype.arity
+                            && i < expr->call_expr.args->size;
+                     ++i)
                 {
                     node = *(t_ast_node **) vector_get(expr->call_expr.args, i);
-                    type1 = TYPE_get_type(node, logger);
+                    type1 = TYPE_get_type(node, logger, module);
                     type2 = proto->prototype.types[i];
                     if (!TYPE_equal(type1, type2))
                     {
@@ -104,13 +110,26 @@ bool check_expr(const t_module *module, const t_ast_node *expr,
                         (void) memset(type2_str, 0, 1024);
                         (void) TYPE_to_string(type1, logger, type1_str, 1024);
                         (void) TYPE_to_string(type2, logger, type2_str, 1024);
-                        LOGGER_LOG_LOC(
-                            logger, L_ERROR, node->token,
-                            "Expected argument `%s` of function `%s` to be of type "
-                            "`%s` but got parameter of type `%s`\n",
-                            proto->prototype.args[i], expr->call_expr.name,
-                            type2_str, type1_str);
+                        LOGGER_LOG_LOC(logger, L_ERROR, node->token,
+                                       "Expected argument `%s` of function "
+                                       "`%s` to be of type "
+                                       "`%s` but got parameter of type `%s`\n",
+                                       proto->prototype.args[i],
+                                       expr->call_expr.name, type2_str,
+                                       type1_str);
 
+                        (void) TYPE_free_type(type1);
+                        return false;
+                    }
+
+                    if (type2->mutable && !type1->mutable)
+                    {
+                        LOGGER_LOG_LOC(logger, L_ERROR, node->token,
+                                       "Expected argument `%s` of function "
+                                       "`%s` to be mutable "
+                                       "but got an immutable parameter\n",
+                                       proto->prototype.args[i],
+                                       expr->call_expr.name);
                         return false;
                     }
                 }
@@ -163,6 +182,90 @@ bool check_expr(const t_module *module, const t_ast_node *expr,
 
                 return true;
             }
+        case AST_TYPE_ASSIGNMENT_EXPR:
+            if (!check_expr(module, expr->assignment_expr.rhs, logger))
+            {
+                return false;
+            }
+            type1 = TYPE_get_type(expr->assignment_expr.lhs, logger, module);
+            type2 = TYPE_get_type(expr->assignment_expr.rhs, logger, module);
+            if (!TYPE_equal(type2, type1))
+            {
+                (void) memset(type1_str, 0, 1024);
+                (void) memset(type2_str, 0, 1024);
+                (void) TYPE_to_string(type1, logger, type1_str, 1024);
+                (void) TYPE_to_string(type2, logger, type2_str, 1024);
+                LOGGER_LOG_LOC(logger, L_ERROR, expr->token,
+                               "Assignment expr type checking failed: "
+                               "lhs is of type `%s` but rhs is of type `%s`\n",
+                               type1_str, type2_str);
+
+                (void) TYPE_free_type(type1);
+                (void) TYPE_free_type(type2);
+                return false;
+            }
+
+            if (!type1->mutable)
+            {
+                (void) TYPE_to_string(type1, logger, type1_str, 1024);
+                LOGGER_LOG_LOC(
+                    logger, L_ERROR, expr->token,
+                    "Assignment expr type checking failed: "
+                    "Tried to assign to immutable lhs of type `%s`\n",
+                    type1_str);
+                (void) TYPE_free_type(type1);
+                (void) TYPE_free_type(type2);
+                return false;
+            }
+
+            (void) TYPE_free_type(type1);
+            (void) TYPE_free_type(type2);
+            return true;
+        case AST_TYPE_GET_EXPR:
+            if (NULL == expr->get_expr.variable)
+            {
+                LOGGER_LOG_LOC(logger, L_ERROR, expr->token,
+                               "Get expr variable is NULL\n", NULL);
+                return false;
+            }
+            type1 = expr->get_expr.variable->variable.type;
+            if (NULL == type1)
+            {
+                LOGGER_LOG_LOC(logger, L_ERROR, expr->token,
+                               "Get expr variable type is NULL\n", NULL);
+                return false;
+            }
+            return (expr->get_expr.is_enum ? TYPE_ENUM == type1->type
+                                           : TYPE_STRUCT == type1->type);
+        case AST_TYPE_BINARY_EXPR:
+            if (!check_expr(module, expr->binary_expr.rhs, logger))
+            {
+                return false;
+            }
+
+            if (!check_expr(module, expr->binary_expr.rhs, logger))
+            {
+                return false;
+            }
+
+            type1 = TYPE_get_type(expr->binary_expr.lhs, logger, module);
+            type2 = TYPE_get_type(expr->binary_expr.rhs, logger, module);
+            if (!TYPE_equal(type1, type2))
+            {
+                (void) memset(type1_str, 0, 1024);
+                (void) memset(type2_str, 0, 1024);
+                (void) TYPE_to_string(type1, logger, type1_str, 1024);
+                (void) TYPE_to_string(type2, logger, type2_str, 1024);
+                LOGGER_LOG_LOC(logger, L_ERROR, expr->token,
+                               "Binary expr type checking failed: "
+                               "lhs is of type `%s` but rhs is of type `%s`\n",
+                               type1_str, type2_str);
+
+                (void) TYPE_free_type(type1);
+                (void) TYPE_free_type(type2);
+                return false;
+            }
+            return true;
         default:
             (void) LOGGER_log(logger, L_INFO, "check_expr: default case %d\n",
                               expr->type);
@@ -173,11 +276,38 @@ bool check_expr(const t_module *module, const t_ast_node *expr,
 bool check_stmt(const t_module *module, const t_ast_node *stmt,
                 t_logger *logger)
 {
+    t_type *type1 = NULL, *type2 = NULL;
+    char type1_str[1024], type2_str[1024];
+
     (void) LOGGER_log(logger, L_INFO, "check_stmt: case %d\n", stmt->type);
     switch (stmt->type)
     {
         case AST_TYPE_EXPRESSION_STMT:
             return check_expr(module, stmt->expression_stmt.expr, logger);
+        case AST_TYPE_LET_STMT:
+            if (!check_expr(module, stmt->let_stmt.expr, logger))
+            {
+                return false;
+            }
+
+            type1 = TYPE_get_type(stmt->let_stmt.var, logger, module);
+            type2 = TYPE_get_type(stmt->let_stmt.expr, logger, module);
+            if (!TYPE_equal(type2, type1))
+            {
+                (void) memset(type1_str, 0, 1024);
+                (void) memset(type2_str, 0, 1024);
+                (void) TYPE_to_string(type1, logger, type1_str, 1024);
+                (void) TYPE_to_string(type2, logger, type2_str, 1024);
+                LOGGER_LOG_LOC(logger, L_ERROR, stmt->token,
+                               "Let stmt type checking failed: "
+                               "lhs is of type `%s` but rhs is of type `%s`\n",
+                               type1_str, type2_str);
+
+                (void) TYPE_free_type(type1);
+                (void) TYPE_free_type(type2);
+                return false;
+            }
+            return true;
         default:
             (void) LOGGER_log(logger, L_INFO, "check_stmt: default case %d\n",
                               stmt->type);

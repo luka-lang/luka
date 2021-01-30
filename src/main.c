@@ -353,6 +353,7 @@ static t_return_code parse(t_main_context *context, const char *file_path)
         context->node = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
         context->node = AST_fix_function_last_expression_stmt(context->node);
         (void) AST_fill_parameter_types(context->node, context->logger);
+        (void) AST_fill_variable_types(context->node, context->logger, module);
     }
 
     (void) AST_print_functions(module->functions, 0, context->logger);
@@ -789,7 +790,6 @@ static t_return_code frontend(t_main_context *context, const char *file_path)
                                l_cleanup);
 
     RAISE_LUKA_STATUS_ON_ERROR(type_check(context), status_code, l_cleanup);
-
     status_code = LUKA_SUCCESS;
 
 l_cleanup:

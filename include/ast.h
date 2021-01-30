@@ -317,12 +317,23 @@ t_ast_node *AST_resolve_type_aliases(t_ast_node *node, t_vector *type_aliases,
                                      t_logger *logger);
 
 /**
- * @brief Populate types of variable reference to parameters of @p function with the correct types.
+ * @brief Populate types of variable reference to parameters of @p function with
+ * the correct types.
  *
  * @param[in,out] function the function to fill types in.
  * @param[in] logger a logger that can be used to log messages.
  */
 void AST_fill_parameter_types(t_ast_node *function, t_logger *logger);
+
+/**
+ * @brief Populate types of variable reference to variables declared in @p
+ * function with the correct types.
+ *
+ * @param[in,out] function the function to fill types in.
+ * @param[in] logger a logger that can be used to log messages.
+ */
+void AST_fill_variable_types(t_ast_node *function, t_logger *logger,
+                             const t_module *module);
 
 /**
  * @brief Helper function to know if a given node can be used as an

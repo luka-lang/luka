@@ -44,6 +44,17 @@ t_type *TYPE_initialize_type(t_base_type type);
 bool TYPE_equal(const t_type *type1, const t_type *type2);
 
 /**
+ * @brief Checks if two types are equal based on all of their properties but
+ * mutabillity.
+ *
+ * @param[in] type1 the first type.
+ * @param[in] type2 the second type.
+ *
+ * @return a boolean that represents if the types are equal.
+ */
+bool TYPE_equal(const t_type *type1, const t_type *type2);
+
+/**
  * @brief Duplicate a Luka type.
  *
  * @param[in] type the Luka type to duplicate.
@@ -95,9 +106,12 @@ const char *TYPE_to_string(t_type *type, t_logger *logger, char *buffer,
  *
  * @param[in] node the node of which the type should be extracted.
  * @param[in] logger a logger that can be used to log messages.
+ * @param[in] module the module to use for resolving typess.
  *
- * @returns TYPE_ANY type if the type is any or not uniquly handled or the type of the handled node.
+ * @returns TYPE_ANY type if the type is any or not uniquly handled or the type
+ * of the handled node.
  */
-t_type *TYPE_get_type(const t_ast_node *node, t_logger *logger);
+t_type *TYPE_get_type(const t_ast_node *node, t_logger *logger,
+                      const t_module *module);
 
 #endif // __TYPE_H_
