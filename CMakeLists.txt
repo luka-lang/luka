@@ -32,5 +32,6 @@ add_custom_target(docs cd ${PROJECT_SOURCE_DIR}/docs
   DEPENDS ${PROJECT_SOURCE_DIR}/docs/Doxyfile)
 
 install(TARGETS luka DESTINATION bin)
+
 enable_testing()
-add_subdirectory(test)
+add_subdirectory(tests)
