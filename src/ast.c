@@ -65,13 +65,15 @@ t_ast_node *AST_new_string(char *value)
     return node;
 }
 
-t_ast_node *AST_new_unary_expr(t_ast_unop_type operator, t_ast_node * rhs)
+t_ast_node *AST_new_unary_expr(t_ast_unop_type operator, t_ast_node * rhs,
+                               bool mutable)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_UNARY_EXPR;
     node->token = NULL;
     node->unary_expr.operator= operator;
     node->unary_expr.rhs = rhs;
+    node->unary_expr.mutable = mutable;
     return node;
 }
 

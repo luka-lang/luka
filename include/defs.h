@@ -252,7 +252,9 @@ typedef struct
 {
     t_ast_unop_type operator; /**< The operator of the unary expression */
     t_ast_node *rhs;          /**< The operand of the unary expression */
-} t_ast_unary_expr;           /**< An AST node for unary expression */
+    bool mutable;   /**< In case of a UNOP_REF, this field tells whether the ref
+                       is mutable or not */
+} t_ast_unary_expr; /**< An AST node for unary expression */
 
 typedef struct
 {

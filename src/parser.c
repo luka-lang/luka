@@ -1258,6 +1258,7 @@ t_ast_node *parser_parse_unary(t_parser *parser)
 {
     t_ast_node *unary = NULL, *node = NULL;
     t_token *token = NULL, *starting_token = NULL;
+    bool mutable = false;
 
     starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     token = starting_token;
@@ -1268,28 +1269,37 @@ t_ast_node *parser_parse_unary(t_parser *parser)
             {
                 ADVANCE(parser);
                 unary = parser_parse_unary(parser);
-                node = AST_new_unary_expr(UNOP_NOT, unary);
+                node = AST_new_unary_expr(UNOP_NOT, unary, false);
                 break;
             }
         case T_MINUS:
             {
                 ADVANCE(parser);
                 unary = parser_parse_unary(parser);
-                node = AST_new_unary_expr(UNOP_MINUS, unary);
+                node = AST_new_unary_expr(UNOP_MINUS, unary, false);
                 break;
             }
         case T_AMPERCENT:
             {
                 ADVANCE(parser);
+                if (MATCH(parser, T_MUT))
+                {
+                    ADVANCE(parser);
+                    mutable = true;
+                }
+                else
+                {
+                    mutable = false;
+                }
                 unary = parser_parse_unary(parser);
-                node = AST_new_unary_expr(UNOP_REF, unary);
+                node = AST_new_unary_expr(UNOP_REF, unary, mutable);
                 break;
             }
         case T_STAR:
             {
                 ADVANCE(parser);
                 unary = parser_parse_unary(parser);
-                node = AST_new_unary_expr(UNOP_DEREF, unary);
+                node = AST_new_unary_expr(UNOP_DEREF, unary, false);
                 break;
             }
         default:

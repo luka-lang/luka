@@ -33,7 +33,7 @@ t_ast_node *AST_new_string(char *content);
  * @return an AST node of a unary expression with the passed in operator and
  * rhs.
  */
-t_ast_node *AST_new_unary_expr(t_ast_unop_type operator, t_ast_node * rhs);
+t_ast_node *AST_new_unary_expr(t_ast_unop_type operator, t_ast_node * rhs, bool mutable);
 
 /**
  * @brief Creates a new AST node of a binary expression.
