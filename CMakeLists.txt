@@ -14,6 +14,7 @@ execute_process(
 	OUTPUT_VARIABLE LLVM_LIBRARIES
 	OUTPUT_STRIP_TRAILING_WHITESPACE
 )
+
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
 file(GLOB_RECURSE SOURCES src/*.c)
@@ -31,3 +32,6 @@ add_custom_target(docs cd ${PROJECT_SOURCE_DIR}/docs
   DEPENDS ${PROJECT_SOURCE_DIR}/docs/Doxyfile)
 
 install(TARGETS luka DESTINATION bin)
+
+enable_testing()
+add_subdirectory(tests)
