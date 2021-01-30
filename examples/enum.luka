@@ -10,7 +10,7 @@ enum Weekday {
     Saturday
 }
 
-fn main() {
+fn main(): s32 {
     let mut day = Weekday::Sunday;
     while day <= Weekday::Saturday {
         printf("Day of the week: %d\n", day);

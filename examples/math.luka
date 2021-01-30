@@ -20,7 +20,7 @@ fn div(a: s32, b: s32): s32 {
     }
 }
 
-fn main() {
+fn main(): s32 {
     printf("10 + 2 = %d\n", add(10, 2));
     printf("10 - 2 = %d\n", sub(10, 2));
     printf("10 * 2 = %d\n", mul(10, 2));

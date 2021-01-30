@@ -1,14 +1,14 @@
 import "lib/stdio"; // Brings into scope puts, printf, scanf, print, scan_s32
 
 fn main(): s32 {
-    let a: s32 = 3;
-    let b: s32 = 5;
+    let mut a = 3;
+    let mut b = 5;
 
     println("Hello World!");
     printf("%d + %d = %d\n", a, b, a + b);
     print("Enter a number for a: ");
-    scan_s32(&a);
+    scan_s32(&mut a);
     print("Enter a number for b: ");
-    scan_s32(&b);
+    scan_s32(&mut b);
     printf("%d + %d = %d\n", a, b, a + b);
 }

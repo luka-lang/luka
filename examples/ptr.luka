@@ -2,20 +2,17 @@ import "lib/stdio";
 import "lib/stdlib";
 import "lib/string";
 
-fn main() {
+fn main(): s32 {
     // Pointers to stack memory
-    let num = 32;
-    let mut p = &num;
+    let mut num = 32;
+    let p = &mut num;
     printf("Num %d %p.\n", num, p);
     *p = 12;
     printf("Num %d %p.\n", num, p);
 
-    let ptr: s32* = malloc(4);
-    free(ptr);
-
     // Pointers to heap memory
     // Initial memory allocation
-    let mut str: u8* = malloc(15);
+    let mut str: u8* = malloc(strlen("luka is a nice programming language") + 1);
 
     strcpy(str, "luka is a nice");
     printf("String = %s\t\t\t\tAddress = %p\n", str, str);

@@ -1,43 +1,13 @@
-type size_t = u64;
+import "stddef";
 
-type __off_t = s64;
-
-type _IO_marker = any;
-type _IO_lock_t = any;
-
-struct _IO_FILE {
-    flags: s32,
-    _IO_read_ptr: u8*,
-    _IO_read_end: u8*,
-    _IO_read_base: u8*,
-    _IO_write_ptr: u8*,
-    _IO_write_end: u8*,
-    _IO_write_base: u8*,
-    _IO_buf_base: u8*,
-    _IO_buf_end: u8*,
-    _IO_save_base: u8*,
-    IO_backup_base: u8*,
-    IO_save_end: u8*,
-
-    _markers: _IO_marker*,
-    _chain: _IO_FILE*,
-    _fileno: s32,
-    _flags2: s32,
-    _old_offset: __off_t,
-    _cur_column: u16,
-    _vtable_offset: s8,
-    _shortbuf: u8[],
-    _lock: _IO_lock_t*
-}
-
-type FILE = _IO_FILE;
+type FILE = any;
 
 extern printf(format: u8*, ...: any): s32;
 extern fprintf(stream: mut FILE *, format: u8*, ...: any): s32;
 extern dprintf(fd: s32, format: u8*, ...: any): s32;
 extern sprintf(str: mut u8 *, format: u8*, ...: any): s32;
 extern snprintf(str: mut u8 *, size: size_t, format: u8*, ...: any): s32;
-extern scanf(format: u8*, ...: mut any): s32;
+extern scanf(format: u8*, ...: mut any*): s32;
 
 extern puts(str: u8*): s32;
 extern putchar(ch: int): s32;
@@ -47,22 +17,22 @@ extern fdopen(fd: s32, mode: u8*): FILE*;
 extern freopen(pathname: u8*, mode: u8*, stream: mut FILE*): FILE*;
 extern fclose(stream: FILE*): s32;
 
-extern fread(ptr: mut any*, size: size_t, nmemb, size_t, stream: mut FILE*);
-extern fwrite(ptr: any*, size: size_t, nmemb: size_t, stream: mut FILE*);
+extern fread(ptr: mut any*, size: size_t, nmemb: size_t, stream: mut FILE*): size_t;
+extern fwrite(ptr: any*, size: size_t, nmemb: size_t, stream: mut FILE*): size_t;
 
-let EOF = -1;
+let EOF: s32 = -1;
 
-fn print(str: u8*)
+fn print(str: u8*): s32
 {
     printf("%s", str)
 }
 
-fn println(str: u8*)
+fn println(str: u8*): s32
 {
     puts(str)
 }
 
-fn scan_s32(var: s32 mut*)
+fn scan_s32(var: s32 mut*): s32
 {
     scanf("%d", var)
 }

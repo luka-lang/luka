@@ -1,6 +1,6 @@
 import "lib/stdio";
 
-fn main() {
+fn main(): s32 {
     let mut num = 20;
     while num < 127 {
         putchar(num);

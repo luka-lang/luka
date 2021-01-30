@@ -10,7 +10,7 @@ fn fib(n: u64): u64 {
     }
 }
 
-fn main() {
+fn main(): s32 {
     printf("Give me an index and I will print the Fibonacci series up to that index: ");
     let index: u64 = 0;
     scanf("%zu", &index);

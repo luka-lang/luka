@@ -5,7 +5,7 @@ struct Person {
     age: mut u8
 }
 
-fn main() {
+fn main(): s32 {
     let mut bob = Person { name: "Bob", age: 14 as u8 };
 
     printf("Person\n\tName: %s\n\tAge: %d\n", bob.name, bob.age);
