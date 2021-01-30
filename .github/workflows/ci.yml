@@ -23,6 +23,9 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
+    - name: install llvm packages
+      run: sudo apt install -y llvm llvm-dev
+
     - name: Cache LLVM and Clang
       id: cache-llvm
       uses: actions/cache@v2
