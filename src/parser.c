@@ -543,6 +543,8 @@ t_module *PARSER_parse_file(t_parser *parser)
     RAISE_LUKA_STATUS_ON_ERROR(LIB_initialize_module(&module, parser->logger),
                                status_code, l_cleanup);
 
+    module->file_path = strdup(parser->file_path);
+
     while (parser->index < parser->tokens->size)
     {
         token = *(t_token_ptr *) vector_get(parser->tokens, parser->index);
@@ -631,7 +633,7 @@ t_module *PARSER_parse_file(t_parser *parser)
                     EXPECT_ADVANCE(
                         parser, T_SEMI_COLON,
                         "Expected a `;` at the end of an import statement.");
-                    resolved_path = IO_resolve_path(path, parser->file_path);
+                    resolved_path = IO_resolve_path(path, parser->file_path, true);
                     (void) vector_push_front(module->import_paths,
                                              &resolved_path);
                     break;

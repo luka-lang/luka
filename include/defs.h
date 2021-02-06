@@ -476,6 +476,7 @@ typedef struct
     t_vector *imports;
     t_vector *structs;
     t_vector *variables;
+    const char *file_path;
 } t_module;
 
 typedef struct

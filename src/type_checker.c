@@ -36,7 +36,7 @@ bool check_expr(const t_module *module, const t_ast_node *expr,
                     return true;
                 }
 
-                func = LIB_resolve_func_name(module, expr->call_expr.name);
+                func = LIB_resolve_func_name(module, expr->call_expr.name, NULL);
                 if (NULL == func)
                 {
                     LOGGER_LOG_LOC(logger, L_ERROR, expr->token,

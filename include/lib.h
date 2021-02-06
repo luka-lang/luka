@@ -50,13 +50,17 @@ void LIB_free_module(t_module *module, t_logger *logger);
 char *LIB_stringify(const char *source, size_t source_length, t_logger *logger);
 
 /**
- * @brief Find a function inside a given @p module or any of its imported modules.
+ * @brief Find a function inside a given @p module or any of its imported
+ * modules.
  *
  * @param[in] module the module to search in.
  * @param[in] name the name of the function to look for.
+ * @param[in] original_module the module that requested to resolve, used for
+ * solving circular recursion, use NULL when calling this function by yourself.
  *
  * @return NULL if not found or the t_ast_node of that function.
  */
-t_ast_node *LIB_resolve_func_name(const t_module *module, const char *name);
+t_ast_node *LIB_resolve_func_name(const t_module *module, const char *name,
+                                  const t_module *original_module);
 
 #endif // __LIB_H__

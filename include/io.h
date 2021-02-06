@@ -43,9 +43,13 @@ t_return_code IO_copy(const char *original_file_path,
  *
  * @param[in] requested_path the path of the requeste file to be imported.
  * @param[in] current_path the path of the current processed file.
+ * @param[in] in_import this function was called when resolving an import,
+ * relevant for knowing whether the dirname should be removed from the
+ * current_path.
  *
  * @returns an absolute path that matches @p requested_path.
  */
-char *IO_resolve_path(const char *requested_path, const char *current_path);
+char *IO_resolve_path(const char *requested_path, const char *current_path,
+                      bool in_import);
 
 #endif // __IO_H__

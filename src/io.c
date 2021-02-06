@@ -3,6 +3,7 @@
 
 #include <ctype.h>
 #include <libgen.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -190,7 +191,46 @@ bool io_is_absolute(const char *path)
         || (isalpha(path[0]) && (':' == path[1]) && ('\\' == path[2]));
 }
 
-char *IO_resolve_path(const char *requested_path, const char *current_path)
+/**
+ * @brief Verify a path ends with a certain string, including the null byte.
+ *
+ * @param[in] path the path to check.
+ * @param[in] end the string that should appear in the end.
+ *
+ * @return true if @p path ends with @p end, otherwise false.
+ */
+bool io_ends_with(const char *path, const char *end)
+{
+    size_t path_length = strlen(path);
+    size_t end_length = strlen(end);
+    size_t i = 0;
+
+    if (path_length < end_length)
+    {
+        return false;
+    }
+
+    for (i = 0; i <= end_length; ++i)
+    {
+        if (path[path_length - i] != end[end_length - i])
+        {
+            break;
+        }
+    }
+
+    return (i - 1) == end_length;
+}
+
+char *io_append_path(char *path, const char *additional)
+{
+    size_t new_length = strlen(path) + strlen(additional) + 1;
+    path = realloc(path, new_length);
+    path = strncat(path, additional, new_length);
+    return path;
+}
+
+char *IO_resolve_path(const char *requested_path, const char *current_path,
+                      bool in_import)
 {
     char *path = NULL, *abs_path = NULL;
     const char sep_string[2] = {PATH_SEPERATOR, '\0'};
@@ -204,16 +244,25 @@ char *IO_resolve_path(const char *requested_path, const char *current_path)
     }
 
     path = realpath(current_path, NULL);
-    path = dirname(path);
+    if (in_import)
+    {
+        path = dirname(path);
+    }
     if (path[strlen(path) - 1] != PATH_SEPERATOR)
     {
-        path = strcat(path, sep_string);
+        path = io_append_path(path, sep_string);
     }
-    path = strcat(path, requested_path);
-    path = strcat(path, FILE_EXTENSION);
+
+    path = io_append_path(path, requested_path);
+    if (!io_ends_with(path, FILE_EXTENSION))
+    {
+        path = io_append_path(path, FILE_EXTENSION);
+    }
     abs_path = realpath(path, abs_path);
     if (NULL == abs_path)
     {
+        (void) perror("realpath failed");
+        (void) printf("No such file or directory: %s\n", path);
         return path;
     }
 

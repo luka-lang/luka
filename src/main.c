@@ -107,20 +107,6 @@ static void context_destruct(t_main_context *context)
     size_t i = 0;
     t_imported_module *imported_module = NULL, *imported_module_iter = NULL;
 
-    if (NULL != context->file_paths)
-    {
-        for (i = 0; i < context->files_count; ++i)
-        {
-            if (NULL != context->file_paths[i])
-            {
-                (void) free(context->file_paths[i]);
-                context->file_paths[i] = NULL;
-            }
-        }
-        (void) free(context->file_paths);
-        context->file_paths = NULL;
-    }
-
     if (NULL != context->tokens)
     {
         (void) LIB_free_tokens_vector(context->tokens);
@@ -139,6 +125,33 @@ static void context_destruct(t_main_context *context)
         }
         (void) free(context->modules);
         context->modules = NULL;
+    }
+
+    if (NULL != context->imported_modules)
+    {
+        HASH_ITER(hh, context->imported_modules, imported_module,
+                  imported_module_iter)
+        {
+            HASH_DEL(context->imported_modules, imported_module);
+            if (NULL != imported_module)
+            {
+                imported_module = NULL;
+            }
+        }
+    }
+
+    if (NULL != context->file_paths)
+    {
+        for (i = 0; i < context->files_count; ++i)
+        {
+            if (NULL != context->file_paths[i])
+            {
+                (void) free(context->file_paths[i]);
+                context->file_paths[i] = NULL;
+            }
+        }
+        (void) free(context->file_paths);
+        context->file_paths = NULL;
     }
 
     if (NULL != context->logger)
@@ -188,20 +201,6 @@ static void context_destruct(t_main_context *context)
     {
         (void) LLVMDisposeModule(context->llvm_module);
         context->llvm_module = NULL;
-    }
-
-    if (NULL != context->imported_modules)
-    {
-        HASH_ITER(hh, context->imported_modules, imported_module,
-                  imported_module_iter)
-        {
-            HASH_DEL(context->imported_modules, imported_module);
-            if (NULL != imported_module)
-            {
-                (void) free(imported_module);
-                imported_module = NULL;
-            }
-        }
     }
 }
 
@@ -266,7 +265,8 @@ static t_return_code get_args(t_main_context *context)
 
     for (i = 0; i < context->files_count; ++i)
     {
-        context->file_paths[i] = strdup(context->argv[optind++]);
+        context->file_paths[i]
+            = IO_resolve_path(context->argv[optind++], ".", false);
         if (NULL == context->file_paths)
         {
             status_code = LUKA_CANT_ALLOC_MEMORY;
@@ -344,6 +344,8 @@ static t_return_code parse(t_main_context *context, const char *file_path)
     t_module *module = NULL;
     char *resolved_path = NULL;
     t_imported_module *imported_module = NULL;
+    size_t i = 0;
+    bool original_module = false;
 
     context->parser = calloc(1, sizeof(t_parser));
     if (NULL == context->parser)
@@ -366,6 +368,13 @@ static t_return_code parse(t_main_context *context, const char *file_path)
         return status_code;
     }
 
+    if (NULL == context->modules[context->file_index])
+    {
+        /* Making sure not to set this for modules imported from this module. */
+        context->modules[context->file_index] = module;
+        original_module = true;
+    }
+
     VECTOR_FOR_EACH(module->functions, iterator)
     {
         context->node = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
@@ -382,24 +391,55 @@ static t_return_code parse(t_main_context *context, const char *file_path)
         (void) LOGGER_log(context->logger, "Importing file %s\n",
                           resolved_path);
 
-        RAISE_LUKA_STATUS_ON_ERROR(do_file(context, resolved_path), status_code,
-                                   l_cleanup);
-        vector_push_back(module->imports, &(context->current_module));
         imported_module = NULL;
-        imported_module = malloc(sizeof(t_imported_module));
-        if (NULL == imported_module)
+        HASH_FIND_STR(context->imported_modules, resolved_path,
+                      imported_module);
+        if (NULL != imported_module)
         {
-            (void) LOGGER_log(
-                context->logger, L_ERROR,
-                "Failed allocating memory for imported module.\n");
-            status_code = LUKA_CANT_ALLOC_MEMORY;
-            goto l_cleanup;
+            /* Already imported */
+            context->current_module = imported_module->module;
+        }
+        else
+        {
+            /* Try solving circular imports */
+            context->current_module = NULL;
+            for (i = 0; i <= context->file_index; ++i)
+            {
+                if (0 == strcmp(resolved_path, context->modules[i]->file_path))
+                {
+                    context->current_module = context->modules[i];
+                }
+            }
+
+            if (NULL == context->current_module)
+            {
+                /* Not imported yet and not found in other modules */
+                RAISE_LUKA_STATUS_ON_ERROR(do_file(context, resolved_path),
+                                           status_code, l_cleanup);
+            }
         }
 
-        imported_module->module = module;
-        imported_module->file_path = resolved_path;
+        vector_push_back(module->imports, &(context->current_module));
 
-        HASH_ADD_STR(context->imported_modules, file_path, imported_module);
+        imported_module = NULL;
+        HASH_FIND_STR(context->imported_modules, file_path, imported_module);
+        if (NULL == imported_module)
+        {
+            imported_module = malloc(sizeof(t_imported_module));
+            if (NULL == imported_module)
+            {
+                (void) LOGGER_log(
+                    context->logger, L_ERROR,
+                    "Failed allocating memory for imported module.\n");
+                status_code = LUKA_CANT_ALLOC_MEMORY;
+                goto l_cleanup;
+            }
+
+            imported_module->module = context->current_module;
+            imported_module->file_path = resolved_path;
+
+            HASH_ADD_STR(context->imported_modules, file_path, imported_module);
+        }
     }
 
     VECTOR_FOR_EACH(module->structs, iterator)
@@ -416,7 +456,10 @@ static t_return_code parse(t_main_context *context, const char *file_path)
             context->node, context->type_aliases, context->logger);
     }
 
-    context->modules[context->file_index] = module;
+    if (original_module)
+    {
+        context->modules[context->file_index] = module;
+    }
     context->current_module = module;
 
     status_code = LUKA_SUCCESS;
@@ -602,13 +645,6 @@ l_cleanup:
     {
         (void) LLVMDisposeMessage(context->error);
         context->error = NULL;
-    }
-
-    if (module != context->modules[context->file_index])
-    {
-        (void) LIB_free_module(context->current_module, context->logger);
-        context->current_module = NULL;
-        module = NULL;
     }
 
     return status_code;

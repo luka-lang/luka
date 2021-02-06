@@ -556,7 +556,7 @@ t_type *TYPE_get_type(const t_ast_node *node, t_logger *logger,
                     node->call_expr.name);
                 return TYPE_initialize_type(TYPE_ANY);
             }
-            func = LIB_resolve_func_name(module, node->call_expr.name);
+            func = LIB_resolve_func_name(module, node->call_expr.name, NULL);
             if (NULL == func)
             {
                 LOGGER_LOG_LOC(logger, L_ERROR, node->token,

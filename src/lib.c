@@ -78,7 +78,9 @@ void lib_free_modules_vector(t_vector *modules, t_logger *logger)
     for (; !iterator_equals(&iterator, &last); iterator_increment(&iterator))
     {
         module = *(t_module **) iterator_get(&iterator);
-        (void) LIB_free_module(module, logger);
+        (void)logger;
+        (void) module;
+        // (void) LIB_free_module(module, logger);
     }
 
     (void) vector_clear(modules);
@@ -168,6 +170,7 @@ t_return_code LIB_initialize_module(t_module **module, t_logger *logger)
     (*module)->imports = NULL;
     (*module)->structs = NULL;
     (*module)->variables = NULL;
+    (*module)->file_path = NULL;
 
     RAISE_LUKA_STATUS_ON_ERROR(
         LIB_intialize_list(&(*module)->enums, sizeof(t_ast_node_ptr), logger),
@@ -209,32 +212,40 @@ void LIB_free_module(t_module *module, t_logger *logger)
         if (NULL != module->functions)
         {
             (void) lib_free_nodes_vector(module->functions, logger);
+            module->functions = NULL;
         }
 
         if (NULL != module->import_paths)
         {
             (void) lib_free_strings_vector(module->import_paths);
+            module->import_paths = NULL;
         }
 
         if (NULL != module->imports)
         {
             (void) lib_free_modules_vector(module->imports, logger);
+            module->imports = NULL;
         }
 
         if (NULL != module->structs)
         {
             (void) lib_free_nodes_vector(module->structs, logger);
+            module->structs = NULL;
         }
 
         if (NULL != module->variables)
         {
             (void) lib_free_nodes_vector(module->variables, logger);
+            module->variables = NULL;
         }
 
         if (NULL != module->enums)
         {
             (void) lib_free_nodes_vector(module->enums, logger);
+            module->enums = NULL;
         }
+
+        module->file_path = NULL;
 
         (void) free(module);
         module = NULL;
@@ -305,10 +316,16 @@ char *LIB_stringify(const char *source, size_t source_length, t_logger *logger)
     return str;
 }
 
-t_ast_node *LIB_resolve_func_name(const t_module *module, const char *name)
+t_ast_node *LIB_resolve_func_name(const t_module *module, const char *name,
+                                  const t_module *original_module)
 {
     t_ast_node *func = NULL;
     t_module *imported_module = NULL;
+
+    if (NULL == module)
+    {
+        return NULL;
+    }
 
     if (NULL == module->functions)
     {
@@ -336,10 +353,22 @@ t_ast_node *LIB_resolve_func_name(const t_module *module, const char *name)
         return func;
     }
 
+    func = NULL;
     VECTOR_FOR_EACH(module->imports, imports)
     {
         imported_module = *(t_module **) iterator_get(&imports);
-        func = LIB_resolve_func_name(imported_module, name);
+        if (NULL == original_module)
+        {
+            func = LIB_resolve_func_name(imported_module, name, module);
+        }
+        else if (0
+                 != strcmp(imported_module->file_path,
+                           original_module->file_path))
+        {
+            func
+                = LIB_resolve_func_name(imported_module, name, original_module);
+        }
+
         if (NULL == func)
         {
             continue;
