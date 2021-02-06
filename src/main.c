@@ -31,6 +31,7 @@
 #include "main_internal.h"
 #include "parser.h"
 #include "type_checker.h"
+#include "uthash.h"
 #include "vector.h"
 
 #define DEFAULT_LOG_PATH ("/tmp/luka.log")
@@ -98,11 +99,13 @@ static void context_initialize(t_main_context *context, int argc, char **argv)
     context->compile = true;
     context->assemble = true;
     context->link = true;
+    context->imported_modules = NULL;
 }
 
 static void context_destruct(t_main_context *context)
 {
     size_t i = 0;
+    t_imported_module *imported_module = NULL, *imported_module_iter = NULL;
 
     if (NULL != context->file_paths)
     {
@@ -185,6 +188,20 @@ static void context_destruct(t_main_context *context)
     {
         (void) LLVMDisposeModule(context->llvm_module);
         context->llvm_module = NULL;
+    }
+
+    if (NULL != context->imported_modules)
+    {
+        HASH_ITER(hh, context->imported_modules, imported_module,
+                  imported_module_iter)
+        {
+            HASH_DEL(context->imported_modules, imported_module);
+            if (NULL != imported_module)
+            {
+                (void) free(imported_module);
+                imported_module = NULL;
+            }
+        }
     }
 }
 
@@ -326,6 +343,7 @@ static t_return_code parse(t_main_context *context, const char *file_path)
     t_return_code status_code = LUKA_UNINITIALIZED;
     t_module *module = NULL;
     char *resolved_path = NULL;
+    t_imported_module *imported_module = NULL;
 
     context->parser = calloc(1, sizeof(t_parser));
     if (NULL == context->parser)
@@ -367,6 +385,21 @@ static t_return_code parse(t_main_context *context, const char *file_path)
         RAISE_LUKA_STATUS_ON_ERROR(do_file(context, resolved_path), status_code,
                                    l_cleanup);
         vector_push_back(module->imports, &(context->current_module));
+        imported_module = NULL;
+        imported_module = malloc(sizeof(t_imported_module));
+        if (NULL == imported_module)
+        {
+            (void) LOGGER_log(
+                context->logger, L_ERROR,
+                "Failed allocating memory for imported module.\n");
+            status_code = LUKA_CANT_ALLOC_MEMORY;
+            goto l_cleanup;
+        }
+
+        imported_module->module = module;
+        imported_module->file_path = resolved_path;
+
+        HASH_ADD_STR(context->imported_modules, file_path, imported_module);
     }
 
     VECTOR_FOR_EACH(module->structs, iterator)

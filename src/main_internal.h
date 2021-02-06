@@ -4,8 +4,16 @@
 
 #include "defs.h"
 #include "parser.h"
+#include "uthash.h"
 #include <llvm-c/Core.h>
 #include <llvm-c/TargetMachine.h>
+
+typedef struct
+{
+    t_module *module;
+    const char *file_path;
+    UT_hash_handle hh;
+} t_imported_module;
 
 typedef struct
 {
@@ -37,6 +45,7 @@ typedef struct
     bool compile;
     bool assemble;
     bool link;
+    t_imported_module *imported_modules;
 } t_main_context;
 
 /**
