@@ -50,13 +50,24 @@ void LIB_free_module(t_module *module, t_logger *logger);
 char *LIB_stringify(const char *source, size_t source_length, t_logger *logger);
 
 /**
+ * @brief Check if a module was already codegened.
+ *
+ * @param[in] codegen_modules a vector of already codegened modules.
+ * @param[in] module the module to check.
+ *
+ * @return boolean that represents if the module appears in the vector.
+ */
+bool LIB_module_in_list(t_vector *codegen_modules, const t_module *module);
+
+/**
  * @brief Find a function inside a given @p module or any of its imported
  * modules.
  *
  * @param[in] module the module to search in.
  * @param[in] name the name of the function to look for.
  * @param[in] original_module the module that requested to resolve, used for
- * solving circular recursion, use NULL when calling this function by yourself.
+ * solving circular recursion, use NULL when calling this function by
+ * yourself.
  *
  * @return NULL if not found or the t_ast_node of that function.
  */

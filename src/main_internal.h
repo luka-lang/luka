@@ -46,6 +46,7 @@ typedef struct
     bool assemble;
     bool link;
     t_imported_module *imported_modules;
+    t_vector *codegen_modules;
 } t_main_context;
 
 /**
@@ -200,10 +201,13 @@ static t_return_code frontend(t_main_context *context, const char *file_path);
  * module, codegen, optimizing and generating output files.
  *
  * @param[in,out] context the context to use.
+ * @param[in] original_module original module that called backend, use NULL when
+ * you call this by yourself.
  *
  * @return LUKA_SUCCESS on success or a status from one of stages on failure.
  */
-static t_return_code backend(t_main_context *context);
+static t_return_code backend(t_main_context *context,
+                             const t_module *original_module);
 
 /**
  * @brief Perform all stages of the compiler on the given file.

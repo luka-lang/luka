@@ -1,6 +1,7 @@
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -100,6 +101,7 @@ static void context_initialize(t_main_context *context, int argc, char **argv)
     context->assemble = true;
     context->link = true;
     context->imported_modules = NULL;
+    context->codegen_modules = NULL;
 }
 
 static void context_destruct(t_main_context *context)
@@ -135,6 +137,7 @@ static void context_destruct(t_main_context *context)
             HASH_DEL(context->imported_modules, imported_module);
             if (NULL != imported_module)
             {
+                (void) free(imported_module);
                 imported_module = NULL;
             }
         }
@@ -414,7 +417,7 @@ static t_return_code parse(t_main_context *context, const char *file_path)
             if (NULL == context->current_module)
             {
                 /* Not imported yet and not found in other modules */
-                RAISE_LUKA_STATUS_ON_ERROR(do_file(context, resolved_path),
+                RAISE_LUKA_STATUS_ON_ERROR(frontend(context, resolved_path),
                                            status_code, l_cleanup);
             }
         }
@@ -558,7 +561,8 @@ static t_return_code codegen_nodes(t_main_context *context, t_vector *nodes)
             value = LLVMGetNamedFunction(context->llvm_module, function_name);
             if (NULL != value)
             {
-                if (0 == strcmp(function_name, "main"))
+                if ((0 == strcmp(function_name, "main"))
+                    && (0 != LLVMCountBasicBlocks(value)))
                 {
                     (void) LOGGER_log(context->logger, L_ERROR,
                                       "Cannot redefine main.\n");
@@ -865,11 +869,49 @@ l_cleanup:
     return status_code;
 }
 
-static t_return_code backend(t_main_context *context)
+static t_return_code backend(t_main_context *context,
+                             const t_module *original_module)
 {
     t_return_code status_code = LUKA_UNINITIALIZED;
+    t_module *module = NULL, current_module = {0};
+
+    (void) GEN_module_prototypes(context->current_module, context->llvm_module,
+                                 context->builder, context->logger);
+
+    memcpy(&current_module, context->current_module, sizeof(t_module));
+    VECTOR_FOR_EACH(context->current_module->imports, imports)
+    {
+        module = *(t_module **) iterator_get(&imports);
+        if (LIB_module_in_list(context->codegen_modules, module))
+        {
+            continue;
+        }
+        context->current_module = module;
+        if (NULL == original_module)
+        {
+            RAISE_LUKA_STATUS_ON_ERROR(backend(context, &current_module),
+                                       status_code, l_cleanup);
+        }
+        else if (0 != strcmp(module->file_path, original_module->file_path))
+        {
+            RAISE_LUKA_STATUS_ON_ERROR(backend(context, original_module),
+                                       status_code, l_cleanup);
+        }
+        else
+        {
+            continue;
+        }
+
+        (void) vector_push_back(context->codegen_modules, &module);
+    }
+    memcpy(context->current_module, &current_module, sizeof(t_module));
     RAISE_LUKA_STATUS_ON_ERROR(code_generation(context), status_code,
                                l_cleanup);
+    if (!LIB_module_in_list(context->codegen_modules, context->current_module))
+    {
+        (void) vector_push_back(context->codegen_modules,
+                                &(context->current_module));
+    }
     status_code = LUKA_SUCCESS;
 
 l_cleanup:
@@ -881,7 +923,7 @@ static t_return_code do_file(t_main_context *context, const char *file_path)
     t_return_code status_code = LUKA_UNINITIALIZED;
     RAISE_LUKA_STATUS_ON_ERROR(frontend(context, file_path), status_code,
                                l_cleanup);
-    RAISE_LUKA_STATUS_ON_ERROR(backend(context), status_code, l_cleanup);
+    RAISE_LUKA_STATUS_ON_ERROR(backend(context, NULL), status_code, l_cleanup);
 
     status_code = LUKA_SUCCESS;
 
@@ -907,6 +949,20 @@ int main(int argc, char **argv)
 
     (void) LOGGER_log(context.logger, L_INFO, "%zu Files\n",
                       context.files_count);
+
+    context.codegen_modules = malloc(sizeof(t_vector));
+    if (NULL == context.codegen_modules)
+    {
+        status_code = LUKA_CANT_ALLOC_MEMORY;
+        goto l_cleanup;
+    }
+
+    if (vector_setup(context.codegen_modules, 10, sizeof(t_module *)))
+    {
+        status_code = LUKA_VECTOR_FAILURE;
+        goto l_cleanup;
+    }
+
     for (context.file_index = 0; context.file_index < context.files_count;
          ++context.file_index)
     {

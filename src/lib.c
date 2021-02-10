@@ -6,6 +6,7 @@
 #include "ast.h"
 #include "defs.h"
 #include "type.h"
+#include "vector.h"
 
 void LIB_free_tokens_vector(t_vector *tokens)
 {
@@ -78,7 +79,7 @@ void lib_free_modules_vector(t_vector *modules, t_logger *logger)
     for (; !iterator_equals(&iterator, &last); iterator_increment(&iterator))
     {
         module = *(t_module **) iterator_get(&iterator);
-        (void)logger;
+        (void) logger;
         (void) module;
         // (void) LIB_free_module(module, logger);
     }
@@ -314,6 +315,24 @@ char *LIB_stringify(const char *source, size_t source_length, t_logger *logger)
 
     str[char_count] = '\0';
     return str;
+}
+
+bool LIB_module_in_list(t_vector *codegen_modules, const t_module *module)
+{
+    t_module *vec_module = NULL;
+    const size_t file_path_length = strlen(module->file_path);
+    VECTOR_FOR_EACH(codegen_modules, modules)
+    {
+        vec_module = *(t_module **) iterator_get(&modules);
+        if (0
+            == strncmp(vec_module->file_path, module->file_path,
+                       file_path_length))
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 t_ast_node *LIB_resolve_func_name(const t_module *module, const char *name,

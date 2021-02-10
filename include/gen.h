@@ -38,6 +38,12 @@ typedef struct
 } t_enum_info;               /**< A struct for keeping info about enums */
 
 /**
+ * @brief Generate prototypes for all functions in a given luka module.
+ */
+void GEN_module_prototypes(t_module *module, LLVMModuleRef llvm_module,
+                           LLVMBuilderRef builder, t_logger *logger);
+
+/**
  * @brief Generating LLVM IR for a Luka AST node.
  *
  * @param[in] n the AST node.

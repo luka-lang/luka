@@ -3,6 +3,7 @@
 
 #include <llvm-c/Analysis.h>
 #include <llvm-c/Core.h>
+#include <llvm-c/Types.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -1107,6 +1108,36 @@ LLVMValueRef gen_codegen_binexpr(t_ast_node *n, LLVMModuleRef module,
     return LLVMBuildBinOp(builder, opcode, lhs, rhs, "binoptmp");
 }
 
+LLVMTypeRef gen_function_type(t_ast_node *prototype, t_logger *logger)
+{
+    size_t i = 0, arity = prototype->prototype.arity;
+    bool vararg = prototype->prototype.vararg;
+    LLVMTypeRef *params = NULL;
+
+    if (vararg)
+    {
+        --arity;
+    }
+    params = calloc(arity, sizeof(LLVMTypeRef));
+    if (NULL == params)
+    {
+        (void) LOGGER_log(
+            logger, L_ERROR,
+            "Failed to assign memory for params in prototype generaion.\n");
+        (void) exit(LUKA_CANT_ALLOC_MEMORY);
+    }
+
+    for (i = 0; i < arity; ++i)
+    {
+        params[i]
+            = gen_type_to_llvm_type(prototype->prototype.types[i], logger);
+    }
+
+    return LLVMFunctionType(
+        gen_type_to_llvm_type(prototype->prototype.return_type, logger), params,
+        arity, vararg);
+}
+
 /**
  * @brief Generate LLVM IR for a function prototype.
  *
@@ -1131,22 +1162,8 @@ LLVMValueRef gen_codegen_prototype(t_ast_node *n, LLVMModuleRef module,
     {
         --arity;
     }
-    params = calloc(arity, sizeof(LLVMTypeRef));
-    if (NULL == params)
-    {
-        (void) LOGGER_log(
-            logger, L_ERROR,
-            "Failed to assign memory for params in prototype generaion.\n");
-        (void) exit(LUKA_CANT_ALLOC_MEMORY);
-    }
 
-    for (i = 0; i < arity; ++i)
-    {
-        params[i] = gen_type_to_llvm_type(n->prototype.types[i], logger);
-    }
-    func_type = LLVMFunctionType(
-        gen_type_to_llvm_type(n->prototype.return_type, logger), params, arity,
-        vararg);
+    func_type = gen_function_type(n, logger);
 
     module_func = LLVMGetNamedFunction(module, n->prototype.name);
     if (NULL != module_func)
@@ -1244,12 +1261,32 @@ LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
     t_ast_node *proto = NULL;
     bool has_return_stmt = false;
     t_type *return_ttype;
-    LLVMTypeRef return_type;
+    LLVMTypeRef return_type = NULL, expected_func_type = NULL, func_type = NULL;
     size_t i = 0, arity = 0;
     t_named_value *val = NULL;
     char **args = NULL;
 
-    func = GEN_codegen(n->function.prototype, module, builder, logger);
+    expected_func_type = gen_function_type(n->function.prototype, logger);
+    func = LLVMGetNamedFunction(module, n->function.prototype->prototype.name);
+    if (NULL == func)
+    {
+        func = GEN_codegen(n->function.prototype, module, builder, logger);
+    }
+    else if (0 != LLVMCountBasicBlocks(func))
+    {
+        LOGGER_LOG_LOC(logger, L_ERROR, n->token,
+                       "Cannot redefine function %s\n",
+                       n->function.prototype->prototype.name);
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
+    else if ((func_type = LLVMGetElementType(LLVMTypeOf(func))) != expected_func_type)
+      {
+          LOGGER_LOG_LOC(logger, L_ERROR, n->token,
+                         "Previous declaration of function %s does not match current declaration, previous: %s, current: %s\n",
+                         n->function.prototype->prototype.name, LLVMPrintTypeToString(func_type), LLVMPrintTypeToString(expected_func_type));
+          (void) exit(LUKA_CODEGEN_ERROR);
+      }
+
     if (NULL == func)
     {
         LOGGER_LOG_LOC(logger, L_ERROR, n->token,
@@ -1445,7 +1482,8 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n, LLVMModuleRef module,
     (void) LLVMAppendExistingBasicBlock(func, then_block);
     (void) LLVMPositionBuilderAtEnd(builder, then_block);
 
-    then_value = gen_codegen_stmts(n->if_expr.then_body, module, builder, &has_return_stmt, logger);
+    then_value = gen_codegen_stmts(n->if_expr.then_body, module, builder,
+                                   &has_return_stmt, logger);
 
     if (!has_return_stmt)
     {
@@ -1459,7 +1497,8 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n, LLVMModuleRef module,
         (void) LLVMAppendExistingBasicBlock(func, else_block);
         (void) LLVMPositionBuilderAtEnd(builder, else_block);
         has_return_stmt = false;
-        else_value = gen_codegen_stmts(n->if_expr.else_body, module, builder, &has_return_stmt, logger);
+        else_value = gen_codegen_stmts(n->if_expr.else_body, module, builder,
+                                       &has_return_stmt, logger);
 
         if (!has_return_stmt)
         {
@@ -2377,6 +2416,21 @@ LLVMValueRef gen_codegen_literal(t_ast_node *node, LLVMModuleRef UNUSED(module),
                            "gen_codegen_literal: literal not handled %d.\n",
                            node->literal.type);
             (void) exit(LUKA_CODEGEN_ERROR);
+    }
+}
+
+void GEN_module_prototypes(t_module *module, LLVMModuleRef llvm_module,
+                           LLVMBuilderRef builder, t_logger *logger)
+{
+    t_ast_node *node = NULL;
+    VECTOR_FOR_EACH(module->functions, functions)
+    {
+        node = ITERATOR_GET_AS(t_ast_node_ptr, &functions);
+        if (NULL != node->function.prototype)
+        {
+            (void) GEN_codegen(node->function.prototype, llvm_module, builder,
+                               logger);
+        }
     }
 }
 
