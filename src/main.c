@@ -143,6 +143,14 @@ static void context_destruct(t_main_context *context)
         }
     }
 
+    if (NULL != context->codegen_modules)
+    {
+        (void) vector_clear(context->codegen_modules);
+        (void) vector_destroy(context->codegen_modules);
+        (void) free(context->codegen_modules);
+        context->codegen_modules = NULL;
+    }
+
     if (NULL != context->file_paths)
     {
         for (i = 0; i < context->files_count; ++i)
