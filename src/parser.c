@@ -633,7 +633,13 @@ t_module *PARSER_parse_file(t_parser *parser)
                     EXPECT_ADVANCE(
                         parser, T_SEMI_COLON,
                         "Expected a `;` at the end of an import statement.");
-                    resolved_path = IO_resolve_path(path, parser->file_path, true);
+                    resolved_path
+                        = IO_resolve_path(path, parser->file_path, true);
+                    if (NULL == resolved_path)
+                    {
+                        status_code =  LUKA_NON_EXISTING_FILE;
+                        goto l_cleanup;
+                    }
                     (void) vector_push_front(module->import_paths,
                                              &resolved_path);
                     break;

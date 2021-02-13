@@ -52,4 +52,13 @@ t_return_code IO_copy(const char *original_file_path,
 char *IO_resolve_path(const char *requested_path, const char *current_path,
                       bool in_import);
 
+/**
+ * @brief Checks if a file exists at a given path.
+ *
+ * @param[in] full_path the path to the file.
+ *
+ * @return whether the file exists.
+ */
+bool IO_file_exists(const char *const full_path);
+
 #endif // __IO_H__
