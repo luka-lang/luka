@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #define BLOCK_SIZE 512
 
@@ -261,11 +262,21 @@ char *IO_resolve_path(const char *requested_path, const char *current_path,
     abs_path = realpath(path, abs_path);
     if (NULL == abs_path)
     {
-        (void) perror("realpath failed");
-        (void) printf("No such file or directory: %s\n", path);
+        if (!IO_file_exists(path))
+        {
+            (void) printf("No such file or directory: %s\n", path);
+            (void) free(path);
+            path = NULL;
+        }
         return path;
     }
 
     (void) free(path);
     return abs_path;
+}
+
+bool IO_file_exists(const char *const full_path)
+{
+    struct stat buffer;
+    return (stat(full_path, &buffer) == 0);
 }

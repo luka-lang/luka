@@ -278,9 +278,9 @@ static t_return_code get_args(t_main_context *context)
     {
         context->file_paths[i]
             = IO_resolve_path(context->argv[optind++], ".", false);
-        if (NULL == context->file_paths)
+        if (NULL == context->file_paths[i])
         {
-            status_code = LUKA_CANT_ALLOC_MEMORY;
+            status_code = LUKA_NON_EXISTING_FILE;
             goto l_cleanup;
         }
     }

@@ -43,7 +43,8 @@ typedef enum
     LUKA_IO_ERROR,   /**< There was a problem with input output operations */
     LUKA_LLVM_ERROR, /**< Signifies that a problem occured when calling an LLVM
                         function */
-} t_return_code;     /**< An enum of possible luka return codes */
+    LUKA_NON_EXISTING_FILE, /**< The file requested doesn't exist. */
+} t_return_code;            /**< An enum of possible luka return codes */
 
 #define NUMBER_OF_KEYWORDS                                                     \
     35 /**< Number of keywords in the luka programming language */
