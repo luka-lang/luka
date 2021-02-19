@@ -31,7 +31,11 @@ add_custom_target(docs cd ${PROJECT_SOURCE_DIR}/docs
   COMMAND doxygen && cd -
   DEPENDS ${PROJECT_SOURCE_DIR}/docs/Doxyfile)
 
+file(GLOB_RECURSE LUKA_LIB lib/*.luka)
+file(GLOB_RECURSE LUKA_STDLIB lib/std/*.luka)
 install(TARGETS luka DESTINATION bin)
+install(FILES ${LUKA_LIB} DESTINATION lib/luka)
+install(FILES ${LUKA_STDLIB} DESTINATION lib/luka/std)
 
 enable_testing()
 add_subdirectory(tests)

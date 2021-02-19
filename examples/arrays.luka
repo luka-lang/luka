@@ -1,6 +1,6 @@
-import "lib/stdio";
-import "lib/stdlib";
-import "lib/time";
+import "stdio";
+import "stdlib";
+import "time";
 
 enum RETURN_CODES {
     SUCCESS = 0,

@@ -1,4 +1,4 @@
-import "lib/stdio";
+import "stdio";
 
 fn add(a: s32, b: s32): s32 {
     a + b

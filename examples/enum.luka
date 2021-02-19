@@ -1,4 +1,4 @@
-import "lib/stdio";
+import "stdio";
 
 enum Weekday {
     Sunday = 1,

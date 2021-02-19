@@ -186,10 +186,48 @@ l_cleanup:
     return status_code;
 }
 
+/**
+ * @brief Verify a path starts with a certain string, including the null byte.
+ *
+ * @param[in] path the path to check.
+ * @param[in] start the string that should appear in the start.
+ *
+ * @return true if @p path starts with @p start, otherwise false.
+ */
+bool io_starts_with(const char *path, const char *start)
+{
+    size_t path_length = strlen(path);
+    size_t start_length = strlen(start);
+    size_t i = 0;
+
+    if (start_length > path_length)
+    {
+        return false;
+    }
+
+    for (i = 0; i < start_length; ++i)
+    {
+        if (path[i] != start[i])
+        {
+            break;
+        }
+    }
+
+    return i == start_length;
+}
+
 bool io_is_absolute(const char *path)
 {
     return '/' == path[0]
         || (isalpha(path[0]) && (':' == path[1]) && ('\\' == path[2]));
+}
+
+bool io_is_relative(const char *path)
+{
+    const char current_dir[3] = {'.', PATH_SEPERATOR, '\0'};
+    const char parent_dir[4] = {'.', '.', PATH_SEPERATOR, '\0'};
+    return io_starts_with(path, current_dir)
+        || io_starts_with(path, parent_dir);
 }
 
 /**
@@ -235,30 +273,69 @@ char *IO_resolve_path(const char *requested_path, const char *current_path,
 {
     char *path = NULL, *abs_path = NULL;
     const char sep_string[2] = {PATH_SEPERATOR, '\0'};
+    char *possible_path = NULL;
+    bool resolved_from_system = false;
 
     if (io_is_absolute(requested_path))
     {
         path = calloc(PATH_MAX, sizeof(char));
         path = strcat(path, requested_path);
-        path = strcat(path, FILE_EXTENSION);
+        if (!io_ends_with(path, FILE_EXTENSION))
+        {
+            path = io_append_path(path, FILE_EXTENSION);
+        }
         return path;
     }
 
     path = realpath(current_path, NULL);
     if (in_import)
     {
-        path = dirname(path);
-    }
-    if (path[strlen(path) - 1] != PATH_SEPERATOR)
-    {
-        path = io_append_path(path, sep_string);
+        if (!io_is_relative(requested_path))
+        {
+            possible_path = io_append_path(strdup("/usr/local/lib/luka/"),
+                                           requested_path);
+            if (!io_ends_with(possible_path, FILE_EXTENSION))
+            {
+                possible_path = io_append_path(possible_path, FILE_EXTENSION);
+            }
+
+            if (!IO_file_exists(possible_path))
+            {
+                (void) free(possible_path);
+                possible_path = NULL;
+            }
+            else
+            {
+                resolved_from_system = true;
+            }
+        }
+
+        if (resolved_from_system)
+        {
+            (void) free(path);
+            path = possible_path;
+            possible_path = NULL;
+        }
+        else
+        {
+            path = dirname(path);
+        }
     }
 
-    path = io_append_path(path, requested_path);
-    if (!io_ends_with(path, FILE_EXTENSION))
+    if (!resolved_from_system)
     {
-        path = io_append_path(path, FILE_EXTENSION);
+        if (path[strlen(path) - 1] != PATH_SEPERATOR)
+        {
+            path = io_append_path(path, sep_string);
+        }
+
+        path = io_append_path(path, requested_path);
+        if (!io_ends_with(path, FILE_EXTENSION))
+        {
+            path = io_append_path(path, FILE_EXTENSION);
+        }
     }
+
     abs_path = realpath(path, abs_path);
     if (NULL == abs_path)
     {

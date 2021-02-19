@@ -1,6 +1,6 @@
-import "lib/stdio";
-import "lib/stdlib";
-import "lib/string";
+import "stdio";
+import "stdlib";
+import "string";
 
 fn main(): s32 {
     // Pointers to stack memory

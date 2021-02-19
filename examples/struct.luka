@@ -1,4 +1,4 @@
-import "lib/stdio";
+import "stdio";
 
 struct Person {
     name: mut u8*,
