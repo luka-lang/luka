@@ -1,7 +1,7 @@
-import "lib/stdio";
-import "lib/stdlib";
-import "lib/time";
-import "lib/string";
+import "stdio";
+import "stdlib";
+import "time";
+import "string";
 
 fn main(): s32 {
     let mut num = 0;

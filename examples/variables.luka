@@ -1,4 +1,4 @@
-import "lib/stdio";
+import "stdio";
 
 fn main(): s32 {
     let a = 2;
