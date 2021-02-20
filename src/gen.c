@@ -1279,13 +1279,17 @@ LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
                        n->function.prototype->prototype.name);
         (void) exit(LUKA_CODEGEN_ERROR);
     }
-    else if ((func_type = LLVMGetElementType(LLVMTypeOf(func))) != expected_func_type)
-      {
-          LOGGER_LOG_LOC(logger, L_ERROR, n->token,
-                         "Previous declaration of function %s does not match current declaration, previous: %s, current: %s\n",
-                         n->function.prototype->prototype.name, LLVMPrintTypeToString(func_type), LLVMPrintTypeToString(expected_func_type));
-          (void) exit(LUKA_CODEGEN_ERROR);
-      }
+    else if ((func_type = LLVMGetElementType(LLVMTypeOf(func)))
+             != expected_func_type)
+    {
+        LOGGER_LOG_LOC(logger, L_ERROR, n->token,
+                       "Previous declaration of function %s does not match "
+                       "current declaration, previous: %s, current: %s\n",
+                       n->function.prototype->prototype.name,
+                       LLVMPrintTypeToString(func_type),
+                       LLVMPrintTypeToString(expected_func_type));
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
 
     if (NULL == func)
     {

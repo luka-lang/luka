@@ -646,7 +646,7 @@ t_module *PARSER_parse_file(t_parser *parser)
                         = IO_resolve_path(path, parser->file_path, true);
                     if (NULL == resolved_path)
                     {
-                        status_code =  LUKA_NON_EXISTING_FILE;
+                        status_code = LUKA_NON_EXISTING_FILE;
                         goto l_cleanup;
                     }
                     (void) vector_push_front(module->import_paths,
@@ -1000,6 +1000,7 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
                           "Couldn't allocate memory for args.\n");
         goto l_cleanup;
     }
+
     vector_setup(args, 10, sizeof(t_ast_node));
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     if (T_CLOSE_PAREN != token->type)
