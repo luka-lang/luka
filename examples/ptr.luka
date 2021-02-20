@@ -12,7 +12,8 @@ fn main(): s32 {
 
     // Pointers to heap memory
     // Initial memory allocation
-    let mut str: u8* = malloc(strlen("luka is a nice programming language") + 1);
+    let str_length = strlen("luka is a nice programming language") + 1;
+    let mut str: u8* = malloc(sizeof(u8) * str_length);
 
     strcpy(str, "luka is a nice");
     printf("String = %s\t\t\t\tAddress = %p\n", str, str);
