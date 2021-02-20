@@ -245,38 +245,38 @@ void TYPE_free_type(t_type *type)
     }
 }
 
-size_t TYPE_sizeof(t_type *type)
+ssize_t TYPE_sizeof(t_type *type)
 {
     switch (type->type)
     {
-        case TYPE_ANY:
         case TYPE_VOID:
-        case TYPE_STRUCT:
             return 0;
         case TYPE_BOOL:
-            return 1;
         case TYPE_SINT8:
         case TYPE_UINT8:
-            return 8;
+            return 1;
         case TYPE_SINT16:
         case TYPE_UINT16:
-            return 16;
+            return 2;
         case TYPE_ENUM:
         case TYPE_SINT32:
         case TYPE_UINT32:
         case TYPE_F32:
-            return 32;
+            return 4;
         case TYPE_SINT64:
         case TYPE_UINT64:
         case TYPE_F64:
-            return 64;
+            return 8;
         case TYPE_PTR:
         case TYPE_ARRAY:
             return sizeof(void *);
         case TYPE_STRING:
             return sizeof(char *);
+        case TYPE_STRUCT:
+        case TYPE_ANY:
+            return -1;
         default:
-            return 0;
+            return -1;
     }
 }
 
@@ -583,6 +583,8 @@ t_type *TYPE_get_type(const t_ast_node *node, t_logger *logger,
             type = TYPE_initialize_type(TYPE_ENUM);
             type->payload = strdup(node->enum_definition.name);
             return type;
+        case AST_TYPE_SIZEOF_EXPR:
+            return TYPE_initialize_type(TYPE_UINT64);
         default:
             LOGGER_LOG_LOC(logger, L_ERROR, node->token,
                            "TYPE_get_type: Unhandled node type %d\n",

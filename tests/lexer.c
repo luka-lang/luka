@@ -45,6 +45,7 @@ UTEST(lexer, is_keyword_works_for_keywords)
     ASSERT_NE(-1, lexer_is_keyword("enum"));
     ASSERT_NE(-1, lexer_is_keyword("import"));
     ASSERT_NE(-1, lexer_is_keyword("type"));
+    ASSERT_NE(-1, lexer_is_keyword("sizeof"));
     ASSERT_NE(-1, lexer_is_keyword("null"));
     ASSERT_NE(-1, lexer_is_keyword("true"));
     ASSERT_NE(-1, lexer_is_keyword("false"));

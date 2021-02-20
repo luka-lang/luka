@@ -1279,13 +1279,17 @@ LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
                        n->function.prototype->prototype.name);
         (void) exit(LUKA_CODEGEN_ERROR);
     }
-    else if ((func_type = LLVMGetElementType(LLVMTypeOf(func))) != expected_func_type)
-      {
-          LOGGER_LOG_LOC(logger, L_ERROR, n->token,
-                         "Previous declaration of function %s does not match current declaration, previous: %s, current: %s\n",
-                         n->function.prototype->prototype.name, LLVMPrintTypeToString(func_type), LLVMPrintTypeToString(expected_func_type));
-          (void) exit(LUKA_CODEGEN_ERROR);
-      }
+    else if ((func_type = LLVMGetElementType(LLVMTypeOf(func)))
+             != expected_func_type)
+    {
+        LOGGER_LOG_LOC(logger, L_ERROR, n->token,
+                       "Previous declaration of function %s does not match "
+                       "current declaration, previous: %s, current: %s\n",
+                       n->function.prototype->prototype.name,
+                       LLVMPrintTypeToString(func_type),
+                       LLVMPrintTypeToString(expected_func_type));
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
 
     if (NULL == func)
     {
@@ -2419,6 +2423,41 @@ LLVMValueRef gen_codegen_literal(t_ast_node *node, LLVMModuleRef UNUSED(module),
     }
 }
 
+/**
+ * @brief Generate LLVM IR for a sizeof expr.
+ *
+ * @param[in] n the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the size of the type in the sizeof expr.
+ */
+LLVMValueRef gen_codegen_sizeof_expr(t_ast_node *node,
+                                     LLVMModuleRef UNUSED(module),
+                                     LLVMBuilderRef UNUSED(builder),
+                                     t_logger *logger)
+{
+    LLVMTypeRef llvm_type = NULL;
+    t_type *type = node->sizeof_expr.type;
+    ssize_t size = -1;
+
+    if (NULL == type)
+    {
+        LOGGER_LOG_LOC(logger, L_ERROR, node->token,
+                       "Cannot get size of unknown type.\n", NULL);
+    }
+
+    size = TYPE_sizeof(type);
+    if (-1 == size)
+    {
+        llvm_type = gen_type_to_llvm_type(type, logger);
+        return LLVMSizeOf(llvm_type);
+    }
+
+    return LLVMConstInt(LLVMInt64Type(), size, false);
+}
+
 void GEN_module_prototypes(t_module *module, LLVMModuleRef llvm_module,
                            LLVMBuilderRef builder, t_logger *logger)
 {
@@ -2483,6 +2522,8 @@ LLVMValueRef GEN_codegen(t_ast_node *node, LLVMModuleRef module,
             return gen_codegen_array_deref(node, module, builder, logger);
         case AST_TYPE_LITERAL:
             return gen_codegen_literal(node, module, builder, logger);
+        case AST_TYPE_SIZEOF_EXPR:
+            return gen_codegen_sizeof_expr(node, module, builder, logger);
         default:
             {
                 LOGGER_LOG_LOC(logger, L_ERROR, node->token,

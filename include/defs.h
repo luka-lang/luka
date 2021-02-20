@@ -47,7 +47,7 @@ typedef enum
 } t_return_code;            /**< An enum of possible luka return codes */
 
 #define NUMBER_OF_KEYWORDS                                                     \
-    35 /**< Number of keywords in the luka programming language */
+    36 /**< Number of keywords in the luka programming language */
 extern const char *
     keywords[NUMBER_OF_KEYWORDS]; /**< string representations of the keywords */
 
@@ -68,6 +68,7 @@ typedef enum
     T_ENUM,         /**< A "enum" token */
     T_IMPORT,       /**< A "import" token */
     T_TYPE,         /**< A "type" token */
+    T_SIZEOF,         /**< A "sizeof" token */
 
     T_NULL,  /**< A "null" token */
     T_TRUE,  /**< A "true" token */
@@ -165,6 +166,7 @@ typedef enum
     AST_TYPE_GET_EXPR,          /**< An AST node for get expressions */
     AST_TYPE_ARRAY_DEREF,       /**< An AST node for array dereferences */
     AST_TYPE_LITERAL,           /**< An AST node for literals */
+    AST_TYPE_SIZEOF_EXPR,       /**< An AST node for sizeof expression */
 } t_ast_node_type; /**< An enum for different types of an AST node */
 
 typedef enum
@@ -383,6 +385,11 @@ typedef struct
     t_ast_literal_type type; /**< The type of the literal */
 } t_ast_literal;             /**< An AST node for literals */
 
+typedef struct
+{
+    t_type *type;          /**< The type to check */
+} t_ast_sizeof_expression; /**< An AST node for sizeof expressions */
+
 typedef struct s_ast_node
 {
     t_ast_node_type type; /**< The type of the AST node */
@@ -413,9 +420,10 @@ typedef struct s_ast_node
         t_ast_get_expr get_expr;       /**< Get expression AST node value */
         t_ast_array_deref array_deref; /**< Array dereference AST node value */
         t_ast_literal literal;         /**< Literal AST node value */
-    };                                 /**< All possible AST node values */
-    t_token *token;                    /**< The origin token of the node */
-} t_ast_node;                          /**< A struct for AST nodes */
+        t_ast_sizeof_expression sizeof_expr; /**< Sizeof expression AST node value */
+    };              /**< All possible AST node values */
+    t_token *token; /**< The origin token of the node */
+} t_ast_node;       /**< A struct for AST nodes */
 
 typedef t_ast_node
     *t_ast_node_ptr; /**< A type alias for getting this type from a vector */
