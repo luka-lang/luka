@@ -190,6 +190,15 @@ t_ast_node *parser_parse_prototype(t_parser *parser);
 t_ast_node *parser_parse_let_statement(t_parser *parser, bool is_global);
 
 /**
+ * @brief Parse a sizeof expression.
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return a sizeof expression AST node.
+ */
+t_ast_node *parser_parse_sizeof_expr(t_parser *parser);
+
+/**
  * @brief Report a parser error.
  *
  * @param[in] parser the parser to report with.
@@ -1340,6 +1349,11 @@ t_ast_node *parser_parse_primary(t_parser *parser)
                 n = parser_parse_ident_expr(parser);
                 break;
             }
+        case T_SIZEOF:
+            {
+                n = parser_parse_sizeof_expr(parser);
+                break;
+            }
         case T_NUMBER:
             {
                 type = TYPE_initialize_type(TYPE_SINT32);
@@ -2233,4 +2247,24 @@ void PARSER_print_parser_tokens(t_parser *parser)
                           token->line, token->offset, token->type,
                           token->content);
     }
+}
+
+t_ast_node *parser_parse_sizeof_expr(t_parser *parser)
+{
+    t_type *type = NULL;
+    t_ast_node *node = NULL;
+    t_token *token = NULL;
+
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    ADVANCE(parser);
+    MATCH_ADVANCE(parser, T_OPEN_PAREN, "Expected '(' after sizeof keyword");
+    --parser->index;
+    type = parser_parse_type(parser, false);
+    ADVANCE(parser);
+    MATCH_ADVANCE(parser, T_CLOSE_PAREN,
+                   "Expected ')' after type in sizeof expression");
+
+    node = AST_new_sizeof_expr(type);
+    node->token = token;
+    return node;
 }

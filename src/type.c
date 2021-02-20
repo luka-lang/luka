@@ -583,6 +583,8 @@ t_type *TYPE_get_type(const t_ast_node *node, t_logger *logger,
             type = TYPE_initialize_type(TYPE_ENUM);
             type->payload = strdup(node->enum_definition.name);
             return type;
+        case AST_TYPE_SIZEOF_EXPR:
+            return TYPE_initialize_type(TYPE_UINT64);
         default:
             LOGGER_LOG_LOC(logger, L_ERROR, node->token,
                            "TYPE_get_type: Unhandled node type %d\n",
