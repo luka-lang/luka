@@ -75,8 +75,10 @@ void TYPE_free_type(t_type *type);
  * @brief The size of a Luka type.
  *
  * @param[in] type the Luka type to get its size.
+ *
+ * @return the size of the type in bytes, or -1 if not constant.
  */
-size_t TYPE_sizeof(t_type *type);
+ssize_t TYPE_sizeof(t_type *type);
 
 /**
  * @brief Check if a Luka type is signed.
