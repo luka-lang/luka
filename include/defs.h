@@ -345,6 +345,7 @@ typedef struct
 {
     char *name;              /**< The name of the struct */
     t_vector *struct_fields; /**< The fields of the struct */
+    t_vector *struct_functions; /**< The functions of the struct */
 } t_ast_struct_definition;   /**< An AST node for struct definitions */
 
 typedef struct

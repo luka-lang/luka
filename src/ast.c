@@ -215,13 +215,15 @@ t_ast_node *AST_new_break_stmt()
     return node;
 }
 
-t_ast_node *AST_new_struct_definition(char *name, t_vector *struct_fields)
+t_ast_node *AST_new_struct_definition(char *name, t_vector *struct_fields,
+                                      t_vector *functions)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_STRUCT_DEFINITION;
     node->token = NULL;
     node->struct_definition.name = name;
     node->struct_definition.struct_fields = struct_fields;
+    node->struct_definition.struct_functions = functions;
     return node;
 }
 
@@ -1155,6 +1157,28 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
                     (void) free(node->struct_definition.struct_fields);
                     node->struct_definition.struct_fields = NULL;
                 }
+                if (NULL != node->struct_definition.struct_functions)
+                {
+                    t_ast_node *struct_function = NULL;
+                    VECTOR_FOR_EACH(node->struct_definition.struct_functions,
+                                    struct_functions)
+                    {
+                        struct_function = ITERATOR_GET_AS(t_ast_node_ptr,
+                                                          &struct_functions);
+                        if (NULL != struct_function)
+                        {
+                            AST_free_node(struct_function, logger);
+                            struct_function = NULL;
+                        }
+                    }
+
+                    (void) vector_clear(
+                        node->struct_definition.struct_functions);
+                    (void) vector_destroy(
+                        node->struct_definition.struct_functions);
+                    (void) free(node->struct_definition.struct_functions);
+                    node->struct_definition.struct_functions = NULL;
+                }
                 break;
             }
 
@@ -1748,7 +1772,7 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
 
                 if (NULL != node->struct_definition.struct_fields)
                 {
-                    (void) LOGGER_log(logger, L_DEBUG, "%*c\b Fields\n",
+                    (void) LOGGER_log(logger, L_DEBUG, "%*c\b %s Fields\n",
                                       offset + 2, ' ',
                                       node->struct_definition.name);
                     (void) LOGGER_log(
@@ -1785,6 +1809,20 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
                             }
                         }
                     }
+                }
+
+                if (NULL != node->struct_definition.struct_functions)
+                {
+                    (void) LOGGER_log(logger, L_DEBUG, "%*c\b %s Functions\n",
+                                      offset + 2, ' ',
+                                      node->struct_definition.name);
+                    (void) LOGGER_log(
+                        logger, L_DEBUG, "%*c\b Count - %d\n", offset + 4, ' ',
+                        node->struct_definition.struct_functions->size);
+
+                    (void) AST_print_functions(
+                        node->struct_definition.struct_functions, offset + 4,
+                        logger);
                 }
                 break;
             }

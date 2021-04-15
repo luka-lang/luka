@@ -33,7 +33,8 @@ t_ast_node *AST_new_string(char *content);
  * @return an AST node of a unary expression with the passed in operator and
  * rhs.
  */
-t_ast_node *AST_new_unary_expr(t_ast_unop_type operator, t_ast_node * rhs, bool mutable);
+t_ast_node *AST_new_unary_expr(t_ast_unop_type operator, t_ast_node * rhs,
+                               bool mutable);
 
 /**
  * @brief Creates a new AST node of a binary expression.
@@ -210,11 +211,13 @@ t_ast_node *AST_new_break_stmt();
  * @param[in] name the name of the struct.
  * @param[in] struct_fields a vector of t_struct_field* that contains the fields
  * of the struct.
+ * @param[in] functions a vector of t_ast_node* that contains the functions
+ * defined in the struct.
  *
  * @return an AST node of a struct definition with the passed in name and
  * struct_fields.
  */
-t_ast_node *AST_new_struct_definition(char *name, t_vector *struct_fields);
+t_ast_node *AST_new_struct_definition(char *name, t_vector *struct_fields, t_vector *functions);
 
 /**
  * @brief Creates a new AST node of a struct value.
