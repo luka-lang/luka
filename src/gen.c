@@ -1385,7 +1385,10 @@ LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
         ret_val = gen_codegen_cast(builder, ret_val, return_type, logger);
     }
 
-    (void) LLVMBuildRet(builder, ret_val);
+    if (!has_return_stmt)
+    {
+        (void) LLVMBuildRet(builder, ret_val);
+    }
 
     if (1 == LLVMVerifyFunction(func, LLVMReturnStatusAction))
     {
