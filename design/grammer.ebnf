@@ -32,8 +32,8 @@ break_statement = "break" ";"
 import_statement = "import" string ";"
 
 expression = if_expression | while_expression | cast_expression | assignment ;
-if_expression = "if" expression block [ { "else" "if" expression block } ] [ "else" block ] ;
-while_expression = "while" expression block ;
+if_expression = "if" "(" expression ")" block [ { "else" "if" expression block } ] [ "else" block ] ;
+while_expression = "while" "(" expression ")" block ;
 cast_expression = expression "as" type ;
 assignment = identifier "=" assignment
            | "*" identifier "=" assignment
