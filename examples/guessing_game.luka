@@ -16,26 +16,26 @@ fn main(): s32 {
 
     println("Welcome to the guessing game!\nIn this game you need to guess a number between 1 and 100 in the smallest amount of tries.\nGood Luck!");
 
-    while true {
+    while (true) {
         print("Guess a number: ");
-        if EOF == scan_s32(&guess) {
+        if (EOF == scan_s32(&guess)) {
             break;
         }
 
         tries = tries + 1;
 
-        if guess == num {
+        if (guess == num) {
             break;
         }
 
-        if guess > num {
+        if (guess > num) {
             println("Your guess was higher than the number.");
         } else {
             println("Your guess was lower than the number.");
         }
     }
 
-    if num != guess {
+    if (num != guess) {
         return 0;
     }
 

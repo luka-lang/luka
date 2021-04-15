@@ -1484,7 +1484,11 @@ t_ast_node *parser_parse_expression(t_parser *parser)
         case T_IF:
             {
                 ADVANCE(parser);
+                MATCH_ADVANCE(parser, T_OPEN_PAREN,
+                              "Expected `(` after `if` keyword.");
                 cond = parser_parse_expression(parser);
+                MATCH_ADVANCE(parser, T_CLOSE_PAREN,
+                              "Expected `)` after condition in if expression.");
                 --parser->index;
                 then_body = parser_parse_statements(parser);
                 if (EXPECT(parser, T_ELSE))
@@ -1520,7 +1524,12 @@ t_ast_node *parser_parse_expression(t_parser *parser)
         case T_WHILE:
             {
                 ADVANCE(parser);
+                MATCH_ADVANCE(parser, T_OPEN_PAREN,
+                              "Expected `(` after `while` keyword.");
                 cond = parser_parse_expression(parser);
+                MATCH_ADVANCE(
+                    parser, T_CLOSE_PAREN,
+                    "Expected `)` after condition in while expression.");
                 --parser->index;
                 body = parser_parse_statements(parser);
                 node = AST_new_while_expr(cond, body);

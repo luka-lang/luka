@@ -13,7 +13,7 @@ fn mul(a: s32, b: s32): s32 {
 }
 
 fn div(a: s32, b: s32): s32 {
-    if b == 0 {
+    if (b == 0) {
       0
     } else {
       a / b

@@ -1,9 +1,9 @@
 import "stdio";
 
 fn fib(n: u64): u64 {
-    if n <= 0 {
+    if (n <= 0) {
         0 as u64
-    } else if n == 1 {
+    } else if (n == 1) {
         1 as u64
     } else {
         fib(n - 1) + fib(n - 2)
@@ -16,7 +16,7 @@ fn main(): s32 {
     scanf("%zu", &index);
 
     let mut i = 0;
-    while i < index {
+    while (i < index) {
         printf("Fibonacci(%d): %d\n", i, fib(i));
         i = i + 1;
     }
