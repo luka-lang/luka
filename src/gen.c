@@ -780,11 +780,11 @@ LLVMIntPredicate gen_llvm_get_int_predicate(t_ast_binop_type op,
             if (gen_llvm_cast_to_signed_if_needed(lhs, rhs, builder, logger))
             {
                 (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
-                return LLVMIntSLE;
+                return LLVMIntSLT;
             }
 
             (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
-            return LLVMIntULE;
+            return LLVMIntULT;
         case BINOP_GREATER:
             if (gen_llvm_cast_to_signed_if_needed(lhs, rhs, builder, logger))
             {
