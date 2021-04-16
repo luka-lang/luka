@@ -286,6 +286,16 @@ t_ast_node *AST_new_sizeof_expr(t_type *type)
     return node;
 }
 
+t_ast_node *AST_new_array_literal(t_vector *exprs, t_type *type)
+{
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
+    node->type = AST_TYPE_ARRAY_LITERAL;
+    node->token = NULL;
+    node->array_literal.exprs = exprs;
+    node->array_literal.type = type;
+    return node;
+}
+
 t_ast_node *AST_fix_function_last_expression_stmt(t_ast_node *node)
 {
     t_ast_node *last_stmt = NULL;
@@ -1309,11 +1319,35 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
                 break;
             }
 
+        case AST_TYPE_ARRAY_LITERAL:
+            {
+                if (NULL != node->array_literal.type)
+                {
+                    (void) TYPE_free_type(node->array_literal.type);
+                    node->array_literal.type = NULL;
+                }
+                if (NULL != node->array_literal.exprs)
+                {
+                    VECTOR_FOR_EACH(node->array_literal.exprs, exprs)
+                    {
+                        (void) AST_free_node(
+                            ITERATOR_GET_AS(t_ast_node_ptr, &exprs), logger);
+                    }
+
+                    (void) vector_clear(node->array_literal.exprs);
+                    (void) vector_destroy(node->array_literal.exprs);
+                    (void) free(node->array_literal.exprs);
+                    node->array_literal.exprs = NULL;
+                }
+                break;
+            }
+
         default:
             {
-                (void) LOGGER_log(logger, L_ERROR,
-                                  "I don't now how to free type - %d\n",
-                                  node->type);
+                (void) LOGGER_log(
+                    logger, L_ERROR,
+                    "I don't know how to free AST node of type - %d\n",
+                    node->type);
                 break;
             }
     }
@@ -1446,7 +1480,7 @@ char *ast_stringify_literal(t_ast_literal_type type)
 
 void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
 {
-    t_ast_node *arg = NULL;
+    t_ast_node *arg = NULL, *expr = NULL;
     t_struct_field *struct_field = NULL;
     t_struct_value_field *value_field = NULL;
     size_t i = 0;
@@ -2023,6 +2057,30 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
                 break;
             }
 
+        case AST_TYPE_ARRAY_LITERAL:
+            {
+                (void) LOGGER_log(logger, L_DEBUG, "%*c\b Array Literal\n",
+                                  offset, ' ');
+
+                if (NULL != node->array_literal.exprs)
+                {
+                    (void) LOGGER_log(logger, L_DEBUG, "%*c\b Count: %zu\n",
+                                      offset + 2, ' ',
+                                      node->array_literal.exprs->size);
+                    i = 0;
+                    VECTOR_FOR_EACH(node->array_literal.exprs, exprs)
+                    {
+                        expr = ITERATOR_GET_AS(t_ast_node_ptr, &exprs);
+                        (void) LOGGER_log(logger, L_DEBUG,
+                                          "%*c\b Element %zu:\n", offset + 2,
+                                          ' ', i);
+                        (void) AST_print_ast(expr, offset + 4, logger);
+                        ++i;
+                    }
+                }
+
+                break;
+            }
         default:
             {
                 (void) LOGGER_log(logger, L_DEBUG,

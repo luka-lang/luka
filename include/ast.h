@@ -300,6 +300,16 @@ t_ast_node *AST_new_literal(t_ast_literal_type type);
 t_ast_node *AST_new_sizeof_expr(t_type *type);
 
 /**
+ * @brief Creates a new AST node of an array literal.
+ *
+ * @param[in] exprs the elements of the array literal.
+ * @param[in] type the type of the array literal's elements.
+ *
+ * @return an AST node of an array literal with the passed in exprs and type.
+ */
+t_ast_node *AST_new_array_literal(t_vector *exprs, t_type *type);
+
+/**
  * @brief Promotes the last expression statement to an expresion in a function
  * body.
  *
