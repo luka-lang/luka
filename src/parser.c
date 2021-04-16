@@ -2362,7 +2362,7 @@ t_ast_node *parser_parse_sizeof_expr(t_parser *parser)
     type = parser_parse_type(parser, false);
     ADVANCE(parser);
     MATCH_ADVANCE(parser, T_CLOSE_PAREN,
-                   "Expected ')' after type in sizeof expression");
+                  "Expected ')' after type in sizeof expression");
 
     node = AST_new_sizeof_expr(type);
     node->token = token;
