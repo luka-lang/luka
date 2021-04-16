@@ -1,16 +1,30 @@
 import "stdio";
 
 struct Person {
-    name: mut u8*,
-    age: mut u8
+    name: mut u8 mut*,
+    age: mut u8,
+
+    fn dbg(self: Person*): void {
+      printf("Person\n\tName: %s\n\tAge: %d\n", self.name, self.age);
+    }
+
+    fn hello(self: Person*): void {
+      printf("%s says hello!\n", self.name);
+    }
+
+    fn age(self: mut Person*): void {
+      self.age = self.age + 1;
+    }
 }
 
 fn main(): s32 {
-    let mut bob = Person { name: "Bob", age: 14 as u8 };
+    let mut bob: Person = Person { name: "Bob", age: 14 as u8 };
 
-    printf("Person\n\tName: %s\n\tAge: %d\n", bob.name, bob.age);
+    Person.hello(&bob);
 
-    bob.age = bob.age + 1;
+    Person.dbg(&bob);
 
-    printf("Person\n\tName: %s\n\tAge: %d\n", bob.name, bob.age);
+    Person.age(&mut bob);
+
+    Person.dbg(&bob);
 }

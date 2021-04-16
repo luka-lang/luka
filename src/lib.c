@@ -338,8 +338,9 @@ bool LIB_module_in_list(t_vector *codegen_modules, const t_module *module)
 t_ast_node *LIB_resolve_func_name(const t_module *module, const char *name,
                                   const t_module *original_module)
 {
-    t_ast_node *func = NULL;
+    t_ast_node *func = NULL, *struct_definition = NULL;
     t_module *imported_module = NULL;
+    char function_name_buffer[1024] = {0};
 
     if (NULL == module)
     {
@@ -370,6 +371,41 @@ t_ast_node *LIB_resolve_func_name(const t_module *module, const char *name,
         }
 
         return func;
+    }
+
+    VECTOR_FOR_EACH(module->structs, structs)
+    {
+        struct_definition = ITERATOR_GET_AS(t_ast_node_ptr, &structs);
+        if (NULL == struct_definition->struct_definition.struct_functions)
+        {
+            continue;
+        }
+
+        VECTOR_FOR_EACH(struct_definition->struct_definition.struct_functions,
+                        functions)
+        {
+            func = ITERATOR_GET_AS(t_ast_node_ptr, &functions);
+            if (NULL == func->function.prototype)
+            {
+                continue;
+            }
+
+            if (NULL == func->function.prototype->prototype.name)
+            {
+                continue;
+            }
+
+            (void) snprintf(function_name_buffer, sizeof(function_name_buffer),
+                            "%s.%s", struct_definition->struct_definition.name,
+                            func->function.prototype->prototype.name);
+
+            if (0 != strcmp(name, function_name_buffer))
+            {
+                continue;
+            }
+
+            return func;
+        }
     }
 
     func = NULL;

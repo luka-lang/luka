@@ -92,12 +92,31 @@ t_ast_node *parser_parse_primary(t_parser *parser);
 t_vector *parser_parse_statements(t_parser *parser);
 
 /**
+ * @brief Parse a struct defintion.
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return a struct defintion AST node.
+ */
+t_ast_node *parser_parse_struct_definition(t_parser *parser);
+
+/**
+ * @brief Parse zero or more struct functions.
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return a vector of #t_ast_node * that represent the parsed struct
+ * functions or NULL if failed to parse any function.
+ */
+t_vector *parser_parse_struct_functions(t_parser *parser);
+
+/**
  * @brief Parse one or more struct fields.
  *
  * @param[in,out] parser the parser to parse with.
  *
- * @return a vector of #t_struct_field * that represent the parsed struct fields
- * (name and type) or NULL if failed to parse the struct fields.
+ * @return a vector of #t_struct_field * that represent the parsed struct
+ * fields (name and type) or NULL if failed to parse the struct fields.
  */
 t_vector *parser_parse_struct_fields(t_parser *parser);
 
@@ -584,25 +603,7 @@ t_module *PARSER_parse_file(t_parser *parser)
                 }
             case T_STRUCT:
                 {
-                    starting_token = *(t_token_ptr *) vector_get(parser->tokens,
-                                                                 parser->index);
-                    EXPECT_ADVANCE(
-                        parser, T_IDENTIFIER,
-                        "Expected an identifier after keyword 'struct'");
-                    token = VECTOR_GET_AS(t_token_ptr, parser->tokens,
-                                          parser->index);
-                    name = strdup(token->content);
-                    EXPECT_ADVANCE(
-                        parser, T_OPEN_BRACE,
-                        "Expected a '{' after identifier in struct definition");
-                    ADVANCE(parser);
-                    (void) vector_push_front(parser->struct_names, &name);
-                    fields = parser_parse_struct_fields(parser);
-                    MATCH_ADVANCE(parser, T_CLOSE_BRACE,
-                                  "Expected a '}' after struct fields in "
-                                  "struct definition");
-                    node = AST_new_struct_definition(name, fields);
-                    node->token = starting_token;
+                    node = parser_parse_struct_definition(parser);
                     (void) vector_push_front(module->structs, &node);
                     parser->index -= 1;
                     break;
@@ -914,7 +915,13 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
         node = AST_new_get_expr(AST_new_variable(ident_name, type, false),
                                 strdup(token->content), is_enum);
         node->token = starting_token;
-        return node;
+
+        /* Get exprs of struct can also be callables, so we must let the code
+         * continue */
+        if (is_enum)
+        {
+            return node;
+        }
     }
     else if (MATCH(parser, T_OPEN_BRACE)
              && parser_is_struct_name(parser, ident_name))
@@ -979,7 +986,8 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
         node->token = starting_token;
         return node;
     }
-    else if (T_OPEN_PAREN != token->type)
+
+    if (NULL == node)
     {
         if (MATCH(parser, T_MUT))
         {
@@ -989,6 +997,10 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
         node = AST_new_variable(ident_name, parser_parse_type(parser, true),
                                 mutable);
         node->token = starting_token;
+    }
+
+    if (!MATCH(parser, T_OPEN_PAREN))
+    {
         return node;
     }
 
@@ -1024,7 +1036,7 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
     ADVANCE(parser);
     (void) vector_shrink_to_fit(args);
 
-    node = AST_new_call_expr(ident_name, args);
+    node = AST_new_call_expr(node, args);
     node->token = starting_token;
     return node;
 
@@ -1672,23 +1684,7 @@ t_ast_node *parser_parse_statement(t_parser *parser)
             }
         case T_STRUCT:
             {
-                EXPECT_ADVANCE(parser, T_IDENTIFIER,
-                               "Expected an identifier after keyword 'struct'");
-                token
-                    = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-                name = strdup(token->content);
-                EXPECT_ADVANCE(
-                    parser, T_OPEN_BRACE,
-                    "Expected a '{' after identifier in struct definition");
-                ADVANCE(parser);
-                fields = parser_parse_struct_fields(parser);
-                MATCH_ADVANCE(
-                    parser, T_CLOSE_BRACE,
-                    "Expected a '}' after struct fields in struct definition");
-                node = AST_new_struct_definition(name, fields);
-                (void) vector_push_front(parser->struct_names, &name);
-                node->token = starting_token;
-                return node;
+                return parser_parse_struct_definition(parser);
             }
         case T_ENUM:
             {
@@ -1974,6 +1970,94 @@ l_cleanup:
     (void) exit(1);
 }
 
+t_ast_node *parser_parse_struct_definition(t_parser *parser)
+{
+    t_ast_node *node = NULL;
+    t_token *token = NULL, *starting_token = NULL;
+    char *name = NULL;
+    t_vector *fields = NULL, *functions = NULL;
+
+    starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    MATCH_ADVANCE(parser, T_STRUCT,
+                  "Struct definition should start with a `struct` keyword.");
+    --parser->index;
+    EXPECT_ADVANCE(parser, T_IDENTIFIER,
+                   "Expected an identifier after keyword 'struct'");
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    name = strdup(token->content);
+    EXPECT_ADVANCE(parser, T_OPEN_BRACE,
+                   "Expected a '{' after identifier in struct definition");
+    ADVANCE(parser);
+    (void) vector_push_front(parser->struct_names, &name);
+    fields = parser_parse_struct_fields(parser);
+    functions = parser_parse_struct_functions(parser);
+    MATCH_ADVANCE(parser, T_CLOSE_BRACE,
+                  "Expected a '}' after struct contents in struct "
+                  "definition");
+    node = AST_new_struct_definition(name, fields, functions);
+    node->token = starting_token;
+    (void) AST_print_ast(node, 0, parser->logger);
+    return node;
+}
+
+t_vector *parser_parse_struct_functions(t_parser *parser)
+{
+    t_vector *functions = NULL;
+    t_ast_node *function = NULL;
+    t_token *token = NULL;
+
+    functions = calloc(1, sizeof(t_vector));
+    if (NULL == functions)
+    {
+        (void) LOGGER_log(
+            parser->logger, L_ERROR,
+            "Couldn't allocate memory for struct functions vector.\n");
+        goto l_cleanup;
+    }
+
+    vector_setup(functions, 5, sizeof(t_ast_node_ptr));
+
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    if (T_CLOSE_BRACE != token->type)
+    {
+        while (true)
+        {
+            function = parser_parse_function(parser);
+            if (NULL == function)
+            {
+                goto l_cleanup;
+            }
+            vector_push_back(functions, &function);
+            ADVANCE(parser);
+
+            token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+            if (T_CLOSE_BRACE == token->type)
+            {
+                break;
+            }
+        }
+    }
+
+    vector_shrink_to_fit(functions);
+    return functions;
+
+l_cleanup:
+    VECTOR_FOR_EACH(functions, field)
+    {
+        function = ITERATOR_GET_AS(t_ast_node_ptr, &field);
+        if (NULL != function)
+        {
+            AST_free_node(function, parser->logger);
+            function = NULL;
+        }
+    }
+    (void) vector_clear(functions);
+    (void) vector_destroy(functions);
+    (void) free(functions);
+    functions = NULL;
+    return NULL;
+}
+
 t_vector *parser_parse_struct_fields(t_parser *parser)
 {
     t_vector *fields = NULL;
@@ -1996,6 +2080,12 @@ t_vector *parser_parse_struct_fields(t_parser *parser)
     {
         while (true)
         {
+            token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+            if (T_FN == token->type)
+            {
+                break;
+            }
+
             struct_field = parser_parse_struct_field(parser);
             if (NULL == struct_field)
             {
@@ -2004,7 +2094,7 @@ t_vector *parser_parse_struct_fields(t_parser *parser)
             vector_push_back(fields, &struct_field);
 
             token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-            if (T_CLOSE_BRACE == token->type)
+            if ((T_CLOSE_BRACE == token->type) || (T_FN == token->type))
             {
                 break;
             }
@@ -2272,7 +2362,7 @@ t_ast_node *parser_parse_sizeof_expr(t_parser *parser)
     type = parser_parse_type(parser, false);
     ADVANCE(parser);
     MATCH_ADVANCE(parser, T_CLOSE_PAREN,
-                   "Expected ')' after type in sizeof expression");
+                  "Expected ')' after type in sizeof expression");
 
     node = AST_new_sizeof_expr(type);
     node->token = token;

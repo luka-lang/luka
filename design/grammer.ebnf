@@ -4,7 +4,7 @@ function_prototype = identifier "(" argument_list ")" [ type ] ;
 function_declration = "extern" function_prototype ;
 function_definition = "fn" function_prototype block ;
 
-struct_definition = "struct" identifier "{" struct_fields "}" ;
+struct_definition = "struct" identifier "{" struct_fields [ { function_definition } ] "}" ;
 struct_fields = struct_fields "," struct_field | struct_field ;
 struct_field = identifier type ;
 
@@ -48,12 +48,15 @@ primary = number
         | string
         | identifer
         | struct_value
+        | enum_value
         | get_expr
         | function_call
         | literal
         | array_deref
         | "(" expression ")" ;
-function_call = identifier "(" argument_list ")"
+function_call = callable "(" argument_list ")"
+callable = identifier
+         | get_expr
 
 array_deref = identifier "[" expression "]" ;
 
@@ -61,7 +64,9 @@ struct_value = identifier "{" struct_value_fields "}" ;
 struct_value_fields = struct_value_fields "," struct_value_field | struct_value_field | %empty ;
 struct_value_field = identifier ":" expression ;
 
-get_expr = identifier "." identifier
+get_expr = ( identifier | get_expr ) "." identifier
+
+enum_value = identifier "::" identifier
 
 literal = "true" | "false" | "null" ;
 

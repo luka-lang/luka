@@ -547,33 +547,63 @@ t_type *TYPE_get_type(const t_ast_node *node, t_logger *logger,
         case AST_TYPE_BINARY_EXPR:
             return TYPE_get_type(node->binary_expr.rhs, logger, module);
         case AST_TYPE_CALL_EXPR:
-            if (NULL == module)
             {
-                LOGGER_LOG_LOC(
-                    logger, L_ERROR, node->token,
-                    "TYPE_get_type: module is NULL, cannot use it "
-                    "to lookup function %s, assuming return type is any\n",
-                    node->call_expr.name);
-                return TYPE_initialize_type(TYPE_ANY);
+                t_ast_node_type callable_type = node->call_expr.callable->type;
+                char function_name_buffer[1024] = {0};
+
+                if (callable_type == AST_TYPE_VARIABLE)
+                {
+                    (void) snprintf(function_name_buffer,
+                                    sizeof(function_name_buffer), "%s",
+                                    node->call_expr.callable->variable.name);
+                }
+                else if (callable_type == AST_TYPE_GET_EXPR)
+                {
+                    (void) snprintf(function_name_buffer,
+                                    sizeof(function_name_buffer), "%s.%s",
+                                    node->call_expr.callable->get_expr.variable
+                                        ->variable.name,
+                                    node->call_expr.callable->get_expr.key);
+                }
+                else
+                {
+                    LOGGER_LOG_LOC(logger, L_ERROR, node->token,
+                                   "Unknown callable type - %d\n",
+                                   callable_type);
+                    (void) exit(LUKA_TYPE_CHECK_ERROR);
+                }
+
+                if (NULL == module)
+                {
+                    LOGGER_LOG_LOC(
+                        logger, L_ERROR, node->token,
+                        "TYPE_get_type: module is NULL, cannot use it "
+                        "to lookup function %s, assuming return type is any\n",
+                        function_name_buffer);
+                    return TYPE_initialize_type(TYPE_ANY);
+                }
+                func
+                    = LIB_resolve_func_name(module, function_name_buffer, NULL);
+                if (NULL == func)
+                {
+                    LOGGER_LOG_LOC(
+                        logger, L_ERROR, node->token,
+                        "TYPE_get_type: Couldn't find function %s "
+                        "inside module, assuming return type is any\n",
+                        function_name_buffer);
+                    return TYPE_initialize_type(TYPE_ANY);
+                }
+                if (NULL == func->function.prototype)
+                {
+                    LOGGER_LOG_LOC(
+                        logger, L_ERROR, node->token,
+                        "TYPE_get_type: function %s prototype is NULL\n",
+                        function_name_buffer);
+                    return TYPE_initialize_type(TYPE_ANY);
+                }
+                return TYPE_dup_type(
+                    func->function.prototype->prototype.return_type);
             }
-            func = LIB_resolve_func_name(module, node->call_expr.name, NULL);
-            if (NULL == func)
-            {
-                LOGGER_LOG_LOC(logger, L_ERROR, node->token,
-                               "TYPE_get_type: Couldn't find function %s "
-                               "inside module, assuming return type is any\n",
-                               node->call_expr.name);
-                return TYPE_initialize_type(TYPE_ANY);
-            }
-            if (NULL == func->function.prototype)
-            {
-                LOGGER_LOG_LOC(logger, L_ERROR, node->token,
-                               "TYPE_get_type: function %s prototype is NULL\n",
-                               node->call_expr.name);
-                return TYPE_initialize_type(TYPE_ANY);
-            }
-            return TYPE_dup_type(
-                func->function.prototype->prototype.return_type);
         case AST_TYPE_STRUCT_VALUE:
             type = TYPE_initialize_type(TYPE_STRUCT);
             type->payload = strdup(node->struct_value.name);
