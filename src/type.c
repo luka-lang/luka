@@ -217,7 +217,14 @@ t_type *TYPE_dup_type(t_type *type)
         res->mutable = type->mutable;
         if (NULL != type->payload)
         {
-            res->payload = (void *) strdup(type->payload);
+            if (type->type == TYPE_ARRAY)
+            {
+                res->payload = type->payload;
+            }
+            else
+            {
+                res->payload = (void *) strdup(type->payload);
+            }
         }
     }
 
@@ -228,7 +235,7 @@ void TYPE_free_type(t_type *type)
 {
     if (NULL != type)
     {
-        if (NULL != type->payload)
+        if ((NULL != type->payload) && (type->type != TYPE_ARRAY))
         {
             (void) free(type->payload);
             type->payload = NULL;
@@ -361,7 +368,15 @@ const char *TYPE_to_string(t_type *type, t_logger *logger, char *buffer,
         case TYPE_ARRAY:
             (void) TYPE_to_string(type->inner_type, logger, buffer,
                                   buffer_size);
-            (void) snprintf(buffer + strlen(buffer), buffer_size, "[]");
+            if ((size_t) type->payload != 0)
+            {
+                (void) snprintf(buffer + strlen(buffer), buffer_size, "[%zu]",
+                                (size_t) type->payload);
+            }
+            else
+            {
+                (void) snprintf(buffer + strlen(buffer), buffer_size, "[]");
+            }
             break;
         case TYPE_ENUM:
         case TYPE_STRUCT:
@@ -615,6 +630,11 @@ t_type *TYPE_get_type(const t_ast_node *node, t_logger *logger,
             return type;
         case AST_TYPE_SIZEOF_EXPR:
             return TYPE_initialize_type(TYPE_UINT64);
+        case AST_TYPE_ARRAY_LITERAL:
+            type = TYPE_initialize_type(TYPE_ARRAY);
+            type->inner_type = TYPE_dup_type(node->array_literal.type);
+            type->payload = (void *) node->array_literal.exprs->size;
+            return type;
         default:
             LOGGER_LOG_LOC(logger, L_ERROR, node->token,
                            "TYPE_get_type: Unhandled node type %d\n",
