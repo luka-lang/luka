@@ -21,8 +21,6 @@ bool check_expr(const t_module *module, const t_ast_node *expr,
     t_type *type1 = NULL, *type2 = NULL;
     char type1_str[1024], type2_str[1024];
 
-    (void) LOGGER_log(logger, L_INFO, "check_expr: case %d\n", expr->type);
-
     switch (expr->type)
     {
         case AST_TYPE_NUMBER:
@@ -31,17 +29,43 @@ bool check_expr(const t_module *module, const t_ast_node *expr,
             return true;
         case AST_TYPE_CALL_EXPR:
             {
+                t_ast_node_type callable_type = expr->call_expr.callable->type;
+                char function_name_buffer[1024] = {0};
+
+                if (callable_type == AST_TYPE_VARIABLE)
+                {
+                    (void) snprintf(function_name_buffer,
+                                    sizeof(function_name_buffer), "%s",
+                                    expr->call_expr.callable->variable.name);
+                }
+                else if (callable_type == AST_TYPE_GET_EXPR)
+                {
+                    (void) snprintf(function_name_buffer,
+                                    sizeof(function_name_buffer), "%s.%s",
+                                    expr->call_expr.callable->get_expr.variable
+                                        ->variable.name,
+                                    expr->call_expr.callable->get_expr.key);
+                }
+                else
+                {
+                    LOGGER_LOG_LOC(logger, L_ERROR, expr->token,
+                                   "Unknown callable type - %d\n",
+                                   callable_type);
+                    (void) exit(LUKA_TYPE_CHECK_ERROR);
+                }
+
                 if (NULL == expr->call_expr.args)
                 {
                     return true;
                 }
 
-                func = LIB_resolve_func_name(module, expr->call_expr.name, NULL);
+                func
+                    = LIB_resolve_func_name(module, function_name_buffer, NULL);
                 if (NULL == func)
                 {
                     LOGGER_LOG_LOC(logger, L_ERROR, expr->token,
                                    "Func %s not found in scope\n",
-                                   expr->call_expr.name);
+                                   function_name_buffer);
                     return false;
                 }
 
@@ -49,7 +73,7 @@ bool check_expr(const t_module *module, const t_ast_node *expr,
                 {
                     LOGGER_LOG_LOC(logger, L_ERROR, expr->token,
                                    "Func %s prototype is NULL\n",
-                                   expr->call_expr.name);
+                                   function_name_buffer);
                     return false;
                 }
 
@@ -59,7 +83,7 @@ bool check_expr(const t_module *module, const t_ast_node *expr,
                 {
                     LOGGER_LOG_LOC(logger, L_ERROR, expr->token,
                                    "Call expr for func %s args are NULL\n",
-                                   expr->call_expr.name);
+                                   function_name_buffer);
                     return false;
                 }
 
@@ -78,7 +102,7 @@ bool check_expr(const t_module *module, const t_ast_node *expr,
                         "Function `%s` called with incorrect number of "
                         "arguments, "
                         "expected %d arguments but got %d arguments.\n",
-                        expr->call_expr.name, required_params_count,
+                        function_name_buffer, required_params_count,
                         expr->call_expr.args->size);
                     return false;
                 }
@@ -91,7 +115,7 @@ bool check_expr(const t_module *module, const t_ast_node *expr,
                                    "with enough arguments, "
                                    "expected at least %d arguments but got "
                                    "%d arguments.\n",
-                                   expr->call_expr.name,
+                                   function_name_buffer,
                                    expr->call_expr.args->size,
                                    required_params_count);
                     return false;
@@ -115,7 +139,7 @@ bool check_expr(const t_module *module, const t_ast_node *expr,
                                        "`%s` to be of type "
                                        "`%s` but got parameter of type `%s`\n",
                                        proto->prototype.args[i],
-                                       expr->call_expr.name, type2_str,
+                                       function_name_buffer, type2_str,
                                        type1_str);
 
                         (void) TYPE_free_type(type1);
@@ -129,7 +153,7 @@ bool check_expr(const t_module *module, const t_ast_node *expr,
                                        "`%s` to be mutable "
                                        "but got an immutable parameter\n",
                                        proto->prototype.args[i],
-                                       expr->call_expr.name);
+                                       function_name_buffer);
                         return false;
                     }
                 }

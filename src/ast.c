@@ -188,12 +188,12 @@ t_ast_node *AST_new_assignment_expr(t_ast_node *lhs, t_ast_node *rhs)
     return node;
 }
 
-t_ast_node *AST_new_call_expr(char *name, t_vector *args)
+t_ast_node *AST_new_call_expr(t_ast_node *callable, t_vector *args)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_CALL_EXPR;
     node->token = NULL;
-    node->call_expr.name = name;
+    node->call_expr.callable = callable;
     node->call_expr.args = args;
     return node;
 }
@@ -1087,10 +1087,10 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
 
         case AST_TYPE_CALL_EXPR:
             {
-                if (NULL != node->call_expr.name)
+                if (NULL != node->call_expr.callable)
                 {
-                    (void) free(node->call_expr.name);
-                    node->call_expr.name = NULL;
+                    (void) AST_free_node(node->call_expr.callable, logger);
+                    node->call_expr.callable = NULL;
                 }
 
                 if (NULL != node->call_expr.args)
@@ -1721,10 +1721,31 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
             {
                 (void) LOGGER_log(logger, L_DEBUG, "%*c\b Call Expression\n",
                                   offset, ' ');
-                if (NULL != node->call_expr.name)
+                if (NULL != node->call_expr.callable)
                 {
-                    (void) LOGGER_log(logger, L_DEBUG, "%*c\b Name - %s\n",
-                                      offset + 2, ' ', node->call_expr.name);
+                    if (node->call_expr.callable->type == AST_TYPE_VARIABLE)
+                    {
+                        (void) LOGGER_log(
+                            logger, L_DEBUG, "%*c\b Name - %s\n", offset + 2,
+                            ' ', node->call_expr.callable->variable.name);
+                    }
+                    else if (node->call_expr.callable->type
+                             == AST_TYPE_GET_EXPR)
+                    {
+                        (void) LOGGER_log(
+                            logger, L_DEBUG, "%*c\b Path %s.%s\n", offset + 2,
+                            ' ',
+                            node->call_expr.callable->get_expr.variable
+                                ->variable.name,
+                            node->call_expr.callable->get_expr.key);
+                    }
+                    else
+                    {
+                        (void) LOGGER_log(
+                            logger, L_ERROR,
+                            "%*c\b Unknown type for callable - %d\n",
+                            offset + 2, ' ', node->call_expr.callable->type);
+                    }
                 }
 
                 if (NULL != node->call_expr.args)

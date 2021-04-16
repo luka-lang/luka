@@ -132,6 +132,9 @@ LLVMValueRef gen_get_struct_field_pointer(t_named_value *variable, char *key,
     size_t index = 0;
     bool found_field = false;
     t_struct_info *struct_info = NULL;
+    t_type *type = NULL;
+    LLVMValueRef var = NULL;
+    bool should_deref = false;
 
     if (NULL == variable)
     {
@@ -147,14 +150,28 @@ LLVMValueRef gen_get_struct_field_pointer(t_named_value *variable, char *key,
         (void) exit(LUKA_CODEGEN_ERROR);
     }
 
-    if (NULL == variable->ttype->payload)
+    type = variable->ttype;
+    if (type->type == TYPE_PTR)
+    {
+        type = type->inner_type;
+        if (NULL == type)
+        {
+            (void) LOGGER_log(logger, L_ERROR,
+                              "Struct %s ttype after dereference is NULL.\n",
+                              variable->name);
+            (void) exit(LUKA_CODEGEN_ERROR);
+        }
+        should_deref = true;
+    }
+
+    if (NULL == type->payload)
     {
         (void) LOGGER_log(logger, L_ERROR, "Struct %s ttype payload is NULL.\n",
                           variable->name);
         (void) exit(LUKA_CODEGEN_ERROR);
     }
 
-    HASH_FIND_STR(struct_infos, (char *) variable->ttype->payload, struct_info);
+    HASH_FIND_STR(struct_infos, (char *) type->payload, struct_info);
 
     if (NULL == struct_info)
     {
@@ -180,7 +197,13 @@ LLVMValueRef gen_get_struct_field_pointer(t_named_value *variable, char *key,
         (void) exit(LUKA_CODEGEN_ERROR);
     }
 
-    return LLVMBuildStructGEP(builder, variable->alloca_inst, index, key);
+    var = variable->alloca_inst;
+    if (should_deref)
+    {
+        var = LLVMBuildLoad(builder, var, "loadtmp");
+    }
+
+    return LLVMBuildStructGEP(builder, var, index, key);
 }
 
 /**
@@ -1892,15 +1915,36 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
     size_t i = 0;
     bool vararg = NULL;
     size_t required_params_count = 0;
+    t_ast_node_type callable_type = node->call_expr.callable->type;
+    char function_name_buffer[1024] = {0};
 
-    func = LLVMGetNamedFunction(module, node->call_expr.name);
+    if (callable_type == AST_TYPE_VARIABLE)
+    {
+        (void) snprintf(function_name_buffer, sizeof(function_name_buffer),
+                        "%s", node->call_expr.callable->variable.name);
+    }
+    else if (callable_type == AST_TYPE_GET_EXPR)
+    {
+        (void) snprintf(
+            function_name_buffer, sizeof(function_name_buffer), "%s.%s",
+            node->call_expr.callable->get_expr.variable->variable.name,
+            node->call_expr.callable->get_expr.key);
+    }
+    else
+    {
+        LOGGER_LOG_LOC(logger, L_ERROR, node->token,
+                       "Unknown callable type - %d\n", callable_type);
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
+
+    func = LLVMGetNamedFunction(module, function_name_buffer);
     if (NULL == func)
     {
         LOGGER_LOG_LOC(
             logger, L_ERROR, node->token,
             "Couldn't find a function named `%s`, are you sure you defined it "
             "or wrote a proper extern line for it?\n",
-            node->call_expr.name);
+            function_name_buffer);
         (void) exit(LUKA_CODEGEN_ERROR);
     }
 
@@ -1913,7 +1957,7 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
         LOGGER_LOG_LOC(logger, L_ERROR, node->token,
                        "Function %s called with incorrect number of arguments, "
                        "expected %d arguments but got %d arguments.\n",
-                       node->call_expr.name, required_params_count,
+                       function_name_buffer, required_params_count,
                        node->call_expr.args->size);
         (void) exit(LUKA_CODEGEN_ERROR);
     }
@@ -1924,7 +1968,7 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
             logger, L_ERROR, node->token,
             "Function %s is variadic but not called with enough arguments, "
             "expected at least %d arguments but got %d arguments.\n",
-            node->call_expr.name, node->call_expr.args->size,
+            function_name_buffer, node->call_expr.args->size,
             required_params_count);
         (void) exit(LUKA_CODEGEN_ERROR);
     }
@@ -2074,6 +2118,34 @@ LLVMValueRef gen_codegen_number(t_ast_node *node, t_logger *logger)
     }
 }
 
+void gen_generate_struct_functions(t_struct_info *struct_info,
+                                   LLVMModuleRef module, LLVMBuilderRef builder,
+                                   t_logger *logger)
+{
+    size_t i = 0, functions_count = struct_info->number_of_functions;
+    t_ast_node *function = NULL;
+    char *function_name = NULL, *new_name = NULL;
+
+    for (i = 0; i < functions_count; ++i)
+    {
+        function = struct_info->struct_functions[i];
+        function_name = function->function.prototype->prototype.name;
+        new_name = malloc(1024);
+        if (NULL == new_name)
+        {
+            (void) LOGGER_log(
+                logger, L_ERROR,
+                "Failed allocating memory for new function name.\n");
+            (void) exit(LUKA_CANT_ALLOC_MEMORY);
+        }
+        snprintf(new_name, 1024, "%s.%s", struct_info->struct_name,
+                 function_name);
+        function->function.prototype->prototype.name = new_name;
+
+        (void) gen_codegen_function(function, module, builder, logger);
+    }
+}
+
 /**
  * @brief Generate LLVM IR for a struct definition.
  *
@@ -2085,11 +2157,13 @@ LLVMValueRef gen_codegen_number(t_ast_node *node, t_logger *logger)
  * @return the built LLVM IR for the struct definition.
  */
 LLVMValueRef gen_codegen_struct_definition(t_ast_node *node,
-                                           LLVMModuleRef UNUSED(module),
-                                           LLVMBuilderRef UNUSED(builder),
+                                           LLVMModuleRef module,
+                                           LLVMBuilderRef builder,
                                            t_logger *logger)
 {
-    size_t elements_count = node->struct_definition.struct_fields->size;
+    t_ast_struct_definition struct_definition = node->struct_definition;
+    size_t elements_count = struct_definition.struct_fields->size;
+    size_t functions_count = struct_definition.struct_functions->size;
     LLVMTypeRef struct_type = NULL;
     LLVMTypeRef *element_types = NULL;
     t_struct_info *struct_info = NULL;
@@ -2115,9 +2189,23 @@ LLVMValueRef gen_codegen_struct_definition(t_ast_node *node,
         goto l_cleanup;
     }
 
+    struct_info->number_of_functions = functions_count;
+    struct_info->struct_functions
+        = calloc(functions_count, sizeof(t_ast_node **));
+    if (NULL == struct_info->struct_functions)
+    {
+        goto l_cleanup;
+    }
+
     for (size_t i = 0; i < elements_count; ++i)
     {
         struct_info->struct_fields[i] = NULL;
+    }
+
+    for (size_t i = 0; i < functions_count; ++i)
+    {
+        struct_info->struct_functions[i] = *(t_ast_node **) vector_get(
+            struct_definition.struct_functions, i);
     }
 
     struct_type = LLVMStructCreateNamed(LLVMGetGlobalContext(),
@@ -2142,6 +2230,8 @@ LLVMValueRef gen_codegen_struct_definition(t_ast_node *node,
 
     struct_info->struct_type = struct_type;
 
+    gen_generate_struct_functions(struct_info, module, builder, logger);
+
     error = false;
 
 l_cleanup:
@@ -2158,6 +2248,12 @@ l_cleanup:
 
     if (NULL != struct_info)
     {
+        if (NULL != struct_info->struct_functions)
+        {
+            (void) free(struct_info->struct_functions);
+            struct_info->struct_functions = NULL;
+        }
+
         if (NULL != struct_info->struct_fields)
         {
             (void) free(struct_info->struct_fields);

@@ -174,13 +174,13 @@ t_ast_node *AST_new_variable(char *name, t_type *type, bool mutable);
 /**
  * @brief Creates a new AST node of a call expression.
  *
- * @param[in] name the name of the function that is called.
+ * @param[in] callable the callable that should be called.
  * @param[in] args a vector of AST nodes for the arguments that are passed to
  * function.
  *
  * @return an AST node of a call expression with the passed in name and args.
  */
-t_ast_node *AST_new_call_expr(char *name, t_vector *args);
+t_ast_node *AST_new_call_expr(t_ast_node *callable, t_vector *args);
 
 /**
  * @brief Creates a new AST node of an expression statement.

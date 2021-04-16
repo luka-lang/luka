@@ -332,9 +332,10 @@ typedef struct
 
 typedef struct
 {
-    char *name;     /**< The name of the called function */
-    t_vector *args; /**< The arguments passed to the function */
-} t_ast_call_expr;  /**< An AST node for call expressions */
+    t_ast_node *callable; /**< The callable that should be called (either an
+                             identifier in a t_ast_variable or a t_get_expr) */
+    t_vector *args;       /**< The arguments passed to the function */
+} t_ast_call_expr;        /**< An AST node for call expressions */
 
 typedef struct
 {

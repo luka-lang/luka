@@ -915,7 +915,13 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
         node = AST_new_get_expr(AST_new_variable(ident_name, type, false),
                                 strdup(token->content), is_enum);
         node->token = starting_token;
-        return node;
+
+        /* Get exprs of struct can also be callables, so we must let the code
+         * continue */
+        if (is_enum)
+        {
+            return node;
+        }
     }
     else if (MATCH(parser, T_OPEN_BRACE)
              && parser_is_struct_name(parser, ident_name))
@@ -980,7 +986,8 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
         node->token = starting_token;
         return node;
     }
-    else if (T_OPEN_PAREN != token->type)
+
+    if (NULL == node)
     {
         if (MATCH(parser, T_MUT))
         {
@@ -990,6 +997,10 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
         node = AST_new_variable(ident_name, parser_parse_type(parser, true),
                                 mutable);
         node->token = starting_token;
+    }
+
+    if (!MATCH(parser, T_OPEN_PAREN))
+    {
         return node;
     }
 
@@ -1025,7 +1036,7 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
     ADVANCE(parser);
     (void) vector_shrink_to_fit(args);
 
-    node = AST_new_call_expr(ident_name, args);
+    node = AST_new_call_expr(node, args);
     node->token = starting_token;
     return node;
 
@@ -1977,14 +1988,15 @@ t_ast_node *parser_parse_struct_definition(t_parser *parser)
     EXPECT_ADVANCE(parser, T_OPEN_BRACE,
                    "Expected a '{' after identifier in struct definition");
     ADVANCE(parser);
+    (void) vector_push_front(parser->struct_names, &name);
     fields = parser_parse_struct_fields(parser);
     functions = parser_parse_struct_functions(parser);
     MATCH_ADVANCE(parser, T_CLOSE_BRACE,
                   "Expected a '}' after struct contents in struct "
                   "definition");
     node = AST_new_struct_definition(name, fields, functions);
-    (void) vector_push_front(parser->struct_names, &name);
     node->token = starting_token;
+    (void) AST_print_ast(node, 0, parser->logger);
     return node;
 }
 

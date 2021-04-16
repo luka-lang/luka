@@ -25,6 +25,8 @@ typedef struct
     char *struct_name;       /**< The name of the struct */
     char **struct_fields;    /**< The name of the struct fields */
     size_t number_of_fields; /**< The number of fields in the struct */
+    t_ast_node **struct_functions;    /**< The name of the struct functions */
+    size_t number_of_functions; /**< The number of functions in the struct */
     UT_hash_handle hh;       /**< A handle for uthash */
 } t_struct_info;             /**< A struct for keeping info about structs */
 
