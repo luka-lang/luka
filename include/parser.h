@@ -21,6 +21,7 @@ typedef struct
     t_vector *type_aliases; /**< A vector of currently defined type aliases */
     const char *file_path;  /**< The path of parsed file */
     t_logger *logger;       /**< A logger the parser will log messages to */
+    t_module *module;       /**< The module that the parser populates */
 } t_parser;                 /**< A struct for a parser */
 
 /**

@@ -217,7 +217,8 @@ t_ast_node *AST_new_break_stmt();
  * @return an AST node of a struct definition with the passed in name and
  * struct_fields.
  */
-t_ast_node *AST_new_struct_definition(char *name, t_vector *struct_fields, t_vector *functions);
+t_ast_node *AST_new_struct_definition(char *name, t_vector *struct_fields,
+                                      t_vector *functions);
 
 /**
  * @brief Creates a new AST node of a struct value.
@@ -297,6 +298,16 @@ t_ast_node *AST_new_literal(t_ast_literal_type type);
  * @return an AST node of a sizeof expression with the passed in type.
  */
 t_ast_node *AST_new_sizeof_expr(t_type *type);
+
+/**
+ * @brief Creates a new AST node of an array literal.
+ *
+ * @param[in] exprs the elements of the array literal.
+ * @param[in] type the type of the array literal's elements.
+ *
+ * @return an AST node of an array literal with the passed in exprs and type.
+ */
+t_ast_node *AST_new_array_literal(t_vector *exprs, t_type *type);
 
 /**
  * @brief Promotes the last expression statement to an expresion in a function

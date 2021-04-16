@@ -53,12 +53,18 @@ primary = number
         | function_call
         | literal
         | array_deref
+        | array_literal
         | "(" expression ")" ;
 function_call = callable "(" argument_list ")"
 callable = identifier
          | get_expr
 
 array_deref = identifier "[" expression "]" ;
+
+array_literal = "[" [ { comma_seperated_exprs } ] "]" ;
+
+comma_seperated_exprs = comma_seperated_exprs "," expression
+                      | expression
 
 struct_value = identifier "{" struct_value_fields "}" ;
 struct_value_fields = struct_value_fields "," struct_value_field | struct_value_field | %empty ;

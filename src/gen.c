@@ -103,6 +103,13 @@ t_type *gen_llvm_type_to_ttype(LLVMTypeRef type, t_logger *logger)
     {
         ttype->type = TYPE_STRUCT;
     }
+    else if (LLVMArrayTypeKind == LLVMGetTypeKind(type))
+    {
+        ttype->type = TYPE_ARRAY;
+        ttype->inner_type
+            = gen_llvm_type_to_ttype(LLVMGetElementType(type), logger);
+        ttype->payload = (void *) ((size_t) LLVMGetArrayLength(type));
+    }
     else
     {
         (void) LLVMDumpType(type);
@@ -510,6 +517,12 @@ LLVMValueRef gen_codegen_cast(LLVMBuilderRef builder,
                               LLVMTypeRef dest_type, t_logger *logger)
 {
     LLVMTypeRef type = LLVMTypeOf(original_value);
+
+    if ((LLVMArrayTypeKind == LLVMGetTypeKind(type))
+        && (LLVMPointerTypeKind == LLVMGetTypeKind(dest_type)))
+    {
+        return original_value;
+    }
 
     if ((LLVMPointerTypeKind == LLVMGetTypeKind(type))
         && (LLVMPointerTypeKind == LLVMGetTypeKind(dest_type)))
@@ -948,6 +961,7 @@ LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
                 t_named_value *val = NULL;
                 LLVMTypeKind val_type_kind = LLVMIntegerTypeKind;
                 LLVMValueRef index = NULL;
+                LLVMValueRef ptr = NULL;
 
                 HASH_FIND_STR(named_values,
                               node->array_deref.variable->variable.name, val);
@@ -993,10 +1007,14 @@ LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
                     (void) exit(LUKA_CODEGEN_ERROR);
                 }
 
-                return LLVMBuildGEP2(
-                    builder, LLVMGetElementType(val->type),
-                    LLVMBuildLoad(builder, val->alloca_inst, "loadtmp"), &index,
-                    1, "arrdereftmp");
+                ptr = val->alloca_inst;
+                if (LLVMArrayTypeKind != LLVMGetTypeKind(val->type))
+                {
+                    ptr = LLVMBuildLoad(builder, ptr, "loadtmp");
+                }
+
+                return LLVMBuildGEP2(builder, LLVMGetElementType(val->type),
+                                     ptr, &index, 1, "arrdereftmp");
             }
         default:
             {
@@ -1710,7 +1728,7 @@ LLVMValueRef gen_codegen_variable(t_ast_node *node,
 LLVMValueRef gen_codegen_let_stmt(t_ast_node *node, LLVMModuleRef module,
                                   LLVMBuilderRef builder, t_logger *logger)
 {
-    LLVMValueRef expr = NULL, expr_alloc = NULL;
+    LLVMValueRef expr = NULL;
     t_ast_variable variable;
     t_named_value *val = NULL;
     bool is_global = node->let_stmt.is_global;
@@ -1757,7 +1775,8 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node, LLVMModuleRef module,
         val->alloca_inst = gen_create_entry_block_allca(
             LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder)), val->type,
             val->name);
-        if (TYPE_STRUCT != val->ttype->type)
+        if ((TYPE_STRUCT != val->ttype->type)
+            && (TYPE_ARRAY != val->ttype->type))
         {
             (void) LLVMSetAlignment(
                 LLVMBuildStore(builder, expr, val->alloca_inst),
@@ -1767,16 +1786,12 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node, LLVMModuleRef module,
         }
         else
         {
-            expr_alloc = gen_create_entry_block_allca(
-                LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder)), val->type,
-                val->name);
-            (void) LLVMBuildStore(builder, expr, expr_alloc);
             LLVMBuildMemCpy(
                 builder,
                 LLVMBuildBitCast(builder, val->alloca_inst,
                                  LLVMPointerType(LLVMInt8Type(), 0), ""),
                 8,
-                LLVMBuildBitCast(builder, expr_alloc,
+                LLVMBuildBitCast(builder, expr,
                                  LLVMPointerType(LLVMInt8Type(), 0), ""),
                 8, LLVMSizeOf(val->type));
         }
@@ -1982,7 +1997,31 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
     VECTOR_FOR_EACH(node->call_expr.args, args_iter)
     {
         arg = ITERATOR_GET_AS(t_ast_node_ptr, &args_iter);
-        args[i] = GEN_codegen(arg, module, builder, logger);
+        if ((arg->type == AST_TYPE_VARIABLE)
+            && (arg->variable.type->type == TYPE_ARRAY)
+            && (((size_t) arg->variable.type->payload) != 0))
+        {
+            /* Arrays decay to pointers */
+            t_named_value *val = NULL;
+
+            LLVMValueRef indices[2] = {LLVMConstInt(LLVMInt32Type(), 0, 0),
+                                       LLVMConstInt(LLVMInt32Type(), 0, 0)};
+
+            HASH_FIND_STR(named_values, arg->variable.name, val);
+            if (NULL == val)
+            {
+                (void) LOGGER_log(logger, L_ERROR,
+                                  "Variable %s is undefined.\n",
+                                  arg->variable.name);
+                (void) exit(LUKA_CODEGEN_ERROR);
+            }
+            args[i] = LLVMBuildInBoundsGEP2(
+                builder, val->type, val->alloca_inst, indices, 2, "tempgep");
+        }
+        else
+        {
+            args[i] = GEN_codegen(arg, module, builder, logger);
+        }
         if (NULL == args[i])
         {
             goto l_cleanup;
@@ -2572,6 +2611,49 @@ void GEN_module_prototypes(t_module *module, LLVMModuleRef llvm_module,
     }
 }
 
+/**
+ * @brief Generate LLVM IR for an array literal.
+ *
+ * @param[in] n the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return a reference to the array literal in the global scope.
+ */
+LLVMValueRef gen_codegen_array_literal(t_ast_node *node, LLVMModuleRef module,
+                                       LLVMBuilderRef builder, t_logger *logger)
+{
+    t_ast_array_literal lit = node->array_literal;
+    size_t i = 0, elements_count = lit.exprs->size;
+    LLVMValueRef *constant_vals = NULL, arr_val = NULL;
+    t_ast_node *expr = NULL;
+    constant_vals = calloc(elements_count, sizeof(LLVMValueRef));
+    if (NULL == constant_vals)
+    {
+        (void) LOGGER_log(logger, L_ERROR,
+                          "Couldn't allocate memory for constant_vals.\n");
+        (void) exit(LUKA_CANT_ALLOC_MEMORY);
+    }
+
+    for (i = 0; i < elements_count; ++i)
+    {
+        expr = VECTOR_GET_AS(t_ast_node_ptr, lit.exprs, i);
+        constant_vals[i] = GEN_codegen(expr, module, builder, logger);
+    }
+
+    arr_val = LLVMAddGlobal(
+        module,
+        LLVMArrayType(gen_type_to_llvm_type(lit.type, logger), elements_count),
+        "arraylit");
+
+    LLVMSetInitializer(arr_val,
+                       LLVMConstArray(gen_type_to_llvm_type(lit.type, logger),
+                                      constant_vals, elements_count));
+
+    return arr_val;
+}
+
 LLVMValueRef GEN_codegen(t_ast_node *node, LLVMModuleRef module,
                          LLVMBuilderRef builder, t_logger *logger)
 {
@@ -2623,6 +2705,8 @@ LLVMValueRef GEN_codegen(t_ast_node *node, LLVMModuleRef module,
             return gen_codegen_literal(node, module, builder, logger);
         case AST_TYPE_SIZEOF_EXPR:
             return gen_codegen_sizeof_expr(node, module, builder, logger);
+        case AST_TYPE_ARRAY_LITERAL:
+            return gen_codegen_array_literal(node, module, builder, logger);
         default:
             {
                 LOGGER_LOG_LOC(logger, L_ERROR, node->token,
