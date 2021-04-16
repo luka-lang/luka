@@ -217,7 +217,8 @@ t_ast_node *AST_new_break_stmt();
  * @return an AST node of a struct definition with the passed in name and
  * struct_fields.
  */
-t_ast_node *AST_new_struct_definition(char *name, t_vector *struct_fields, t_vector *functions);
+t_ast_node *AST_new_struct_definition(char *name, t_vector *struct_fields,
+                                      t_vector *functions);
 
 /**
  * @brief Creates a new AST node of a struct value.
