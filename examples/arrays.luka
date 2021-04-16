@@ -30,7 +30,7 @@ fn print_ints(array: s32[], length: u64): void {
     else {
         let mut index = 0;
         printf("[");
-        while (index < length - 2) {
+        while (index < length - 1) {
             printf("%d, ", array[index]);
             index = index + 1;
         }
@@ -74,6 +74,10 @@ fn main(argc: s32, argv: string[]): s32 {
     printf("argc: %d\n", argc);
     printf("argv: ");
     print_strings(argv, argc);
+
+    let numbers_from_zero_to_five: s32[6] = [0, 1, 2, 3, 4, 5];
+
+    print_ints(numbers_from_zero_to_five, 6);
 
     let NUMBER_OF_ELEMENTS = 1000;
     let mut arr: mut s32* = malloc(NUMBER_OF_ELEMENTS * sizeof(s32));
