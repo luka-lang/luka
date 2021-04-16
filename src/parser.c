@@ -351,6 +351,7 @@ t_type *parser_parse_type(t_parser *parser, bool parse_prefix)
     t_token *token = NULL;
     t_type *type = NULL;
     t_type *inner_type = NULL;
+    size_t length = 0;
 
     type = calloc(1, sizeof(t_type));
     if (NULL == type)
@@ -488,9 +489,22 @@ t_type *parser_parse_type(t_parser *parser, bool parse_prefix)
         if (T_OPEN_BRACKET == token->type)
         {
             ADVANCE(parser);
+            if (!EXPECT(parser, T_CLOSE_BRACKET))
+            {
+                token = VECTOR_GET_AS(t_token_ptr, parser->tokens,
+                                      parser->index + 1);
+                length = atoll(token->content);
+                ADVANCE(parser);
+            }
+            else
+            {
+                length = 0;
+            }
+
             EXPECT_ADVANCE(parser, T_CLOSE_BRACKET,
                            "Expected ']' after '[' in type definition.");
             type->type = TYPE_ARRAY;
+            type->payload = (void *) length;
             token
                 = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index + 1);
         }
@@ -572,6 +586,7 @@ t_module *PARSER_parse_file(t_parser *parser)
                                status_code, l_cleanup);
 
     module->file_path = strdup(parser->file_path);
+    parser->module = module;
 
     while (parser->index < parser->tokens->size)
     {
@@ -820,6 +835,65 @@ t_ast_node *parser_parse_paren_expr(t_parser *parser)
     MATCH_ADVANCE(parser, T_CLOSE_PAREN, "Expected ')'");
     expr->token = starting_token;
     return expr;
+}
+
+/**
+ * @brief Parse an array literal.
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return an array literal AST node.
+ */
+t_ast_node *parser_parse_array_literal(t_parser *parser)
+{
+    t_ast_node *expr = NULL, *node = NULL;
+    t_vector *exprs = NULL;
+    t_token *starting_token = NULL;
+    t_type *type = NULL;
+    starting_token = *(t_token_ptr *) vector_get(parser->tokens, parser->index);
+    MATCH_ADVANCE(parser, T_OPEN_BRACKET,
+                  "Expected '[' at the start of an array literal");
+
+    exprs = calloc(1, sizeof(t_vector));
+    if (NULL == exprs)
+    {
+        (void) LOGGER_log(parser->logger, L_ERROR,
+                          "Failed to allocate memory for exprs.\n");
+        (void) exit(LUKA_CANT_ALLOC_MEMORY);
+    }
+
+    (void) vector_setup(exprs, 5, sizeof(t_ast_node *));
+
+    while (!MATCH(parser, T_CLOSE_BRACKET))
+    {
+        expr = parser_parse_expression(parser);
+        if (NULL == type)
+        {
+            type = TYPE_get_type(expr, parser->logger, parser->module);
+        }
+        else if (!TYPE_equal(
+                     type, TYPE_get_type(expr, parser->logger, parser->module)))
+        {
+            LOGGER_LOG_LOC(
+                parser->logger, L_ERROR, expr->token,
+                "Array literals should contain elements of the same type!",
+                NULL);
+        }
+        (void) vector_push_back(exprs, &expr);
+
+        if (MATCH(parser, T_CLOSE_BRACKET))
+        {
+            break;
+        }
+
+        MATCH_ADVANCE(parser, T_COMMA,
+                      "Expected `,` or `]` after element in array literal");
+    }
+    MATCH_ADVANCE(parser, T_CLOSE_BRACKET,
+                  "Expected ']' at the end of an array literal");
+    node = AST_new_array_literal(exprs, type);
+    node->token = starting_token;
+    return node;
 }
 
 bool parser_is_struct_name(t_parser *parser, const char *ident_name)
@@ -1396,6 +1470,11 @@ t_ast_node *parser_parse_primary(t_parser *parser)
         case T_OPEN_PAREN:
             {
                 n = parser_parse_paren_expr(parser);
+                break;
+            }
+        case T_OPEN_BRACKET:
+            {
+                n = parser_parse_array_literal(parser);
                 break;
             }
         case T_STRING:
