@@ -2321,7 +2321,7 @@ LLVMValueRef gen_codegen_struct_value(t_ast_node *node, LLVMModuleRef module,
 {
     size_t elements_count = node->struct_value.struct_values->size;
     t_struct_value_field *struct_value_field = NULL;
-    LLVMValueRef struct_value = NULL,
+    LLVMValueRef struct_value = NULL, struct_var = NULL,
                  *element_values = calloc(elements_count, sizeof(LLVMValueRef));
     size_t i = 0;
     if (NULL == element_values)
@@ -2352,7 +2352,11 @@ LLVMValueRef gen_codegen_struct_value(t_ast_node *node, LLVMModuleRef module,
 
     struct_value = LLVMConstStruct(element_values, elements_count, false);
 
-    return struct_value;
+    struct_var = LLVMAddGlobal(module, LLVMTypeOf(struct_value), "struct_val");
+
+    (void) LLVMSetInitializer(struct_var, struct_value);
+
+    return struct_var;
 }
 
 /**
