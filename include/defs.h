@@ -167,6 +167,7 @@ typedef enum
     AST_TYPE_ARRAY_DEREF,       /**< An AST node for array dereferences */
     AST_TYPE_LITERAL,           /**< An AST node for literals */
     AST_TYPE_SIZEOF_EXPR,       /**< An AST node for sizeof expression */
+    AST_TYPE_ARRAY_LITERAL,     /**< An AST node for array literals */
 } t_ast_node_type; /**< An enum for different types of an AST node */
 
 typedef enum
@@ -392,6 +393,12 @@ typedef struct
     t_type *type;          /**< The type to check */
 } t_ast_sizeof_expression; /**< An AST node for sizeof expressions */
 
+typedef struct
+{
+    t_vector *exprs;   /**< The expressions of each item in the array literal */
+    t_type *type;      /**< The homogenous type of all items */
+} t_ast_array_literal; /**< An AST node for array literals */
+
 typedef struct s_ast_node
 {
     t_ast_node_type type; /**< The type of the AST node */
@@ -424,9 +431,10 @@ typedef struct s_ast_node
         t_ast_literal literal;         /**< Literal AST node value */
         t_ast_sizeof_expression
             sizeof_expr; /**< Sizeof expression AST node value */
-    };                   /**< All possible AST node values */
-    t_token *token;      /**< The origin token of the node */
-} t_ast_node;            /**< A struct for AST nodes */
+        t_ast_array_literal array_literal; /**< Array literal AST node value */
+    };                                     /**< All possible AST node values */
+    t_token *token;                        /**< The origin token of the node */
+} t_ast_node;                              /**< A struct for AST nodes */
 
 typedef t_ast_node
     *t_ast_node_ptr; /**< A type alias for getting this type from a vector */
