@@ -390,7 +390,7 @@ static t_return_code parse(t_main_context *context, const char *file_path)
     {
         context->node = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
         context->node = AST_fix_function_last_expression_stmt(context->node);
-        (void) AST_fill_parameter_types(context->node, context->logger);
+        (void) AST_fill_parameter_types(context->node, context->logger, module);
         (void) AST_fill_variable_types(context->node, context->logger, module);
     }
 
@@ -399,7 +399,7 @@ static t_return_code parse(t_main_context *context, const char *file_path)
     VECTOR_FOR_EACH(module->import_paths, iterator)
     {
         resolved_path = ITERATOR_GET_AS(t_char_ptr, &iterator);
-        (void) LOGGER_log(context->logger, "Importing file %s\n",
+        (void) LOGGER_log(context->logger, L_INFO, "Importing file %s\n",
                           resolved_path);
 
         imported_module = NULL;
@@ -453,9 +453,16 @@ static t_return_code parse(t_main_context *context, const char *file_path)
         }
     }
 
+    VECTOR_FOR_EACH(module->variables, iterator)
+    {
+        context->node = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
+        context->node = AST_fix_types(context->node, module, context->logger);
+    }
+
     VECTOR_FOR_EACH(module->structs, iterator)
     {
         context->node = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
+        context->node = AST_fix_types(context->node, module, context->logger);
         context->node = AST_resolve_type_aliases(
             context->node, context->type_aliases, context->logger);
     }
@@ -463,6 +470,7 @@ static t_return_code parse(t_main_context *context, const char *file_path)
     VECTOR_FOR_EACH(module->functions, iterator)
     {
         context->node = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
+        context->node = AST_fix_types(context->node, module, context->logger);
         context->node = AST_resolve_type_aliases(
             context->node, context->type_aliases, context->logger);
     }

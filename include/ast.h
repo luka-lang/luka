@@ -328,6 +328,17 @@ t_ast_node *AST_new_array_literal(t_vector *exprs, t_type *type);
 t_ast_node *AST_fix_function_last_expression_stmt(t_ast_node *node);
 
 /**
+ * @brief Fix structs and enums that were classified as type aliases.
+ *
+ * @param[in] node the AST node that should be fixed.
+ * @param[in] module the module that should be used to look up structs and enums.
+ * @param[in] logger the logger to be used to log messages.
+ *
+ * @return the same AST node with the type possibly fixed.
+ */
+t_ast_node *AST_fix_types(t_ast_node *node, t_module *module, t_logger *logger);
+
+/**
  * @brief Resolve all type aliases inside @p node using @p type_aliases.
  *
  * @param[in] node the node to resolve type aliases in.
@@ -346,7 +357,8 @@ t_ast_node *AST_resolve_type_aliases(t_ast_node *node, t_vector *type_aliases,
  * @param[in,out] function the function to fill types in.
  * @param[in] logger a logger that can be used to log messages.
  */
-void AST_fill_parameter_types(t_ast_node *function, t_logger *logger);
+void AST_fill_parameter_types(t_ast_node *function, t_logger *logger,
+                              const t_module *module);
 
 /**
  * @brief Populate types of variable reference to variables declared in @p
