@@ -60,6 +60,34 @@ char *LIB_stringify(const char *source, size_t source_length, t_logger *logger);
 bool LIB_module_in_list(t_vector *codegen_modules, const t_module *module);
 
 /**
+ * @brief Check if @p name is a name of a struct type in @p module or any of the
+ * imports.
+ *
+ * @param[in] module the module to search in.
+ * @param[in] name the name of the struct type.
+ * @param[in] original_module used for solving pointless recursion, use NULL when calling this function.
+ *
+ * @return boolean that represents if @p name is the name of a struct type in @p module.
+ */
+bool LIB_is_struct_name(const t_module *module, const char *name,
+                        const t_module *original_module);
+
+/**
+ * @brief Check if @p name is a name of a enum type in @p module or any of the
+ * imports.
+ *
+ * @param[in] module the module to search in.
+ * @param[in] name the name of the enum type.
+ * @param[in] original_module used for solving pointless recursion, use NULL
+ * when calling this function.
+ *
+ * @return boolean that represents if @p name is the name of a enum type in @p
+ * module.
+ */
+bool LIB_is_enum_name(const t_module *module, const char *name,
+                        const t_module *original_module);
+
+/**
  * @brief Find a function inside a given @p module or any of its imported
  * modules.
  *

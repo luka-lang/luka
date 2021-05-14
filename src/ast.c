@@ -433,7 +433,133 @@ t_type *ast_resolve_type(t_type *aliased_type, t_vector *type_aliases,
 
     (void) LOGGER_log(logger, L_ERROR, "Unknown type %s.\n",
                       (char *) aliased_type->payload);
-    (void) exit(LUKA_GENERAL_ERROR);
+    (void) exit(LUKA_TYPE_CHECK_ERROR);
+}
+
+t_type *ast_fix_type(t_type *type, t_module *module)
+{
+    if (NULL == type)
+    {
+        return type;
+    }
+
+    type->inner_type = ast_fix_type(type->inner_type, module);
+
+    if (NULL == type->payload)
+    {
+        return type;
+    }
+
+    if (TYPE_ALIAS != type->type)
+    {
+        return type;
+    }
+
+    if (LIB_is_struct_name(module, type->payload, NULL))
+    {
+        type->type = TYPE_STRUCT;
+    }
+    else if (LIB_is_enum_name(module, type->payload, NULL))
+    {
+        type->type = TYPE_ENUM;
+    }
+
+    return type;
+}
+
+t_ast_node *AST_fix_types(t_ast_node *node, t_module *module, t_logger *logger)
+{
+    (void) logger;
+    size_t i = 0;
+
+    switch (node->type)
+    {
+        case AST_TYPE_LET_STMT:
+            {
+                if (NULL != node->let_stmt.var)
+                {
+                    node->let_stmt.var
+                        = AST_fix_types(node->let_stmt.var, module, logger);
+                }
+                break;
+            }
+        case AST_TYPE_CAST_EXPR:
+            {
+                node->cast_expr.type
+                    = ast_fix_type(node->cast_expr.type, module);
+                break;
+            }
+        case AST_TYPE_VARIABLE:
+            {
+                node->variable.type = ast_fix_type(node->variable.type, module);
+                break;
+            }
+        case AST_TYPE_PROTOTYPE:
+            {
+                for (i = 0; i < node->prototype.arity; ++i)
+                {
+                    node->prototype.types[i]
+                        = ast_fix_type(node->prototype.types[i], module);
+                }
+
+                node->prototype.return_type
+                    = ast_fix_type(node->prototype.return_type, module);
+                break;
+            }
+        case AST_TYPE_FUNCTION:
+            {
+                node->function.prototype
+                    = AST_fix_types(node->function.prototype, module, logger);
+                if (NULL != node->function.body)
+                {
+                    t_vector *ast_nodes = NULL;
+                    t_ast_node *ast_node = NULL;
+                    size_t i = 0;
+
+                    ast_nodes = node->function.body;
+                    for (i = 0; i < ast_nodes->size; ++i)
+                    {
+                        ast_node = *(t_ast_node **) vector_get(ast_nodes, i);
+                        ast_node = AST_fix_types(ast_node, module, logger);
+                        if (vector_assign(ast_nodes, i, &ast_node))
+                        {
+                            (void) LOGGER_log(logger, L_ERROR,
+                                              "Failed while assigning ast node "
+                                              "to the vector");
+                            (void) exit(LUKA_VECTOR_FAILURE);
+                        }
+                    }
+                    break;
+                }
+                break;
+            }
+        case AST_TYPE_STRUCT_DEFINITION:
+            {
+                t_vector *struct_fields = NULL;
+                t_struct_field *struct_field = NULL;
+                size_t i = 0;
+
+                struct_fields = node->struct_definition.struct_fields;
+                for (i = 0; i < struct_fields->size; ++i)
+                {
+                    struct_field
+                        = *(t_struct_field **) vector_get(struct_fields, i);
+                    struct_field->type
+                        = ast_fix_type(struct_field->type, module);
+                    if (vector_assign(struct_fields, i, &struct_field))
+                    {
+                        (void) LOGGER_log(logger, L_ERROR,
+                                          "Failed while assigning struct field "
+                                          "to the vector");
+                        (void) exit(LUKA_VECTOR_FAILURE);
+                    }
+                }
+                break;
+            }
+        default:
+            break;
+    }
+    return node;
 }
 
 t_ast_node *AST_resolve_type_aliases(t_ast_node *node, t_vector *type_aliases,
@@ -478,7 +604,7 @@ t_ast_node *AST_resolve_type_aliases(t_ast_node *node, t_vector *type_aliases,
                     t_ast_node *ast_node = NULL;
                     size_t i = 0;
 
-                    ast_nodes = node->struct_definition.struct_fields;
+                    ast_nodes = node->function.body;
                     for (i = 0; i < ast_nodes->size; ++i)
                     {
                         ast_node = *(t_ast_node **) vector_get(ast_nodes, i);
@@ -558,7 +684,7 @@ void ast_fill_let_stmt_var_if_needed(t_ast_node *node, t_logger *logger,
 }
 
 void ast_fill_type(t_ast_node *node, const char *var_name, t_type *new_type,
-                   t_logger *logger)
+                   t_logger *logger, const t_module *module)
 {
     t_ast_node *stmt = NULL;
     t_struct_value_field *struct_value = NULL;
@@ -581,7 +707,7 @@ void ast_fill_type(t_ast_node *node, const char *var_name, t_type *new_type,
         case AST_TYPE_CAST_EXPR:
             {
                 (void) ast_fill_type(node->cast_expr.expr, var_name, new_type,
-                                     logger);
+                                     logger, module);
             }
             break;
         case AST_TYPE_STRUCT_VALUE:
@@ -596,7 +722,7 @@ void ast_fill_type(t_ast_node *node, const char *var_name, t_type *new_type,
                     struct_value = ITERATOR_GET_AS(t_struct_value_field_ptr,
                                                    &struct_values);
                     (void) ast_fill_type(struct_value->expr, var_name, new_type,
-                                         logger);
+                                         logger, module);
                 }
                 break;
             }
@@ -609,7 +735,8 @@ void ast_fill_type(t_ast_node *node, const char *var_name, t_type *new_type,
                 VECTOR_FOR_EACH(node->function.body, stmts)
                 {
                     stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
-                    (void) ast_fill_type(stmt, var_name, new_type, logger);
+                    (void) ast_fill_type(stmt, var_name, new_type, logger,
+                                         module);
                 }
                 break;
             }
@@ -637,13 +764,14 @@ void ast_fill_type(t_ast_node *node, const char *var_name, t_type *new_type,
         case AST_TYPE_WHILE_EXPR:
             {
                 (void) ast_fill_type(node->while_expr.cond, var_name, new_type,
-                                     logger);
+                                     logger, module);
                 if (NULL != node->while_expr.body)
                 {
                     VECTOR_FOR_EACH(node->while_expr.body, stmts)
                     {
                         stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
-                        (void) ast_fill_type(stmt, var_name, new_type, logger);
+                        (void) ast_fill_type(stmt, var_name, new_type, logger,
+                                             module);
                     }
                 }
 
@@ -652,13 +780,14 @@ void ast_fill_type(t_ast_node *node, const char *var_name, t_type *new_type,
         case AST_TYPE_IF_EXPR:
             {
                 (void) ast_fill_type(node->if_expr.cond, var_name, new_type,
-                                     logger);
+                                     logger, module);
                 if (NULL != node->if_expr.then_body)
                 {
                     VECTOR_FOR_EACH(node->if_expr.then_body, stmts)
                     {
                         stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
-                        (void) ast_fill_type(stmt, var_name, new_type, logger);
+                        (void) ast_fill_type(stmt, var_name, new_type, logger,
+                                             module);
                     }
                 }
 
@@ -667,7 +796,8 @@ void ast_fill_type(t_ast_node *node, const char *var_name, t_type *new_type,
                     VECTOR_FOR_EACH(node->if_expr.else_body, stmts)
                     {
                         stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
-                        (void) ast_fill_type(stmt, var_name, new_type, logger);
+                        (void) ast_fill_type(stmt, var_name, new_type, logger,
+                                             module);
                     }
                 }
 
@@ -680,7 +810,8 @@ void ast_fill_type(t_ast_node *node, const char *var_name, t_type *new_type,
                     VECTOR_FOR_EACH(node->call_expr.args, args)
                     {
                         stmt = ITERATOR_GET_AS(t_ast_node_ptr, &args);
-                        (void) ast_fill_type(stmt, var_name, new_type, logger);
+                        (void) ast_fill_type(stmt, var_name, new_type, logger,
+                                             module);
                     }
                 }
 
@@ -689,56 +820,56 @@ void ast_fill_type(t_ast_node *node, const char *var_name, t_type *new_type,
         case AST_TYPE_ARRAY_DEREF:
             {
                 (void) ast_fill_type(node->array_deref.variable, var_name,
-                                     new_type, logger);
+                                     new_type, logger, module);
                 (void) ast_fill_type(node->array_deref.index, var_name,
-                                     new_type, logger);
+                                     new_type, logger, module);
                 break;
             }
         case AST_TYPE_GET_EXPR:
             {
                 (void) ast_fill_type(node->get_expr.variable, var_name,
-                                     new_type, logger);
+                                     new_type, logger, module);
                 break;
             }
         case AST_TYPE_EXPRESSION_STMT:
             {
                 (void) ast_fill_type(node->expression_stmt.expr, var_name,
-                                     new_type, logger);
+                                     new_type, logger, module);
                 break;
             }
         case AST_TYPE_LET_STMT:
             {
                 (void) ast_fill_type(node->let_stmt.expr, var_name, new_type,
-                                     logger);
-                (void) ast_fill_let_stmt_var_if_needed(node, logger, NULL);
+                                     logger, module);
+                (void) ast_fill_let_stmt_var_if_needed(node, logger, module);
                 break;
             }
         case AST_TYPE_ASSIGNMENT_EXPR:
             {
                 (void) ast_fill_type(node->assignment_expr.lhs, var_name,
-                                     new_type, logger);
+                                     new_type, logger, module);
                 (void) ast_fill_type(node->assignment_expr.rhs, var_name,
-                                     new_type, logger);
+                                     new_type, logger, module);
                 break;
             }
         case AST_TYPE_UNARY_EXPR:
             {
                 (void) ast_fill_type(node->unary_expr.rhs, var_name, new_type,
-                                     logger);
+                                     logger, module);
                 break;
             }
         case AST_TYPE_BINARY_EXPR:
             {
                 (void) ast_fill_type(node->binary_expr.lhs, var_name, new_type,
-                                     logger);
+                                     logger, module);
                 (void) ast_fill_type(node->binary_expr.rhs, var_name, new_type,
-                                     logger);
+                                     logger, module);
                 break;
             }
         case AST_TYPE_RETURN_STMT:
             {
                 (void) ast_fill_type(node->return_stmt.expr, var_name, new_type,
-                                     logger);
+                                     logger, module);
                 break;
             }
         default:
@@ -748,7 +879,8 @@ void ast_fill_type(t_ast_node *node, const char *var_name, t_type *new_type,
     }
 }
 
-void AST_fill_parameter_types(t_ast_node *function, t_logger *logger)
+void AST_fill_parameter_types(t_ast_node *function, t_logger *logger,
+                              const t_module *module)
 {
     t_ast_node *proto = NULL;
     t_vector *body = NULL;
@@ -770,7 +902,7 @@ void AST_fill_parameter_types(t_ast_node *function, t_logger *logger)
     for (i = 0; i < proto->prototype.arity; ++i)
     {
         (void) ast_fill_type(function, proto->prototype.args[i],
-                             proto->prototype.types[i], logger);
+                             proto->prototype.types[i], logger, module);
     }
 }
 
@@ -811,7 +943,7 @@ void AST_fill_variable_types(t_ast_node *node, t_logger *logger,
 
                     var = stmt->let_stmt.var;
                     (void) ast_fill_type(node, var->variable.name,
-                                         var->variable.type, logger);
+                                         var->variable.type, logger, module);
                 }
                 else
                 {
@@ -839,7 +971,7 @@ void AST_fill_variable_types(t_ast_node *node, t_logger *logger,
 
             var = stmt->let_stmt.var;
             (void) ast_fill_type(node, var->variable.name, var->variable.type,
-                                 logger);
+                                 logger, module);
         }
         else
         {
@@ -2042,9 +2174,8 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
                 if (NULL != node->sizeof_expr.type)
                 {
                     (void) memset(type_str, 0, sizeof(type_str));
-                    (void) TYPE_to_string(
-                        node->get_expr.variable->variable.type, logger,
-                        type_str, sizeof(type_str));
+                    (void) TYPE_to_string(node->sizeof_expr.type, logger,
+                                          type_str, sizeof(type_str));
                     (void) LOGGER_log(logger, L_DEBUG, "%*c\b Type: %s\n",
                                       offset + 2, ' ', type_str);
                 }

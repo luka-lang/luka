@@ -335,6 +335,140 @@ bool LIB_module_in_list(t_vector *codegen_modules, const t_module *module)
     return false;
 }
 
+bool LIB_is_struct_name(const t_module *module, const char *name,
+                        const t_module *original_module)
+{
+    t_ast_node *struct_definition = NULL;
+    t_module *imported_module = NULL;
+
+    if (NULL == module)
+    {
+        return false;
+    }
+
+    if (NULL == module->structs)
+    {
+        return false;
+    }
+
+    if (NULL == name)
+    {
+        return false;
+    }
+
+    VECTOR_FOR_EACH(module->structs, structs)
+    {
+        struct_definition = ITERATOR_GET_AS(t_ast_node_ptr, &structs);
+        if (NULL == struct_definition)
+        {
+            continue;
+        }
+
+        if (NULL == struct_definition->struct_definition.name)
+        {
+            continue;
+        }
+
+        if (0 != strcmp(name, struct_definition->struct_definition.name))
+        {
+            continue;
+        }
+
+        return true;
+    }
+
+    struct_definition = NULL;
+    VECTOR_FOR_EACH(module->imports, imports)
+    {
+        imported_module = *(t_module **) iterator_get(&imports);
+        if (NULL == original_module)
+        {
+            if (LIB_is_struct_name(imported_module, name, module))
+            {
+                return true;
+            }
+        }
+        else if (0
+                 != strcmp(imported_module->file_path,
+                           original_module->file_path))
+        {
+            if (LIB_is_struct_name(imported_module, name, module))
+            {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool LIB_is_enum_name(const t_module *module, const char *name,
+                      const t_module *original_module)
+{
+    t_ast_node *enum_definition = NULL;
+    t_module *imported_module = NULL;
+
+    if (NULL == module)
+    {
+        return false;
+    }
+
+    if (NULL == module->enums)
+    {
+        return false;
+    }
+
+    if (NULL == name)
+    {
+        return false;
+    }
+
+    VECTOR_FOR_EACH(module->enums, enums)
+    {
+        enum_definition = ITERATOR_GET_AS(t_ast_node_ptr, &enums);
+        if (NULL == enum_definition)
+        {
+            continue;
+        }
+
+        if (NULL == enum_definition->enum_definition.name)
+        {
+            continue;
+        }
+
+        if (0 != strcmp(name, enum_definition->enum_definition.name))
+        {
+            continue;
+        }
+
+        return true;
+    }
+
+    enum_definition = NULL;
+    VECTOR_FOR_EACH(module->imports, imports)
+    {
+        imported_module = *(t_module **) iterator_get(&imports);
+        if (NULL == original_module)
+        {
+            if (LIB_is_enum_name(imported_module, name, module))
+            {
+                return true;
+            }
+        }
+        else if (0
+                 != strcmp(imported_module->file_path,
+                           original_module->file_path))
+        {
+            if (LIB_is_enum_name(imported_module, name, module))
+            {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 t_ast_node *LIB_resolve_func_name(const t_module *module, const char *name,
                                   const t_module *original_module)
 {
