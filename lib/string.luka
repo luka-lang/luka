@@ -1,9 +1,40 @@
 import "stddef";
 
-extern strcpy(dest: u8*, src: u8*): u8*;
-extern strncpy(dest: u8*, src: u8*, n: size_t): u8*;
+// Should probably fix someday.
+type locale_t = any;
 
+extern memccpy(dest: mut any*, src: any*, c: int, n: size_t): mut any*;
+extern memchr(s: any*, c: int, n: size_t): mut any*;
+extern memrchr(s: any*, c: int, n: size_t): mut any*;
+extern rawmemchr(s: any*, c: int): mut any*;
+extern memcpy(dest: mut any*, src: any*, n: size_t): mut any*;
+extern memmove(dest: mut any*, src: any*, n: size_t): mut any*;
+extern memset(s: mut any*, c: int, n: size_t): mut any*;
+extern stpcpy(dest: mut any*, src: any*): mut any*;
+extern stpncpy(dest: mut any*, src: any*, n: size_t): mut any*;
 extern strcat(dest: u8*, src: u8*): u8*;
-extern strcat(dest: u8*, src: u8*, n: size_t): u8*;
-
+extern strchr(s: u8*, c: int): mut u8*;
+extern strcmp(s1: u8*, s2: u8*): int;
+extern strcoll(s1: u8*, s2: u8*): int;
+extern strcoll_l(s1: u8*, s2: u8*, locale: locale_t): int;
+extern strcpy(dest: u8*, src: u8*): u8*;
+extern strcspn(s: u8*, reject: u8*): size_t;
+extern strdup(s: u8*): u8*;
+extern strerror(errnum: int): mut u8*;
+extern strerror_l(errnum: int, locale: locale_t): mut u8*;
+extern strerror_r(errnum: int, buf: mut u8*, buflen: size_t): mut u8*;
 extern strlen(s: u8*): size_t;
+extern strncat(dest: u8*, src: u8*, n: size_t): u8*;
+extern strncmp(s1: u8*, s2: u8*, n: size_t): int;
+extern strncpy(dest: u8*, src: u8*, n: size_t): u8*;
+extern strndup(s: u8*, n: size_t): u8*;
+extern strnlen(s: u8*, maxlen: size_t): size_t;
+extern strpbrk(s: u8*, accept: u8*): mut u8*;
+extern strrchr(s: u8*, c: int): mut u8*;
+extern strsignal(signum: int): mut u8*;
+extern strspn(s: u8*, accept: u8*): size_t;
+extern strstr(haystack: u8*, needle: u8*): mut u8*;
+extern strtok(str: mut u8*, delim: u8*): mut u8*;
+extern strtok_r(str: mut u8*, delim: u8*, saveptr: mut u8**): mut u8*;
+extern strxfrm(dest: mut u8*, src: u8*, n: size_t): size_t;
+extern strxfrm_l(dest: mut u8*, src: u8*, n: size_t, locale: locale_t): size_t;

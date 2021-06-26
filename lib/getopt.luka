@@ -1,0 +1,11 @@
+struct option {
+    name: u8*,
+    has_arg: s32,
+    flag: s32*,
+    val: s32
+}
+
+let no_argument = 0;
+let required_argument = 1;
+let optional_argument = 2;
+
