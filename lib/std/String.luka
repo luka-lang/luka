@@ -1,0 +1,97 @@
+import "stddef";
+import "stdlib";
+import "string";
+
+struct String {
+    /// the bytes saved inside the string.
+    buffer: mut u8*,
+    /// the length of the string.
+    length: size_t,
+    /// the amount of memory ready to be used for the buffer.
+    capacity: size_t,
+    /// by how much should capacity grow when new memory is allocated.
+    _factor: size_t,
+
+    /// Initializes an allocated String struct.
+    /// :param self (mut String*): a mutable pointer to the String struct that should be initialized.
+    fn init(self: mut String*): void {
+        self.buffer = null;
+        self.length = 0;
+        self.capacity = 0;
+        self._factor = 16;
+    }
+
+    /// Destroy an allocated String struct and frees all its memory.
+    /// :param self (mut String*): a mutable pointer to the String struct that should be destroyed.
+    fn destroy(self: mut String*): void {
+        if (null != self.buffer) {
+            free(self.buffer);
+            self.buffer = null;
+        }
+
+        free(self);
+        self = null;
+    }
+
+    /// Create a new string from a byte array
+    /// :param str (u8*): a byte array the represents the bytes of the string.
+    /// :returns mut String*: a mutable pointer to the String struct that was created.
+    fn new(str: u8*): mut String* {
+        let instance: mut String* = malloc(sizeof(String));
+        if (null == instance) {
+            return null as mut String*;
+        }
+
+        String.init(instance);
+
+        if (null != str) {
+            let len = strlen(str);
+            instance.buffer = strdup(str);
+            instance.length = len;
+            instance.capacity = len;
+        }
+
+        instance
+    }
+
+    /// Get the bytes saved inside the String.
+    /// :param self (String*): String instance.
+    /// :returns (u8*): the bytes of the String.
+    fn cstr(self: String*): u8* {
+        self.buffer
+    }
+
+
+    /// Append new bytes to the end of the string.
+    /// :param self (mut String*): mutable String instance.
+    /// :param str (u8*): bytes to append.
+    fn append(self: mut String*, str: u8*): void {
+        if (null == self.buffer) {
+            let len = strlen(str);
+            self.buffer = strdup(str);
+            self.length = len;
+            self.capacity = len;
+        } else {
+          let len = strlen(str);
+          let total_len = self.length + len;
+          if (total_len > self.capacity) {
+            let new_capacity = self.capacity * self._factor;
+            let new_buffer: mut String* = realloc(self.buffer, new_capacity);
+            if (new_buffer != null) {
+              self.buffer = new_buffer;
+              self.capacity = new_capacity;
+            }
+          }
+          let i = self.length;
+          let j = 0;
+          let mut buffer: u8* = self.buffer;
+          while (j < len) {
+            if (i <= self.capacity) {
+              buffer[i] = str[j];
+              i = i + 1;
+              j = j + 1;
+            }
+          }
+        }
+    }
+}
