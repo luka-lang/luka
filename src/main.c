@@ -738,7 +738,8 @@ static t_return_code optimize(t_main_context *context)
             (void) LLVMAddArgumentPromotionPass(context->pass_manager);
         }
 
-        (void) LLVMAddConstantPropagationPass(context->pass_manager);
+        (void) LLVMAddCalledValuePropagationPass(context->pass_manager);
+        (void) LLVMAddCalledValuePropagationPass(context->pass_manager);
         (void) LLVMAddPromoteMemoryToRegisterPass(context->pass_manager);
     }
     if (!LLVMRunPassManager(context->pass_manager, context->llvm_module))
