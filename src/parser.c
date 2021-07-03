@@ -1432,6 +1432,7 @@ t_ast_node *parser_parse_primary(t_parser *parser)
     switch (token->type)
     {
         case T_IDENTIFIER:
+        case T_BUILTIN:
             {
                 n = parser_parse_ident_expr(parser);
                 break;

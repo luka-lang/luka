@@ -127,6 +127,8 @@ typedef enum
     T_DOT,          /**< A "." token */
     T_THREE_DOTS,   /**< A "..." token */
 
+    T_BUILTIN, /**< A token for an identifier that starts with "@" */
+
     T_EOF,   /**< A token for the end of the file */
 } t_toktype; /**< An enum for the type of the token */
 

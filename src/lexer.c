@@ -107,11 +107,12 @@ char *lexer_lex_number(const char *source, size_t *index, t_logger *logger)
  *
  * @param[in] source the source code.
  * @param[in,out] index the index to start from, will point at the next
+ * @param[in] builtin whether the identifier is a builtin identifier or not.
  * character after the identifier when the function returns.
  *
  * @return the string representation of the identifier.
  */
-char *lexer_lex_identifier(const char *source, size_t *index)
+char *lexer_lex_identifier(const char *source, size_t *index, bool builtin)
 {
     size_t i = *index;
     if (isalpha(source[i]) || ('_' == source[i]))
@@ -127,14 +128,19 @@ char *lexer_lex_identifier(const char *source, size_t *index)
         return "";
     }
 
-    char *ident = calloc(sizeof(char), (i - *index) + 1);
+    size_t size_to_allocate = (i - *index) + 1 + (builtin ? 1 : 0);
+    char *ident = calloc(sizeof(char), size_to_allocate);
     if (NULL == ident)
     {
         return NULL;
     }
 
-    (void) strncpy(ident, source + *index, i - *index);
-    ident[i - *index] = '\0';
+    if (builtin)
+    {
+        ident[0] = '@';
+    }
+    (void) strncpy(ident + (builtin ? 1 : 0), source + *index, i - *index);
+    ident[i - *index + (builtin ? 1 : 0)] = '\0';
 
     *index = i - 1;
     return ident;
@@ -490,6 +496,24 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                     }
                     break;
                 }
+
+        case '@':
+          {
+            token->type = T_BUILTIN;
+            saved_i = i;
+            ++i;
+            identifier = lexer_lex_identifier(source, &i, true);
+            offset += i - saved_i;
+            if (NULL == identifier)
+            {
+                (void) LOGGER_log(logger, L_ERROR,
+                                  "Couldn't lex identifier.\n");
+                return_code = LUKA_LEXER_FAILED;
+                goto l_cleanup;
+            }
+            token->content = identifier;
+            break;
+          }
             case EOF:
                 {
                     token->type = T_EOF;
@@ -511,7 +535,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                     {
                         token->type = T_IDENTIFIER;
                         saved_i = i;
-                        identifier = lexer_lex_identifier(source, &i);
+                        identifier = lexer_lex_identifier(source, &i, false);
                         offset += i - saved_i;
                         if (NULL == identifier)
                         {
