@@ -1,5 +1,6 @@
 /** @file type.c */
 #include "type.h"
+#include "core.h"
 #include "defs.h"
 #include "lib.h"
 #include "logger.h"
@@ -451,6 +452,9 @@ t_type *TYPE_get_type(const t_ast_node *node, t_logger *logger,
             return TYPE_initialize_type(TYPE_ANY);
         case AST_TYPE_PROTOTYPE:
             return TYPE_dup_type(node->prototype.return_type);
+        case AST_TYPE_BUILTIN:
+            return TYPE_dup_type(
+                CORE_lookup_builtin(node)->prototype.return_type);
         case AST_TYPE_TYPE_EXPR:
             return TYPE_initialize_type(TYPE_TYPE);
         case AST_TYPE_IF_EXPR:
