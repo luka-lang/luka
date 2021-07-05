@@ -222,6 +222,12 @@ typedef enum
     TYPE_TYPE,   /**< Type type */
 } t_base_type;   /**< An enum for different value types */
 
+typedef enum
+{
+    BUILTIN_ID_INVALID, /**< Used for unknown builtin ids */
+    BUILTIN_ID_SIZEOF, /**< @sizeOf */
+} t_builtin_id;        /**< Identifiers for builtin symbols */
+
 typedef struct s_type
 {
     t_base_type type;          /**< Base type */
@@ -407,13 +413,14 @@ typedef struct
 
 typedef struct
 {
-    char *name;  /**< The name of the builtin */
-} t_ast_builtin; /**< An AST node for builtins */
+    char *name;      /**< The name of the builtin */
+    t_builtin_id id; /**< The id of the builtin (filled using the name) */
+} t_ast_builtin;     /**< An AST node for builtins */
 
 typedef struct
 {
-    t_type *type; /**< The type of the type expr */
-} t_ast_type_expr;     /**< An AST node for type exprs */
+    t_type *type;  /**< The type of the type expr */
+} t_ast_type_expr; /**< An AST node for type exprs */
 
 typedef struct s_ast_node
 {
@@ -449,7 +456,7 @@ typedef struct s_ast_node
             sizeof_expr; /**< Sizeof expression AST node value */
         t_ast_array_literal array_literal; /**< Array literal AST node value */
         t_ast_builtin builtin;             /**< Builtin AST node value */
-        t_ast_type_expr type_expr;             /**< Type expr AST node value */
+        t_ast_type_expr type_expr;         /**< Type expr AST node value */
     };                                     /**< All possible AST node values */
     t_token *token;                        /**< The origin token of the node */
 } t_ast_node;                              /**< A struct for AST nodes */

@@ -8,6 +8,7 @@
 #include <stdlib.h>
 
 #include "ast.h"
+#include "core.h"
 #include "defs.h"
 #include "logger.h"
 #include "type.h"
@@ -18,6 +19,9 @@ t_named_value *named_values = NULL;
 t_struct_info *struct_infos = NULL;
 t_enum_info *enum_infos = NULL;
 t_vector *loop_blocks = NULL;
+
+LLVMValueRef gen_codegen_sizeof(t_ast_node *node, t_type *type,
+                                t_logger *logger);
 
 /**
  * @brief Converting a LLVM type to Luka type.
@@ -319,6 +323,7 @@ LLVMTypeRef gen_type_to_llvm_type(t_type *type, t_logger *logger)
     switch (type->type)
     {
         case TYPE_ANY:
+        case TYPE_TYPE:
             return LLVMInt8Type();
         case TYPE_BOOL:
             return LLVMInt1Type();
@@ -1908,6 +1913,26 @@ LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node, LLVMModuleRef module,
     return rhs;
 }
 
+LLVMValueRef gen_codegen_builtin_call(t_ast_node *node,
+                                      LLVMModuleRef UNUSED(module),
+                                      LLVMBuilderRef UNUSED(builder),
+                                      t_logger *logger)
+{
+    switch (node->call_expr.callable->builtin.id)
+    {
+        case BUILTIN_ID_SIZEOF:
+            {
+                t_ast_node *arg0_node
+                    = VECTOR_GET_AS(t_ast_node_ptr, node->call_expr.args, 0);
+                t_type *type = arg0_node->type_expr.type;
+                return gen_codegen_sizeof(node, type, logger);
+            }
+        case BUILTIN_ID_INVALID:
+        default:
+            return NULL;
+    }
+}
+
 /**
  * @brief Generate LLVM IR for a call expression.
  *
@@ -1928,7 +1953,7 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
     LLVMTypeRef func_type = NULL, type = NULL, dest_type = NULL;
     t_ast_node *arg = NULL;
     size_t i = 0;
-    bool vararg = NULL;
+    bool vararg = NULL, builtin = false;
     size_t required_params_count = 0;
     t_ast_node_type callable_type = node->call_expr.callable->type;
     char function_name_buffer[1024] = {0};
@@ -1945,14 +1970,29 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
             node->call_expr.callable->get_expr.variable->variable.name,
             node->call_expr.callable->get_expr.key);
     }
+    else if (callable_type == AST_TYPE_BUILTIN)
+    {
+        (void) snprintf(function_name_buffer, sizeof(function_name_buffer),
+                        "%s", node->call_expr.callable->builtin.name);
+        builtin = true;
+    }
     else
     {
         LOGGER_LOG_LOC(logger, L_ERROR, node->token,
-                       "Unknown callable type - %d\n", callable_type);
+                       "gen: Unknown callable type - %d\n", callable_type);
         (void) exit(LUKA_CODEGEN_ERROR);
     }
 
-    func = LLVMGetNamedFunction(module, function_name_buffer);
+    if (builtin)
+    {
+        func = gen_codegen_prototype(
+            CORE_lookup_builtin(node->call_expr.callable), module, builder,
+            logger);
+    }
+    else
+    {
+        func = LLVMGetNamedFunction(module, function_name_buffer);
+    }
     if (NULL == func)
     {
         LOGGER_LOG_LOC(
@@ -2033,15 +2073,27 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
             dest_type = LLVMTypeOf(LLVMGetParam(func, i));
             if (type != dest_type)
             {
-                args[i] = gen_codegen_cast(builder, args[i], dest_type, logger);
+                if (arg->type != AST_TYPE_TYPE_EXPR)
+                {
+                    args[i]
+                        = gen_codegen_cast(builder, args[i], dest_type, logger);
+                }
             }
         }
         ++i;
     }
 
-    call = LLVMBuildCall2(
-        builder, func_type, func, args, node->call_expr.args->size,
-        LLVMGetReturnType(func_type) != LLVMVoidType() ? "calltmp" : "");
+    if (builtin)
+    {
+        LLVMDeleteFunction(func);
+        call = gen_codegen_builtin_call(node, module, builder, logger);
+    }
+    else
+    {
+        call = LLVMBuildCall2(
+            builder, func_type, func, args, node->call_expr.args->size,
+            LLVMGetReturnType(func_type) != LLVMVoidType() ? "calltmp" : "");
+    }
 
 l_cleanup:
     if (NULL != varargs)
@@ -2566,6 +2618,38 @@ LLVMValueRef gen_codegen_literal(t_ast_node *node, LLVMModuleRef UNUSED(module),
 }
 
 /**
+ * @brief Generate LLVM IR for a sizeof.
+ *
+ * @param[in] n the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ *
+ * @return the size of the type in the sizeof expr.
+ */
+LLVMValueRef gen_codegen_sizeof(t_ast_node *node, t_type *type,
+                                t_logger *logger)
+{
+    LLVMTypeRef llvm_type = NULL;
+    ssize_t size = -1;
+
+    if (NULL == type)
+    {
+        LOGGER_LOG_LOC(logger, L_ERROR, node->token,
+                       "Cannot get size of unknown type.\n", NULL);
+    }
+
+    size = TYPE_sizeof(type);
+    if (-1 == size)
+    {
+        llvm_type = gen_type_to_llvm_type(type, logger);
+        return LLVMSizeOf(llvm_type);
+    }
+
+    return LLVMConstInt(LLVMInt64Type(), size, false);
+}
+
+/**
  * @brief Generate LLVM IR for a sizeof expr.
  *
  * @param[in] n the AST node.
@@ -2658,6 +2742,14 @@ LLVMValueRef gen_codegen_array_literal(t_ast_node *node, LLVMModuleRef module,
     return arr_val;
 }
 
+LLVMValueRef gen_codegen_type_expr(t_ast_node *node,
+                                   LLVMModuleRef UNUSED(module),
+                                   LLVMBuilderRef UNUSED(builder),
+                                   t_logger *UNUSED(logger))
+{
+    return (LLVMValueRef) node->type_expr.type;
+}
+
 LLVMValueRef GEN_codegen(t_ast_node *node, LLVMModuleRef module,
                          LLVMBuilderRef builder, t_logger *logger)
 {
@@ -2711,6 +2803,8 @@ LLVMValueRef GEN_codegen(t_ast_node *node, LLVMModuleRef module,
             return gen_codegen_sizeof_expr(node, module, builder, logger);
         case AST_TYPE_ARRAY_LITERAL:
             return gen_codegen_array_literal(node, module, builder, logger);
+        case AST_TYPE_TYPE_EXPR:
+            return gen_codegen_type_expr(node, module, builder, logger);
         default:
             {
                 LOGGER_LOG_LOC(logger, L_ERROR, node->token,

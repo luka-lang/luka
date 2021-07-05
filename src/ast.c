@@ -10,6 +10,8 @@
 #include "type.h"
 #include "vector.h"
 
+t_builtin_id ast_builtin_id_from_name(const char *name);
+
 t_ast_node *AST_new_number(t_type *type, void *value)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
@@ -302,6 +304,7 @@ t_ast_node *AST_new_builtin(char *name)
     node->type = AST_TYPE_BUILTIN;
     node->token = NULL;
     node->builtin.name = name;
+    node->builtin.id = ast_builtin_id_from_name(name);
     return node;
 }
 
@@ -721,6 +724,7 @@ void ast_fill_type(t_ast_node *node, const char *var_name, t_type *new_type,
         case AST_TYPE_STRING:
         case AST_TYPE_NUMBER:
         case AST_TYPE_LITERAL:
+        case AST_TYPE_ARRAY_LITERAL:
             break;
         case AST_TYPE_CAST_EXPR:
             {
@@ -823,6 +827,11 @@ void ast_fill_type(t_ast_node *node, const char *var_name, t_type *new_type,
             }
         case AST_TYPE_CALL_EXPR:
             {
+                if (NULL != node->call_expr.callable)
+                {
+                    (void) ast_fill_type(node->call_expr.callable, var_name,
+                                         new_type, logger, module);
+                }
                 if (NULL != node->call_expr.args)
                 {
                     VECTOR_FOR_EACH(node->call_expr.args, args)
@@ -2288,4 +2297,14 @@ bool AST_is_cond_binop(t_ast_binop_type op)
         default:
             return false;
     }
+}
+
+t_builtin_id ast_builtin_id_from_name(const char *name)
+{
+    if (0 == strcmp("@sizeOf", name))
+    {
+        return BUILTIN_ID_SIZEOF;
+    }
+
+    return BUILTIN_ID_INVALID;
 }
