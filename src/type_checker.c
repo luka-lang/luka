@@ -16,7 +16,7 @@ bool check_expr(const t_module *module, const t_ast_node *expr,
                 t_logger *logger)
 {
     t_ast_node *func = NULL, *proto = NULL, *stmt = NULL, *node = NULL;
-    bool vararg = false, success = false;
+    bool vararg = false, success = false, builtin = false;
     size_t required_params_count = 0, i = 0;
     t_type *type1 = NULL, *type2 = NULL;
     char type1_str[1024], type2_str[1024];

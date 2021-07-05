@@ -296,6 +296,24 @@ t_ast_node *AST_new_array_literal(t_vector *exprs, t_type *type)
     return node;
 }
 
+t_ast_node *AST_new_builtin(char *name)
+{
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
+    node->type = AST_TYPE_BUILTIN;
+    node->token = NULL;
+    node->builtin.name = name;
+    return node;
+}
+
+t_ast_node *AST_new_type_expr(t_type *type)
+{
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
+    node->type = AST_TYPE_TYPE_EXPR;
+    node->token = NULL;
+    node->type_expr.type = type;
+    return node;
+}
+
 t_ast_node *AST_fix_function_last_expression_stmt(t_ast_node *node)
 {
     t_ast_node *last_stmt = NULL;
@@ -1474,6 +1492,24 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
                 break;
             }
 
+        case AST_TYPE_BUILTIN:
+            {
+                if (NULL != node->builtin.name)
+                {
+                    (void) free(node->builtin.name);
+                    node->builtin.name = NULL;
+                }
+                break;
+            }
+        case AST_TYPE_TYPE_EXPR:
+            {
+                if (NULL != node->type_expr.type)
+                {
+                    (void) TYPE_free_type(node->type_expr.type);
+                    node->type_expr.type = NULL;
+                }
+                break;
+            }
         default:
             {
                 (void) LOGGER_log(
@@ -1889,7 +1925,8 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
                                   offset, ' ');
                 if (NULL != node->call_expr.callable)
                 {
-                    if (node->call_expr.callable->type == AST_TYPE_VARIABLE)
+                    if ((node->call_expr.callable->type == AST_TYPE_VARIABLE)
+                        || (node->call_expr.callable->type == AST_TYPE_BUILTIN))
                     {
                         (void) LOGGER_log(
                             logger, L_DEBUG, "%*c\b Name - %s\n", offset + 2,
@@ -2210,6 +2247,21 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
                     }
                 }
 
+                break;
+            }
+        case AST_TYPE_BUILTIN:
+            {
+                (void) LOGGER_log(logger, L_DEBUG, "%*c\b Builtin - %s\n",
+                                  offset, ' ', node->builtin.name);
+                break;
+            }
+        case AST_TYPE_TYPE_EXPR:
+            {
+                (void) memset(type_str, 0, sizeof(type_str));
+                (void) TYPE_to_string(node->type_expr.type, logger, type_str,
+                                      sizeof(type_str));
+                (void) LOGGER_log(logger, L_DEBUG, "%*c\b Type Expr - %s\n",
+                                  offset, ' ', type_str);
                 break;
             }
         default:

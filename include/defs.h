@@ -170,6 +170,8 @@ typedef enum
     AST_TYPE_LITERAL,           /**< An AST node for literals */
     AST_TYPE_SIZEOF_EXPR,       /**< An AST node for sizeof expression */
     AST_TYPE_ARRAY_LITERAL,     /**< An AST node for array literals */
+    AST_TYPE_BUILTIN,           /**< An AST node for builtins */
+    AST_TYPE_TYPE_EXPR,         /**< An AST node for type exprs */
 } t_ast_node_type; /**< An enum for different types of an AST node */
 
 typedef enum
@@ -217,6 +219,7 @@ typedef enum
     TYPE_ENUM,   /**< Enum type */
     TYPE_ARRAY,  /**< Array type */
     TYPE_ALIAS,  /**< Alias type */
+    TYPE_TYPE,   /**< Type type */
 } t_base_type;   /**< An enum for different value types */
 
 typedef struct s_type
@@ -336,7 +339,8 @@ typedef struct
 typedef struct
 {
     t_ast_node *callable; /**< The callable that should be called (either an
-                             identifier in a t_ast_variable or a t_get_expr) */
+                             identifier in a t_ast_variable or a t_get_expr or a
+                             t_ast_builtin) */
     t_vector *args;       /**< The arguments passed to the function */
 } t_ast_call_expr;        /**< An AST node for call expressions */
 
@@ -401,6 +405,16 @@ typedef struct
     t_type *type;      /**< The homogenous type of all items */
 } t_ast_array_literal; /**< An AST node for array literals */
 
+typedef struct
+{
+    char *name;  /**< The name of the builtin */
+} t_ast_builtin; /**< An AST node for builtins */
+
+typedef struct
+{
+    t_type *type; /**< The type of the type expr */
+} t_ast_type_expr;     /**< An AST node for type exprs */
+
 typedef struct s_ast_node
 {
     t_ast_node_type type; /**< The type of the AST node */
@@ -434,6 +448,8 @@ typedef struct s_ast_node
         t_ast_sizeof_expression
             sizeof_expr; /**< Sizeof expression AST node value */
         t_ast_array_literal array_literal; /**< Array literal AST node value */
+        t_ast_builtin builtin;             /**< Builtin AST node value */
+        t_ast_type_expr type_expr;             /**< Type expr AST node value */
     };                                     /**< All possible AST node values */
     t_token *token;                        /**< The origin token of the node */
 } t_ast_node;                              /**< A struct for AST nodes */

@@ -384,6 +384,10 @@ const char *TYPE_to_string(t_type *type, t_logger *logger, char *buffer,
             (void) snprintf(buffer + strlen(buffer), buffer_size, "%s",
                             (char *) type->payload);
             break;
+        case TYPE_TYPE:
+            (void) snprintf(buffer + strlen(buffer), buffer_size, "type");
+            break;
+
         default:
             (void) LOGGER_log(logger, L_ERROR,
                               "TYPE_to_string: I don't know how to "
@@ -447,6 +451,8 @@ t_type *TYPE_get_type(const t_ast_node *node, t_logger *logger,
             return TYPE_initialize_type(TYPE_ANY);
         case AST_TYPE_PROTOTYPE:
             return TYPE_dup_type(node->prototype.return_type);
+        case AST_TYPE_TYPE_EXPR:
+            return TYPE_initialize_type(TYPE_TYPE);
         case AST_TYPE_IF_EXPR:
             if (NULL != node->if_expr.then_body)
             {
@@ -580,10 +586,15 @@ t_type *TYPE_get_type(const t_ast_node *node, t_logger *logger,
                                         ->variable.name,
                                     node->call_expr.callable->get_expr.key);
                 }
+                else if (callable_type == AST_TYPE_BUILTIN)
+                {
+                    return TYPE_get_type(node->call_expr.callable, logger,
+                                         module);
+                }
                 else
                 {
                     LOGGER_LOG_LOC(logger, L_ERROR, node->token,
-                                   "Unknown callable type - %d\n",
+                                   "type: Unknown callable type - %d\n",
                                    callable_type);
                     (void) exit(LUKA_TYPE_CHECK_ERROR);
                 }
