@@ -42,7 +42,7 @@ fn main(): s32 {
     printf("You are right! The number was %d!\n", num);
     printf("Number of Tries: %d\n", tries);
 
-    let mut name: u8* = malloc(20 * sizeof(u8));
+    let mut name: u8* = malloc(20 * @sizeOf(u8));
     if (null == name) {
         return 1;
     }
@@ -50,7 +50,7 @@ fn main(): s32 {
     print("Enter your name: ");
     scanf("%s", &name);
 
-    let mut buf: u8* = malloc(1024 * sizeof(u8));
+    let mut buf: u8* = malloc(1024 * @sizeOf(u8));
     if (null == buf) {
         return 1;
     }

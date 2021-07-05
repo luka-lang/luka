@@ -279,15 +279,6 @@ t_ast_node *AST_new_literal(t_ast_literal_type type)
     return node;
 }
 
-t_ast_node *AST_new_sizeof_expr(t_type *type)
-{
-    t_ast_node *node = calloc(1, sizeof(t_ast_node));
-    node->type = AST_TYPE_SIZEOF_EXPR;
-    node->token = NULL;
-    node->sizeof_expr.type = type;
-    return node;
-}
-
 t_ast_node *AST_new_array_literal(t_vector *exprs, t_type *type)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
@@ -1468,16 +1459,6 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
                 break;
             }
 
-        case AST_TYPE_SIZEOF_EXPR:
-            {
-                if (NULL != node->sizeof_expr.type)
-                {
-                    (void) TYPE_free_type(node->sizeof_expr.type);
-                    node->sizeof_expr.type = NULL;
-                }
-                break;
-            }
-
         case AST_TYPE_ARRAY_LITERAL:
             {
                 if (NULL != node->array_literal.type)
@@ -2214,25 +2195,6 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
             (void) LOGGER_log(logger, L_DEBUG, "%*c\b Literal: %s\n", offset,
                               ' ', ast_stringify_literal(node->literal.type));
             break;
-
-        case AST_TYPE_SIZEOF_EXPR:
-            {
-                if (NULL != node->sizeof_expr.type)
-                {
-                    (void) memset(type_str, 0, sizeof(type_str));
-                    (void) TYPE_to_string(node->sizeof_expr.type, logger,
-                                          type_str, sizeof(type_str));
-                    (void) LOGGER_log(logger, L_DEBUG, "%*c\b Type: %s\n",
-                                      offset + 2, ' ', type_str);
-                }
-                else
-                {
-                    (void) strncpy(type_str, "Unknown type", sizeof(type_str));
-                }
-                (void) LOGGER_log(logger, L_DEBUG, "%*c\b Sizeof %s\n", offset,
-                                  ' ', type_str);
-                break;
-            }
 
         case AST_TYPE_ARRAY_LITERAL:
             {

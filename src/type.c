@@ -643,8 +643,6 @@ t_type *TYPE_get_type(const t_ast_node *node, t_logger *logger,
             type = TYPE_initialize_type(TYPE_ENUM);
             type->payload = strdup(node->enum_definition.name);
             return type;
-        case AST_TYPE_SIZEOF_EXPR:
-            return TYPE_initialize_type(TYPE_UINT64);
         case AST_TYPE_ARRAY_LITERAL:
             type = TYPE_initialize_type(TYPE_ARRAY);
             type->inner_type = TYPE_dup_type(node->array_literal.type);

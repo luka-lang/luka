@@ -9,7 +9,7 @@
 /** A string representation of the keywords in the Luka programming language */
 const char *keywords[NUMBER_OF_KEYWORDS]
     = {"fn", "return", "if", "else", "let", "mut", "extern", "while", "break",
-       "as", "struct", "enum", "import", "type", "sizeof",
+       "as", "struct", "enum", "import", "type",
 
        /* Literals */
        "null", "true", "false",
