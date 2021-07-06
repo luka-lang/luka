@@ -5,7 +5,7 @@
 extern int lexer_is_keyword(const char *identifier);
 extern char *lexer_lex_number(const char *source, size_t *index,
                               t_logger *logger);
-extern char *lexer_lex_identifier(const char *source, size_t *index);
+extern char *lexer_lex_identifier(const char *source, size_t *index, bool builtin);
 extern char *lexer_lex_string(const char *source, size_t *index,
                               t_logger *logger);
 
@@ -45,7 +45,6 @@ UTEST(lexer, is_keyword_works_for_keywords)
     ASSERT_NE(-1, lexer_is_keyword("enum"));
     ASSERT_NE(-1, lexer_is_keyword("import"));
     ASSERT_NE(-1, lexer_is_keyword("type"));
-    ASSERT_NE(-1, lexer_is_keyword("sizeof"));
     ASSERT_NE(-1, lexer_is_keyword("null"));
     ASSERT_NE(-1, lexer_is_keyword("true"));
     ASSERT_NE(-1, lexer_is_keyword("false"));
@@ -114,32 +113,38 @@ UTEST_F(lexer, lex_number_works_with_f_suffix)
 UTEST_F(lexer, lex_identifier_empty_string)
 {
     utest_fixture->index = 0;
-    ASSERT_STREQ("", lexer_lex_identifier("", &utest_fixture->index));
+    ASSERT_STREQ("", lexer_lex_identifier("", &utest_fixture->index, false));
     ASSERT_EQ((size_t) 0, utest_fixture->index);
 }
 
 UTEST_F(lexer, lex_identifier_invalid_identifier)
 {
     utest_fixture->index = 0;
-    ASSERT_STREQ("", lexer_lex_identifier("1 + 2", &utest_fixture->index));
+    ASSERT_STREQ("", lexer_lex_identifier("1 + 2", &utest_fixture->index, false));
     ASSERT_EQ((size_t) 0, utest_fixture->index);
 }
 
 UTEST_F(lexer, lex_identifier_valid_identifiers)
 {
     utest_fixture->index = 0;
-    ASSERT_STREQ("ident", lexer_lex_identifier("ident", &utest_fixture->index));
+    ASSERT_STREQ("ident", lexer_lex_identifier("ident", &utest_fixture->index, false));
     ASSERT_EQ((size_t) 4, utest_fixture->index);
 
     utest_fixture->index = 0;
     ASSERT_STREQ("ident2",
-                 lexer_lex_identifier("ident2", &utest_fixture->index));
+                 lexer_lex_identifier("ident2", &utest_fixture->index, false));
     ASSERT_EQ((size_t) 5, utest_fixture->index);
 
     utest_fixture->index = 0;
     ASSERT_STREQ("my_ident",
-                 lexer_lex_identifier("my_ident", &utest_fixture->index));
+                 lexer_lex_identifier("my_ident", &utest_fixture->index, false));
     ASSERT_EQ((size_t) 7, utest_fixture->index);
+
+    /* The @ is lexed before calling lexer_lex_identifier */
+    utest_fixture->index = 1;
+    ASSERT_STREQ("@sizeOf", lexer_lex_identifier(
+                                 "@sizeOf", &utest_fixture->index, true));
+    ASSERT_EQ((size_t) 6, utest_fixture->index);
 }
 
 UTEST_F(lexer, lex_string_empty_string)
