@@ -80,7 +80,7 @@ fn main(argc: s32, argv: string[]): s32 {
     print_ints(numbers_from_zero_to_five, 6);
 
     let NUMBER_OF_ELEMENTS = 1000;
-    let mut arr: mut s32* = malloc(NUMBER_OF_ELEMENTS * sizeof(s32));
+    let mut arr: mut s32* = malloc(NUMBER_OF_ELEMENTS * @sizeOf(s32));
     if (arr == null) {
         printf("Couldn't allocate memory.\n");
         exit(RETURN_CODES::COULDNT_ALLOCATE_MEMORY);

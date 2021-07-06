@@ -47,7 +47,7 @@ typedef enum
 } t_return_code;            /**< An enum of possible luka return codes */
 
 #define NUMBER_OF_KEYWORDS                                                     \
-    36 /**< Number of keywords in the luka programming language */
+    35 /**< Number of keywords in the luka programming language */
 extern const char *
     keywords[NUMBER_OF_KEYWORDS]; /**< string representations of the keywords */
 
@@ -68,7 +68,6 @@ typedef enum
     T_ENUM,         /**< A "enum" token */
     T_IMPORT,       /**< A "import" token */
     T_TYPE,         /**< A "type" token */
-    T_SIZEOF,       /**< A "sizeof" token */
 
     T_NULL,  /**< A "null" token */
     T_TRUE,  /**< A "true" token */
@@ -127,6 +126,8 @@ typedef enum
     T_DOT,          /**< A "." token */
     T_THREE_DOTS,   /**< A "..." token */
 
+    T_BUILTIN, /**< A token for an identifier that starts with "@" */
+
     T_EOF,   /**< A token for the end of the file */
 } t_toktype; /**< An enum for the type of the token */
 
@@ -166,8 +167,9 @@ typedef enum
     AST_TYPE_GET_EXPR,          /**< An AST node for get expressions */
     AST_TYPE_ARRAY_DEREF,       /**< An AST node for array dereferences */
     AST_TYPE_LITERAL,           /**< An AST node for literals */
-    AST_TYPE_SIZEOF_EXPR,       /**< An AST node for sizeof expression */
     AST_TYPE_ARRAY_LITERAL,     /**< An AST node for array literals */
+    AST_TYPE_BUILTIN,           /**< An AST node for builtins */
+    AST_TYPE_TYPE_EXPR,         /**< An AST node for type exprs */
 } t_ast_node_type; /**< An enum for different types of an AST node */
 
 typedef enum
@@ -215,7 +217,14 @@ typedef enum
     TYPE_ENUM,   /**< Enum type */
     TYPE_ARRAY,  /**< Array type */
     TYPE_ALIAS,  /**< Alias type */
+    TYPE_TYPE,   /**< Type type */
 } t_base_type;   /**< An enum for different value types */
+
+typedef enum
+{
+    BUILTIN_ID_INVALID, /**< Used for unknown builtin ids */
+    BUILTIN_ID_SIZEOF, /**< @sizeOf */
+} t_builtin_id;        /**< Identifiers for builtin symbols */
 
 typedef struct s_type
 {
@@ -334,7 +343,8 @@ typedef struct
 typedef struct
 {
     t_ast_node *callable; /**< The callable that should be called (either an
-                             identifier in a t_ast_variable or a t_get_expr) */
+                             identifier in a t_ast_variable or a t_get_expr or a
+                             t_ast_builtin) */
     t_vector *args;       /**< The arguments passed to the function */
 } t_ast_call_expr;        /**< An AST node for call expressions */
 
@@ -390,14 +400,20 @@ typedef struct
 
 typedef struct
 {
-    t_type *type;          /**< The type to check */
-} t_ast_sizeof_expression; /**< An AST node for sizeof expressions */
-
-typedef struct
-{
     t_vector *exprs;   /**< The expressions of each item in the array literal */
     t_type *type;      /**< The homogenous type of all items */
 } t_ast_array_literal; /**< An AST node for array literals */
+
+typedef struct
+{
+    char *name;      /**< The name of the builtin */
+    t_builtin_id id; /**< The id of the builtin (filled using the name) */
+} t_ast_builtin;     /**< An AST node for builtins */
+
+typedef struct
+{
+    t_type *type;  /**< The type of the type expr */
+} t_ast_type_expr; /**< An AST node for type exprs */
 
 typedef struct s_ast_node
 {
@@ -429,9 +445,9 @@ typedef struct s_ast_node
         t_ast_get_expr get_expr;       /**< Get expression AST node value */
         t_ast_array_deref array_deref; /**< Array dereference AST node value */
         t_ast_literal literal;         /**< Literal AST node value */
-        t_ast_sizeof_expression
-            sizeof_expr; /**< Sizeof expression AST node value */
         t_ast_array_literal array_literal; /**< Array literal AST node value */
+        t_ast_builtin builtin;             /**< Builtin AST node value */
+        t_ast_type_expr type_expr;         /**< Type expr AST node value */
     };                                     /**< All possible AST node values */
     t_token *token;                        /**< The origin token of the node */
 } t_ast_node;                              /**< A struct for AST nodes */

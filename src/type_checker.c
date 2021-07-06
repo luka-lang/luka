@@ -1,4 +1,5 @@
 #include "type_checker.h"
+#include "core.h"
 #include "defs.h"
 #include "io.h"
 #include "lib.h"
@@ -16,7 +17,7 @@ bool check_expr(const t_module *module, const t_ast_node *expr,
                 t_logger *logger)
 {
     t_ast_node *func = NULL, *proto = NULL, *stmt = NULL, *node = NULL;
-    bool vararg = false, success = false;
+    bool vararg = false, success = false, builtin = false;
     size_t required_params_count = 0, i = 0;
     t_type *type1 = NULL, *type2 = NULL;
     char type1_str[1024], type2_str[1024];
@@ -46,10 +47,15 @@ bool check_expr(const t_module *module, const t_ast_node *expr,
                                         ->variable.name,
                                     expr->call_expr.callable->get_expr.key);
                 }
+                else if (callable_type == AST_TYPE_BUILTIN)
+                {
+                    proto = CORE_lookup_builtin(expr->call_expr.callable);
+                    builtin = true;
+                }
                 else
                 {
                     LOGGER_LOG_LOC(logger, L_ERROR, expr->token,
-                                   "Unknown callable type - %d\n",
+                                   "type_checker: Unknown callable type - %d\n",
                                    callable_type);
                     (void) exit(LUKA_TYPE_CHECK_ERROR);
                 }
@@ -59,25 +65,28 @@ bool check_expr(const t_module *module, const t_ast_node *expr,
                     return true;
                 }
 
-                func
-                    = LIB_resolve_func_name(module, function_name_buffer, NULL);
-                if (NULL == func)
+                /* Try resolving only if it's not a builtin */
+                if (!builtin)
                 {
-                    LOGGER_LOG_LOC(logger, L_ERROR, expr->token,
-                                   "Func %s not found in scope\n",
-                                   function_name_buffer);
-                    return false;
-                }
+                    func = LIB_resolve_func_name(module, function_name_buffer,
+                                                 NULL);
+                    if (NULL == func)
+                    {
+                        LOGGER_LOG_LOC(logger, L_ERROR, expr->token,
+                                       "Func %s not found in scope\n",
+                                       function_name_buffer);
+                        return false;
+                    }
 
-                if (NULL == func->function.prototype)
-                {
-                    LOGGER_LOG_LOC(logger, L_ERROR, expr->token,
-                                   "Func %s prototype is NULL\n",
-                                   function_name_buffer);
-                    return false;
+                    if (NULL == func->function.prototype)
+                    {
+                        LOGGER_LOG_LOC(logger, L_ERROR, expr->token,
+                                       "Func %s prototype is NULL\n",
+                                       function_name_buffer);
+                        return false;
+                    }
+                    proto = func->function.prototype;
                 }
-
-                proto = func->function.prototype;
 
                 if (NULL == expr->call_expr.args)
                 {

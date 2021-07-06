@@ -8,6 +8,7 @@
 #include "type.h"
 #include "vector.h"
 
+#include <stdbool.h>
 #include <string.h>
 
 /**
@@ -209,13 +210,16 @@ t_ast_node *parser_parse_prototype(t_parser *parser);
 t_ast_node *parser_parse_let_statement(t_parser *parser, bool is_global);
 
 /**
- * @brief Parse a sizeof expression.
+ * @brief Parse a function call expression.
  *
  * @param[in,out] parser the parser to parse with.
+ * @param[in] callable the callable to use (if NULL, parsed inside the
+ * function).
  *
- * @return a sizeof expression AST node.
+ * @return a function call expression AST node.
  */
-t_ast_node *parser_parse_sizeof_expr(t_parser *parser);
+t_ast_node *parser_parse_function_call_expr(t_parser *parser,
+                                            t_ast_node *callable);
 
 /**
  * @brief Report a parser error.
@@ -961,7 +965,6 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
     t_token *token = NULL, *starting_token = NULL;
     t_ast_node *expr = NULL, *node = NULL;
     char *ident_name = NULL;
-    t_vector *args = NULL;
     bool mutable = false;
     t_vector *struct_value_fields = NULL;
     t_struct_value_field *struct_value_field = NULL;
@@ -997,8 +1000,7 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
             return node;
         }
     }
-    else if (MATCH(parser, T_OPEN_BRACE)
-             && parser_is_struct_name(parser, ident_name))
+    else if (MATCH(parser, T_OPEN_BRACE))
     {
         ADVANCE(parser);
         struct_value_fields = calloc(1, sizeof(t_vector));
@@ -1078,62 +1080,11 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
         return node;
     }
 
-    ADVANCE(parser);
-    args = calloc(1, sizeof(t_vector));
-    if (NULL == args)
-    {
-        (void) LOGGER_log(parser->logger, L_ERROR,
-                          "Couldn't allocate memory for args.\n");
-        goto l_cleanup;
-    }
-
-    vector_setup(args, 10, sizeof(t_ast_node));
-    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-    if (T_CLOSE_PAREN != token->type)
-    {
-        while (true)
-        {
-            expr = parser_parse_expression(parser);
-            vector_push_back(args, &expr);
-
-            token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-            if (T_CLOSE_PAREN == token->type)
-            {
-                break;
-            }
-
-            MATCH_ADVANCE(parser, T_COMMA,
-                          "Expected ')' or ',' in argument list.");
-        }
-    }
-
-    ADVANCE(parser);
-    (void) vector_shrink_to_fit(args);
-
-    node = AST_new_call_expr(node, args);
+    node = parser_parse_function_call_expr(parser, node);
     node->token = starting_token;
     return node;
 
 l_cleanup:
-    if (NULL != args)
-    {
-        t_ast_node *node = NULL;
-        t_iterator iterator = vector_begin(args);
-        t_iterator last = vector_end(args);
-
-        for (; !iterator_equals(&iterator, &last);
-             iterator_increment(&iterator))
-        {
-            node = *(t_ast_node_ptr *) iterator_get(&iterator);
-            AST_free_node(node, parser->logger);
-        }
-
-        (void) vector_clear(args);
-        (void) vector_destroy(args);
-        (void) free(args);
-        args = NULL;
-    }
-
     if (NULL != struct_value_fields)
     {
         t_struct_value_field *struct_value_field = NULL;
@@ -1436,11 +1387,6 @@ t_ast_node *parser_parse_primary(t_parser *parser)
                 n = parser_parse_ident_expr(parser);
                 break;
             }
-        case T_SIZEOF:
-            {
-                n = parser_parse_sizeof_expr(parser);
-                break;
-            }
         case T_NUMBER:
             {
                 type = TYPE_initialize_type(TYPE_SINT32);
@@ -1498,6 +1444,41 @@ t_ast_node *parser_parse_primary(t_parser *parser)
         case T_FALSE:
             {
                 n = AST_new_literal(AST_LITERAL_FALSE);
+                ADVANCE(parser);
+                break;
+            }
+        case T_BUILTIN:
+            {
+                n = AST_new_builtin(strdup(token->content));
+                ADVANCE(parser);
+                if (MATCH(parser, T_OPEN_PAREN))
+                {
+                    n = parser_parse_function_call_expr(parser, n);
+                }
+                break;
+            }
+        case T_ANY_TYPE:
+        case T_BOOL_TYPE:
+        case T_S8_TYPE:
+        case T_S16_TYPE:
+        case T_S32_TYPE:
+        case T_INT_TYPE:
+        case T_S64_TYPE:
+        case T_U8_TYPE:
+        case T_CHAR_TYPE:
+        case T_U16_TYPE:
+        case T_U32_TYPE:
+        case T_U64_TYPE:
+        case T_F32_TYPE:
+        case T_FLOAT_TYPE:
+        case T_F64_TYPE:
+        case T_DOUBLE_TYPE:
+        case T_STR_TYPE:
+        case T_VOID_TYPE:
+            {
+                --parser->index;
+                type = parser_parse_type(parser, false);
+                n = AST_new_type_expr(type);
                 ADVANCE(parser);
                 break;
             }
@@ -2428,22 +2409,66 @@ void PARSER_print_parser_tokens(t_parser *parser)
     }
 }
 
-t_ast_node *parser_parse_sizeof_expr(t_parser *parser)
+t_ast_node *parser_parse_function_call_expr(t_parser *parser,
+                                            t_ast_node *callable)
 {
-    t_type *type = NULL;
-    t_ast_node *node = NULL;
     t_token *token = NULL;
+    t_ast_node *expr = NULL;
+    t_vector *args = NULL;
 
+    MATCH_ADVANCE(parser, T_OPEN_PAREN,
+                  "Expected '(' after callable in function call");
+    args = calloc(1, sizeof(t_vector));
+    if (NULL == args)
+    {
+        (void) LOGGER_log(parser->logger, L_ERROR,
+                          "Couldn't allocate memory for args.\n");
+        goto l_cleanup;
+    }
+
+    vector_setup(args, 10, sizeof(t_ast_node));
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-    ADVANCE(parser);
-    MATCH_ADVANCE(parser, T_OPEN_PAREN, "Expected '(' after sizeof keyword");
-    --parser->index;
-    type = parser_parse_type(parser, false);
-    ADVANCE(parser);
-    MATCH_ADVANCE(parser, T_CLOSE_PAREN,
-                  "Expected ')' after type in sizeof expression");
+    if (T_CLOSE_PAREN != token->type)
+    {
+        while (true)
+        {
+            expr = parser_parse_expression(parser);
+            vector_push_back(args, &expr);
 
-    node = AST_new_sizeof_expr(type);
-    node->token = token;
-    return node;
+            token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+            if (T_CLOSE_PAREN == token->type)
+            {
+                break;
+            }
+
+            MATCH_ADVANCE(parser, T_COMMA,
+                          "Expected ')' or ',' in argument list.");
+        }
+    }
+
+    ADVANCE(parser);
+    (void) vector_shrink_to_fit(args);
+    return AST_new_call_expr(callable, args);
+
+l_cleanup:
+    if (NULL != args)
+    {
+        t_ast_node *node = NULL;
+        t_iterator iterator = vector_begin(args);
+        t_iterator last = vector_end(args);
+
+        for (; !iterator_equals(&iterator, &last);
+             iterator_increment(&iterator))
+        {
+            node = *(t_ast_node_ptr *) iterator_get(&iterator);
+            AST_free_node(node, parser->logger);
+        }
+
+        (void) vector_clear(args);
+        (void) vector_destroy(args);
+        (void) free(args);
+        args = NULL;
+    }
+
+    return NULL;
 }

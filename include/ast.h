@@ -291,15 +291,6 @@ t_ast_node *AST_new_array_deref(t_ast_node *variable, t_ast_node *index);
 t_ast_node *AST_new_literal(t_ast_literal_type type);
 
 /**
- * @brief Creates a new AST node of a sizeof expression.
- *
- * @param[in] type the type the sizeof is calculated on.
- *
- * @return an AST node of a sizeof expression with the passed in type.
- */
-t_ast_node *AST_new_sizeof_expr(t_type *type);
-
-/**
  * @brief Creates a new AST node of an array literal.
  *
  * @param[in] exprs the elements of the array literal.
@@ -308,6 +299,24 @@ t_ast_node *AST_new_sizeof_expr(t_type *type);
  * @return an AST node of an array literal with the passed in exprs and type.
  */
 t_ast_node *AST_new_array_literal(t_vector *exprs, t_type *type);
+
+/**
+ * @brief Creates a new AST node of a builtin.
+ *
+ * @param[in] name the name of the builtin.
+ *
+ * @return an AST node of a builtin with the passed in name.
+ */
+t_ast_node *AST_new_builtin(char *builtin);
+
+/**
+ * @brief Creates a new AST node of a type expr.
+ *
+ * @param[in] type the type of the type expr.
+ *
+ * @return an AST node of a type expr with the passed in type.
+ */
+t_ast_node *AST_new_type_expr(t_type *type);
 
 /**
  * @brief Promotes the last expression statement to an expresion in a function

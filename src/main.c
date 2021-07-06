@@ -23,6 +23,7 @@
 #include <llvm-c/Types.h>
 
 #include "ast.h"
+#include "core.h"
 #include "defs.h"
 #include "gen.h"
 #include "io.h"
@@ -394,8 +395,6 @@ static t_return_code parse(t_main_context *context, const char *file_path)
         (void) AST_fill_variable_types(context->node, context->logger, module);
     }
 
-    (void) AST_print_functions(module->functions, 0, context->logger);
-
     VECTOR_FOR_EACH(module->import_paths, iterator)
     {
         resolved_path = ITERATOR_GET_AS(t_char_ptr, &iterator);
@@ -480,6 +479,8 @@ static t_return_code parse(t_main_context *context, const char *file_path)
         context->modules[context->file_index] = module;
     }
     context->current_module = module;
+
+    (void) AST_print_functions(module->functions, 0, context->logger);
 
     status_code = LUKA_SUCCESS;
 l_cleanup:
@@ -963,6 +964,11 @@ int main(int argc, char **argv)
                                l_cleanup);
 
     (void) GEN_codegen_initialize();
+
+    if (!CORE_initialize_builtins(context.logger))
+    {
+        goto l_cleanup;
+    }
 
     (void) LOGGER_log(context.logger, L_INFO, "%zu Files\n",
                       context.files_count);

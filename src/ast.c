@@ -10,6 +10,8 @@
 #include "type.h"
 #include "vector.h"
 
+t_builtin_id ast_builtin_id_from_name(const char *name);
+
 t_ast_node *AST_new_number(t_type *type, void *value)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
@@ -277,15 +279,6 @@ t_ast_node *AST_new_literal(t_ast_literal_type type)
     return node;
 }
 
-t_ast_node *AST_new_sizeof_expr(t_type *type)
-{
-    t_ast_node *node = calloc(1, sizeof(t_ast_node));
-    node->type = AST_TYPE_SIZEOF_EXPR;
-    node->token = NULL;
-    node->sizeof_expr.type = type;
-    return node;
-}
-
 t_ast_node *AST_new_array_literal(t_vector *exprs, t_type *type)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
@@ -293,6 +286,25 @@ t_ast_node *AST_new_array_literal(t_vector *exprs, t_type *type)
     node->token = NULL;
     node->array_literal.exprs = exprs;
     node->array_literal.type = type;
+    return node;
+}
+
+t_ast_node *AST_new_builtin(char *name)
+{
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
+    node->type = AST_TYPE_BUILTIN;
+    node->token = NULL;
+    node->builtin.name = name;
+    node->builtin.id = ast_builtin_id_from_name(name);
+    return node;
+}
+
+t_ast_node *AST_new_type_expr(t_type *type)
+{
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
+    node->type = AST_TYPE_TYPE_EXPR;
+    node->token = NULL;
+    node->type_expr.type = type;
     return node;
 }
 
@@ -703,6 +715,7 @@ void ast_fill_type(t_ast_node *node, const char *var_name, t_type *new_type,
         case AST_TYPE_STRING:
         case AST_TYPE_NUMBER:
         case AST_TYPE_LITERAL:
+        case AST_TYPE_ARRAY_LITERAL:
             break;
         case AST_TYPE_CAST_EXPR:
             {
@@ -805,6 +818,11 @@ void ast_fill_type(t_ast_node *node, const char *var_name, t_type *new_type,
             }
         case AST_TYPE_CALL_EXPR:
             {
+                if (NULL != node->call_expr.callable)
+                {
+                    (void) ast_fill_type(node->call_expr.callable, var_name,
+                                         new_type, logger, module);
+                }
                 if (NULL != node->call_expr.args)
                 {
                     VECTOR_FOR_EACH(node->call_expr.args, args)
@@ -1441,16 +1459,6 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
                 break;
             }
 
-        case AST_TYPE_SIZEOF_EXPR:
-            {
-                if (NULL != node->sizeof_expr.type)
-                {
-                    (void) TYPE_free_type(node->sizeof_expr.type);
-                    node->sizeof_expr.type = NULL;
-                }
-                break;
-            }
-
         case AST_TYPE_ARRAY_LITERAL:
             {
                 if (NULL != node->array_literal.type)
@@ -1474,6 +1482,24 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
                 break;
             }
 
+        case AST_TYPE_BUILTIN:
+            {
+                if (NULL != node->builtin.name)
+                {
+                    (void) free(node->builtin.name);
+                    node->builtin.name = NULL;
+                }
+                break;
+            }
+        case AST_TYPE_TYPE_EXPR:
+            {
+                if (NULL != node->type_expr.type)
+                {
+                    (void) TYPE_free_type(node->type_expr.type);
+                    node->type_expr.type = NULL;
+                }
+                break;
+            }
         default:
             {
                 (void) LOGGER_log(
@@ -1889,7 +1915,8 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
                                   offset, ' ');
                 if (NULL != node->call_expr.callable)
                 {
-                    if (node->call_expr.callable->type == AST_TYPE_VARIABLE)
+                    if ((node->call_expr.callable->type == AST_TYPE_VARIABLE)
+                        || (node->call_expr.callable->type == AST_TYPE_BUILTIN))
                     {
                         (void) LOGGER_log(
                             logger, L_DEBUG, "%*c\b Name - %s\n", offset + 2,
@@ -2169,25 +2196,6 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
                               ' ', ast_stringify_literal(node->literal.type));
             break;
 
-        case AST_TYPE_SIZEOF_EXPR:
-            {
-                if (NULL != node->sizeof_expr.type)
-                {
-                    (void) memset(type_str, 0, sizeof(type_str));
-                    (void) TYPE_to_string(node->sizeof_expr.type, logger,
-                                          type_str, sizeof(type_str));
-                    (void) LOGGER_log(logger, L_DEBUG, "%*c\b Type: %s\n",
-                                      offset + 2, ' ', type_str);
-                }
-                else
-                {
-                    (void) strncpy(type_str, "Unknown type", sizeof(type_str));
-                }
-                (void) LOGGER_log(logger, L_DEBUG, "%*c\b Sizeof %s\n", offset,
-                                  ' ', type_str);
-                break;
-            }
-
         case AST_TYPE_ARRAY_LITERAL:
             {
                 (void) LOGGER_log(logger, L_DEBUG, "%*c\b Array Literal\n",
@@ -2210,6 +2218,21 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
                     }
                 }
 
+                break;
+            }
+        case AST_TYPE_BUILTIN:
+            {
+                (void) LOGGER_log(logger, L_DEBUG, "%*c\b Builtin - %s\n",
+                                  offset, ' ', node->builtin.name);
+                break;
+            }
+        case AST_TYPE_TYPE_EXPR:
+            {
+                (void) memset(type_str, 0, sizeof(type_str));
+                (void) TYPE_to_string(node->type_expr.type, logger, type_str,
+                                      sizeof(type_str));
+                (void) LOGGER_log(logger, L_DEBUG, "%*c\b Type Expr - %s\n",
+                                  offset, ' ', type_str);
                 break;
             }
         default:
@@ -2236,4 +2259,14 @@ bool AST_is_cond_binop(t_ast_binop_type op)
         default:
             return false;
     }
+}
+
+t_builtin_id ast_builtin_id_from_name(const char *name)
+{
+    if (0 == strcmp("@sizeOf", name))
+    {
+        return BUILTIN_ID_SIZEOF;
+    }
+
+    return BUILTIN_ID_INVALID;
 }
