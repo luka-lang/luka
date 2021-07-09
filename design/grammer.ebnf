@@ -23,13 +23,15 @@ statement = return_statement
           | break_statement
           | struct_definition
           | enum_definition
-          | import_statement ;
+          | import_statement
+          | defer_statement ;
 
 return_statement = "return" expression ";" ;
 let_statement = "let" [ "mut" ] identifier [ "[" [ expression ] "]" ] [ type ] "=" expression ";" ;
 expression_statement = expression ";" ;
 break_statement = "break" ";"
 import_statement = "import" string ";"
+defer_statement = "defer" block
 
 expression = if_expression | while_expression | cast_expression | assignment ;
 if_expression = "if" "(" expression ")" block [ { "else" "if" expression block } ] [ "else" block ] ;

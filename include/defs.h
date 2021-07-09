@@ -47,7 +47,7 @@ typedef enum
 } t_return_code;            /**< An enum of possible luka return codes */
 
 #define NUMBER_OF_KEYWORDS                                                     \
-    35 /**< Number of keywords in the luka programming language */
+    36 /**< Number of keywords in the luka programming language */
 extern const char *
     keywords[NUMBER_OF_KEYWORDS]; /**< string representations of the keywords */
 
@@ -68,6 +68,7 @@ typedef enum
     T_ENUM,         /**< A "enum" token */
     T_IMPORT,       /**< A "import" token */
     T_TYPE,         /**< A "type" token */
+    T_DEFER,        /**< A "defer" token */
 
     T_NULL,  /**< A "null" token */
     T_TRUE,  /**< A "true" token */
@@ -223,8 +224,8 @@ typedef enum
 typedef enum
 {
     BUILTIN_ID_INVALID, /**< Used for unknown builtin ids */
-    BUILTIN_ID_SIZEOF, /**< @sizeOf */
-} t_builtin_id;        /**< Identifiers for builtin symbols */
+    BUILTIN_ID_SIZEOF,  /**< @sizeOf */
+} t_builtin_id;         /**< Identifiers for builtin symbols */
 
 typedef struct s_type
 {

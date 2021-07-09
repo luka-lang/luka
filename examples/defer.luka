@@ -1,0 +1,17 @@
+import "stdlib";
+import "stdio";
+
+fn main(): void {
+  let buffer_size = @sizeOf(u8) * 100;
+  let mut buffer = malloc(buffer_size);
+  defer {
+    if (null != buffer) {
+      free(buffer);
+      buffer = null;
+    }
+  }
+  if (null == buffer) { return null; }
+  print("Please enter your name: ");
+  fgets(buffer, buffer_size, stdin);
+  printf("Your name is %s!\n", buffer);
+}
