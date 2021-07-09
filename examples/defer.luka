@@ -1,17 +1,22 @@
 import "stdlib";
 import "stdio";
+import "unistd";
+import "string";
 
-fn main(): void {
+fn main(): s32 {
   let buffer_size = @sizeOf(u8) * 100;
-  let mut buffer = malloc(buffer_size);
+  let buffer: mut u8* = malloc(buffer_size);
   defer {
     if (null != buffer) {
       free(buffer);
       buffer = null;
     }
   }
-  if (null == buffer) { return null; }
-  print("Please enter your name: ");
-  fgets(buffer, buffer_size, stdin);
+  if (null == buffer) { return EXIT_FAILURE; }
+  let s = "Please enter your name: ";
+  write(STDOUT_FILENO, s, strlen(s));
+  read(STDIN_FILENO, buffer, buffer_size);
+  buffer[strlen(buffer) - 1] = 0;
   printf("Your name is %s!\n", buffer);
+  EXIT_SUCCESS
 }

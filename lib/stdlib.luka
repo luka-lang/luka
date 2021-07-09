@@ -9,3 +9,6 @@ extern srand(seed: u32): void;
 extern rand_r(seedp: u32*): s32;
 
 extern exit(status: s32): void;
+
+let	EXIT_FAILURE: s32 = 1; // Failing exit status.
+let	EXIT_SUCCESS: s32 = 0; // Successful exit status.

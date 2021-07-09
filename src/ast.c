@@ -308,6 +308,15 @@ t_ast_node *AST_new_type_expr(t_type *type)
     return node;
 }
 
+t_ast_node *AST_new_defer_stmt(t_vector *body)
+{
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
+    node->type = AST_TYPE_DEFER_STMT;
+    node->token = NULL;
+    node->defer_stmt.body = body;
+    return node;
+}
+
 t_ast_node *AST_fix_function_last_expression_stmt(t_ast_node *node)
 {
     t_ast_node *last_stmt = NULL;

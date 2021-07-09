@@ -222,6 +222,15 @@ t_ast_node *parser_parse_function_call_expr(t_parser *parser,
                                             t_ast_node *callable);
 
 /**
+ * @brief Parse a defer statement.
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return a defer statement AST node.
+ */
+t_ast_node *parser_parse_defer_statement(t_parser *parser);
+
+/**
  * @brief Report a parser error.
  *
  * @param[in] parser the parser to report with.
@@ -1709,7 +1718,7 @@ t_ast_node *parser_parse_statement(t_parser *parser)
     t_ast_node *node = NULL, *expr = NULL;
     t_token *token = NULL, *starting_token = NULL;
     char *name = NULL;
-    t_vector *fields = NULL;
+    t_vector *fields = NULL, *body = NULL;
 
     starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
 
@@ -1764,6 +1773,18 @@ t_ast_node *parser_parse_statement(t_parser *parser)
                 node = AST_new_enum_definition(name, fields);
                 (void) vector_push_front(parser->enum_names, &name);
                 node->token = starting_token;
+                return node;
+            }
+        case T_DEFER:
+            {
+                EXPECT_ADVANCE(parser, T_OPEN_BRACE,
+                               "Expected a '{' after defer keyword");
+                --parser->index;
+                body = parser_parse_statements(parser);
+                node = AST_new_defer_stmt(body);
+                node->token = starting_token;
+                MATCH_ADVANCE(parser, T_CLOSE_BRACE,
+                              "Expected a '}' after defer body");
                 return node;
             }
         default:
