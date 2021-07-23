@@ -12,3 +12,10 @@ extern exit(status: s32): void;
 
 let	EXIT_FAILURE: s32 = 1; // Failing exit status.
 let	EXIT_SUCCESS: s32 = 0; // Successful exit status.
+
+fn drop(ptr: any mut* mut*): void {
+  if (ptr != null) {
+    free(*ptr);
+    ptr = null;
+  }
+}
