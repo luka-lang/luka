@@ -1777,14 +1777,33 @@ t_ast_node *parser_parse_statement(t_parser *parser)
             }
         case T_DEFER:
             {
-                EXPECT_ADVANCE(parser, T_OPEN_BRACE,
-                               "Expected a '{' after defer keyword");
-                --parser->index;
-                body = parser_parse_statements(parser);
-                node = AST_new_defer_stmt(body);
+                ADVANCE(parser);
+                if (MATCH(parser, T_OPEN_BRACE))
+                {
+                    --parser->index;
+                    body = parser_parse_statements(parser);
+                    node = AST_new_defer_stmt(body);
+                    MATCH_ADVANCE(parser, T_CLOSE_BRACE,
+                                  "Expected a '}' after defer body");
+                }
+                else
+                {
+                    expr = parser_parse_expression(parser);
+                    node = AST_new_expression_stmt(expr);
+                    body = calloc(1, sizeof(t_vector));
+                    (void) vector_setup(body, 1, sizeof(t_ast_node_ptr));
+                    if (NULL == body)
+                    {
+                        exit(LUKA_CANT_ALLOC_MEMORY);
+                    }
+                    (void) vector_push_back(body, &node);
+                    node = AST_new_defer_stmt(body);
+                    MATCH_ADVANCE(parser, T_SEMI_COLON,
+                                  "Expected a ';' after expr in defer");
+                }
+
                 node->token = starting_token;
-                MATCH_ADVANCE(parser, T_CLOSE_BRACE,
-                              "Expected a '}' after defer body");
+
                 return node;
             }
         default:

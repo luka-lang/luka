@@ -31,7 +31,7 @@ let_statement = "let" [ "mut" ] identifier [ "[" [ expression ] "]" ] [ type ] "
 expression_statement = expression ";" ;
 break_statement = "break" ";"
 import_statement = "import" string ";"
-defer_statement = "defer" block
+defer_statement = "defer" block | "defer" expr ";"
 
 expression = if_expression | while_expression | cast_expression | assignment ;
 if_expression = "if" "(" expression ")" block [ { "else" "if" expression block } ] [ "else" block ] ;

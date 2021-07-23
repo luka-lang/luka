@@ -6,9 +6,7 @@ import "string";
 fn main(): s32 {
   let buffer_size = @sizeOf(u8) * 100;
   let buffer: mut u8* = malloc(buffer_size);
-  defer {
-    drop(&buffer);
-  }
+  defer drop(&buffer);
   if (null == buffer) { return EXIT_FAILURE; }
   let s = "Please enter your name: ";
   write(STDOUT_FILENO, s, strlen(s));
