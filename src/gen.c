@@ -19,9 +19,38 @@ t_named_value *named_values = NULL;
 t_struct_info *struct_infos = NULL;
 t_enum_info *enum_infos = NULL;
 t_vector *loop_blocks = NULL;
+t_vector *defer_blocks = NULL;
 
 LLVMValueRef gen_codegen_sizeof(t_ast_node *node, t_type *type,
                                 t_logger *logger);
+
+LLVMValueRef gen_codegen_stmts(t_vector *statements, LLVMModuleRef module,
+                               LLVMBuilderRef builder, bool *has_return_stmt,
+                               t_logger *logger);
+
+/**
+ * @brief Generate LLVM IR for all currently defined defer blocks.
+ *
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM builder.
+ * @param[in] logger a logger that can be used to log messages.
+ */
+void gen_codegen_defer_blocks(LLVMModuleRef module, LLVMBuilderRef builder,
+                              t_logger *logger)
+{
+    size_t i = 0;
+    t_ast_node *node = NULL;
+
+    if (NULL != defer_blocks)
+    {
+        for (i = 0; i < defer_blocks->size; ++i)
+        {
+            node = *(t_ast_node **) vector_get(defer_blocks, i);
+            (void) gen_codegen_stmts(node->defer_stmt.body, module, builder,
+                                     NULL, logger);
+        }
+    }
+}
 
 /**
  * @brief Converting a LLVM type to Luka type.
@@ -1355,6 +1384,8 @@ LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
     arity = proto->prototype.arity;
     args = proto->prototype.args;
 
+    (void) vector_clear(defer_blocks);
+
     block = LLVMAppendBasicBlock(func, "entry");
     (void) LLVMPositionBuilderAtEnd(builder, block);
 
@@ -1431,6 +1462,8 @@ LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
         ret_val = gen_codegen_cast(builder, ret_val, return_type, logger);
     }
 
+    (void) gen_codegen_defer_blocks(module, builder, logger);
+
     if (!has_return_stmt)
     {
         (void) LLVMBuildRet(builder, ret_val);
@@ -1462,13 +1495,16 @@ LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
 LLVMValueRef gen_codegen_return_stmt(t_ast_node *n, LLVMModuleRef module,
                                      LLVMBuilderRef builder, t_logger *logger)
 {
-    LLVMValueRef expr;
+    LLVMValueRef expr = NULL;
+
     if (NULL == n->return_stmt.expr)
     {
         LOGGER_LOG_LOC(logger, L_ERROR, n->token,
                        "Return statement has no expr.\n", NULL);
         (void) exit(LUKA_CODEGEN_ERROR);
     }
+
+    (void) gen_codegen_defer_blocks(module, builder, logger);
 
     expr = GEN_codegen(n->return_stmt.expr, module, builder, logger);
     if (NULL == expr)
@@ -2715,6 +2751,24 @@ LLVMValueRef gen_codegen_type_expr(t_ast_node *node,
     return (LLVMValueRef) node->type_expr.type;
 }
 
+LLVMValueRef gen_codegen_defer_stmt(t_ast_node *node,
+                                    LLVMModuleRef UNUSED(module),
+                                    LLVMBuilderRef UNUSED(builder),
+                                    t_logger *logger)
+{
+    if (NULL != defer_blocks)
+    {
+        (void) vector_push_front(defer_blocks, &node);
+    }
+    else
+    {
+        (void) LOGGER_log(logger, L_ERROR, "Defer blocks is null\n");
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
+
+    return NULL;
+}
+
 LLVMValueRef GEN_codegen(t_ast_node *node, LLVMModuleRef module,
                          LLVMBuilderRef builder, t_logger *logger)
 {
@@ -2768,6 +2822,8 @@ LLVMValueRef GEN_codegen(t_ast_node *node, LLVMModuleRef module,
             return gen_codegen_array_literal(node, module, builder, logger);
         case AST_TYPE_TYPE_EXPR:
             return gen_codegen_type_expr(node, module, builder, logger);
+        case AST_TYPE_DEFER_STMT:
+            return gen_codegen_defer_stmt(node, module, builder, logger);
         default:
             {
                 LOGGER_LOG_LOC(logger, L_ERROR, node->token,
@@ -2781,7 +2837,18 @@ LLVMValueRef GEN_codegen(t_ast_node *node, LLVMModuleRef module,
 void GEN_codegen_initialize()
 {
     loop_blocks = calloc(1, sizeof(t_vector));
+    if (NULL == loop_blocks)
+    {
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
     (void) vector_setup(loop_blocks, 6, sizeof(LLVMBasicBlockRef));
+
+    defer_blocks = calloc(1, sizeof(t_vector));
+    if (NULL == defer_blocks)
+    {
+        (void) exit(LUKA_CODEGEN_ERROR);
+    }
+    (void) vector_setup(defer_blocks, 6, sizeof(t_ast_node));
 }
 
 void GEN_codegen_reset()
@@ -2860,5 +2927,12 @@ void GEN_codegen_reset()
         (void) vector_clear(loop_blocks);
         (void) vector_destroy(loop_blocks);
         (void) free(loop_blocks);
+    }
+
+    if (NULL != defer_blocks)
+    {
+        (void) vector_clear(defer_blocks);
+        (void) vector_destroy(defer_blocks);
+        (void) free(defer_blocks);
     }
 }
