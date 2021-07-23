@@ -148,7 +148,7 @@ t_type *gen_llvm_type_to_ttype(LLVMTypeRef type, t_logger *logger)
         (void) LLVMDumpType(type);
         (void) LOGGER_log(
             logger, L_ERROR,
-            "I don't know how to translate LLVM type %d to t_type.\n", type);
+            "\nI don't know how to translate LLVM type %d to t_type.\n", type);
         (void) exit(LUKA_CODEGEN_ERROR);
     }
 
@@ -1052,9 +1052,26 @@ LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
             }
         default:
             {
-                LOGGER_LOG_LOC(logger, L_ERROR, node->token,
-                               "Can't get address of %d.\n", node->type);
-                (void) exit(LUKA_CODEGEN_ERROR);
+                if (node->type != AST_TYPE_UNARY_EXPR)
+                {
+                    LOGGER_LOG_LOC(logger, L_ERROR, node->token,
+                                   "Can't get address of %d.\n", node->type);
+                    (void) exit(LUKA_CODEGEN_ERROR);
+                }
+
+                if (node->unary_expr.operator!= UNOP_DEREF)
+                {
+                    LOGGER_LOG_LOC(
+                        logger, L_ERROR, node->token,
+                        "Can't assign to unary expr not of type deref %d.\n",
+                        node->unary_expr.operator);
+                    (void) exit(LUKA_CODEGEN_ERROR);
+                }
+
+                return LLVMBuildLoad(builder,
+                                     gen_get_address(node->unary_expr.rhs,
+                                                     module, builder, logger),
+                                     "loadtmp");
             }
     }
 }
@@ -1113,10 +1130,7 @@ LLVMValueRef gen_codegen_unexpr(t_ast_node *n, LLVMModuleRef module,
             }
         case UNOP_DEREF:
             {
-                return LLVMBuildLoad(
-                    builder,
-                    gen_get_address(n->unary_expr.rhs, module, builder, logger),
-                    "loadtmp");
+                return LLVMBuildLoad(builder, rhs, "loadtmp");
             }
         default:
             {
@@ -1918,8 +1932,8 @@ LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node, LLVMModuleRef module,
         }
         else
         {
-            lhs = GEN_codegen(node->assignment_expr.lhs, module, builder,
-                              logger);
+            lhs = gen_get_address(node->assignment_expr.lhs, module, builder,
+                                  logger);
         }
     }
 
