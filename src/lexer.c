@@ -9,7 +9,7 @@
 /** A string representation of the keywords in the Luka programming language */
 const char *keywords[NUMBER_OF_KEYWORDS]
     = {"fn", "return", "if", "else", "let", "mut", "extern", "while", "break",
-       "as", "struct", "enum", "import", "type",
+       "as", "struct", "enum", "import", "type", "defer",
 
        /* Literals */
        "null", "true", "false",
@@ -497,23 +497,23 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                     break;
                 }
 
-        case '@':
-          {
-            token->type = T_BUILTIN;
-            saved_i = i;
-            ++i;
-            identifier = lexer_lex_identifier(source, &i, true);
-            offset += i - saved_i;
-            if (NULL == identifier)
-            {
-                (void) LOGGER_log(logger, L_ERROR,
-                                  "Couldn't lex identifier.\n");
-                return_code = LUKA_LEXER_FAILED;
-                goto l_cleanup;
-            }
-            token->content = identifier;
-            break;
-          }
+            case '@':
+                {
+                    token->type = T_BUILTIN;
+                    saved_i = i;
+                    ++i;
+                    identifier = lexer_lex_identifier(source, &i, true);
+                    offset += i - saved_i;
+                    if (NULL == identifier)
+                    {
+                        (void) LOGGER_log(logger, L_ERROR,
+                                          "Couldn't lex identifier.\n");
+                        return_code = LUKA_LEXER_FAILED;
+                        goto l_cleanup;
+                    }
+                    token->content = identifier;
+                    break;
+                }
             case EOF:
                 {
                     token->type = T_EOF;

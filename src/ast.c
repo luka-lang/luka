@@ -308,6 +308,15 @@ t_ast_node *AST_new_type_expr(t_type *type)
     return node;
 }
 
+t_ast_node *AST_new_defer_stmt(t_vector *body)
+{
+    t_ast_node *node = calloc(1, sizeof(t_ast_node));
+    node->type = AST_TYPE_DEFER_STMT;
+    node->token = NULL;
+    node->defer_stmt.body = body;
+    return node;
+}
+
 t_ast_node *AST_fix_function_last_expression_stmt(t_ast_node *node)
 {
     t_ast_node *last_stmt = NULL;
@@ -890,6 +899,20 @@ void ast_fill_type(t_ast_node *node, const char *var_name, t_type *new_type,
                                      logger, module);
                 break;
             }
+        case AST_TYPE_DEFER_STMT:
+            {
+                if (NULL == node->defer_stmt.body)
+                {
+                    return;
+                }
+                VECTOR_FOR_EACH(node->defer_stmt.body, stmts)
+                {
+                    stmt = ITERATOR_GET_AS(t_ast_node_ptr, &stmts);
+                    (void) ast_fill_type(stmt, var_name, new_type, logger,
+                                         module);
+                }
+                break;
+            }
         default:
             (void) LOGGER_log(logger, L_INFO,
                               "ast_fill_type: default case %d\n", node->type);
@@ -970,6 +993,9 @@ void AST_fill_variable_types(t_ast_node *node, t_logger *logger,
             }
 
             body = node->if_expr.else_body;
+            break;
+        case AST_TYPE_DEFER_STMT:
+            body = node->defer_stmt.body;
             break;
         default:
             return;
@@ -1497,6 +1523,23 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
                 {
                     (void) TYPE_free_type(node->type_expr.type);
                     node->type_expr.type = NULL;
+                }
+                break;
+            }
+        case AST_TYPE_DEFER_STMT:
+            {
+                if (NULL != node->defer_stmt.body)
+                {
+                    VECTOR_FOR_EACH(node->defer_stmt.body, stmts)
+                    {
+                        (void) AST_free_node(
+                            ITERATOR_GET_AS(t_ast_node_ptr, &stmts), logger);
+                    }
+
+                    (void) vector_clear(node->defer_stmt.body);
+                    (void) vector_destroy(node->defer_stmt.body);
+                    (void) free(node->defer_stmt.body);
+                    node->defer_stmt.body = NULL;
                 }
                 break;
             }
@@ -2233,6 +2276,14 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
                                       sizeof(type_str));
                 (void) LOGGER_log(logger, L_DEBUG, "%*c\b Type Expr - %s\n",
                                   offset, ' ', type_str);
+                break;
+            }
+        case AST_TYPE_DEFER_STMT:
+            {
+                (void) LOGGER_log(logger, L_DEBUG, "%*c\b Defer Statement\n",
+                                  offset, ' ', type_str);
+                (void) ast_print_statements_block(node->defer_stmt.body,
+                                                  offset + 2, logger);
                 break;
             }
         default:

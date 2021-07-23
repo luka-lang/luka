@@ -319,6 +319,15 @@ t_ast_node *AST_new_builtin(char *builtin);
 t_ast_node *AST_new_type_expr(t_type *type);
 
 /**
+ * @brief Creates a new AST node of a defer stmt.
+ *
+ * @param[in] type the type of the defer stmt.
+ *
+ * @return an AST node of a defer stmt with the passed in body.
+ */
+t_ast_node *AST_new_defer_stmt(t_vector *body);
+
+/**
  * @brief Promotes the last expression statement to an expresion in a function
  * body.
  *
