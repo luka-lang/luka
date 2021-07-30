@@ -76,7 +76,7 @@ struct String {
           let total_len = self.length + len;
           if (total_len > self.capacity) {
             let new_capacity = self.capacity * self._factor;
-            let new_buffer: mut String* = realloc(self.buffer, new_capacity);
+            let new_buffer: mut u8* = realloc(self.buffer, new_capacity);
             if (new_buffer != null) {
               self.buffer = new_buffer;
               self.capacity = new_capacity;
