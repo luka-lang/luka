@@ -456,6 +456,8 @@ static t_return_code parse(t_main_context *context, const char *file_path)
     {
         context->node = ITERATOR_GET_AS(t_ast_node_ptr, &iterator);
         context->node = AST_fix_types(context->node, module, context->logger);
+        context->node = AST_resolve_type_aliases(
+            context->node, context->type_aliases, context->logger);
     }
 
     VECTOR_FOR_EACH(module->structs, iterator)
@@ -892,6 +894,14 @@ static t_return_code backend(t_main_context *context,
 {
     t_return_code status_code = LUKA_UNINITIALIZED;
     t_module *module = NULL, current_module = {0};
+
+    (void) GEN_module_structs_without_functions(
+        context->current_module, context->llvm_module, context->builder,
+        context->logger);
+
+    RAISE_LUKA_STATUS_ON_ERROR(
+        codegen_nodes(context, context->current_module->enums), status_code,
+        l_cleanup);
 
     (void) GEN_module_prototypes(context->current_module, context->llvm_module,
                                  context->builder, context->logger);

@@ -21,14 +21,14 @@ typedef struct
 
 typedef struct
 {
-    LLVMTypeRef struct_type; /**< The LLVM type of the struct */
-    char *struct_name;       /**< The name of the struct */
-    char **struct_fields;    /**< The name of the struct fields */
-    size_t number_of_fields; /**< The number of fields in the struct */
-    t_ast_node **struct_functions;    /**< The name of the struct functions */
-    size_t number_of_functions; /**< The number of functions in the struct */
-    UT_hash_handle hh;       /**< A handle for uthash */
-} t_struct_info;             /**< A struct for keeping info about structs */
+    LLVMTypeRef struct_type;       /**< The LLVM type of the struct */
+    char *struct_name;             /**< The name of the struct */
+    char **struct_fields;          /**< The name of the struct fields */
+    size_t number_of_fields;       /**< The number of fields in the struct */
+    t_ast_node **struct_functions; /**< The name of the struct functions */
+    size_t number_of_functions;    /**< The number of functions in the struct */
+    UT_hash_handle hh;             /**< A handle for uthash */
+} t_struct_info; /**< A struct for keeping info about structs */
 
 typedef struct
 {
@@ -41,9 +41,25 @@ typedef struct
 
 /**
  * @brief Generate prototypes for all functions in a given luka module.
+ * @param[in] n the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM IR builder.
+ * @param[in] logger a logger that can be used to log messages.
  */
 void GEN_module_prototypes(t_module *module, LLVMModuleRef llvm_module,
                            LLVMBuilderRef builder, t_logger *logger);
+
+/**
+ * @brief Generate all structs in a given luka module without codegen for their functions.
+ * @param[in] n the AST node.
+ * @param[in] module the LLVM module.
+ * @param[in] builder the LLVM IR builder.
+ * @param[in] logger a logger that can be used to log messages.
+ */
+void GEN_module_structs_without_functions(t_module *module,
+                                          LLVMModuleRef llvm_module,
+                                          LLVMBuilderRef builder,
+                                          t_logger *logger);
 
 /**
  * @brief Generating LLVM IR for a Luka AST node.

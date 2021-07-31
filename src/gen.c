@@ -1765,8 +1765,8 @@ LLVMValueRef gen_codegen_variable(t_ast_node *node,
         return LLVMBuildLoad2(builder, val->type, val->alloca_inst, val->name);
     }
 
-    (void) LOGGER_log(logger, L_ERROR, "Variable %s is undefined.\n",
-                      node->variable.name);
+    LOGGER_LOG_LOC(logger, L_ERROR, node->token, "Variable %s is undefined.\n",
+                   node->variable.name);
     (void) exit(LUKA_CODEGEN_ERROR);
 }
 
@@ -1787,19 +1787,35 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node, LLVMModuleRef module,
     t_ast_variable variable;
     t_named_value *val = NULL;
     bool is_global = node->let_stmt.is_global;
+    bool extern_var = false;
 
     variable = node->let_stmt.var->variable;
-    expr = GEN_codegen(node->let_stmt.expr, module, builder, logger);
-    if (NULL == expr)
+
+    if (!is_global && (NULL == node->let_stmt.expr))
     {
         LOGGER_LOG_LOC(logger, L_ERROR, node->token,
-                       "Expression generation in let stmt failed.\n", NULL);
-        (void) exit(LUKA_CODEGEN_ERROR);
+                       "Non global let statements must have an expression.\n",
+                       NULL);
+    }
+
+    if (NULL != node->let_stmt.expr)
+    {
+        expr = GEN_codegen(node->let_stmt.expr, module, builder, logger);
+        if (NULL == expr)
+        {
+            LOGGER_LOG_LOC(logger, L_ERROR, node->token,
+                           "Expression generation in let stmt failed.\n", NULL);
+            (void) exit(LUKA_CODEGEN_ERROR);
+        }
+    }
+    else
+    {
+        extern_var = true;
     }
 
     val = malloc(sizeof(t_named_value));
     val->name = strdup(variable.name);
-    if (NULL == variable.type)
+    if ((NULL == variable.type) && !extern_var)
     {
         val->type = LLVMTypeOf(expr);
         val->ttype = gen_llvm_type_to_ttype(val->type, logger);
@@ -1815,7 +1831,7 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node, LLVMModuleRef module,
         val->type = gen_type_to_llvm_type(val->ttype, logger);
     }
 
-    if (LLVMTypeOf(expr) != val->type)
+    if (!extern_var && (LLVMTypeOf(expr) != val->type))
     {
         expr = gen_codegen_cast(builder, expr, val->type, logger);
     }
@@ -1823,7 +1839,10 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node, LLVMModuleRef module,
     if (is_global)
     {
         val->alloca_inst = LLVMAddGlobal(module, val->type, val->name);
-        (void) LLVMSetInitializer(val->alloca_inst, expr);
+        if (!extern_var)
+        {
+            (void) LLVMSetInitializer(val->alloca_inst, expr);
+        }
     }
     else
     {
@@ -2078,59 +2097,63 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
         (void) exit(LUKA_CODEGEN_ERROR);
     }
 
-    args = calloc(node->call_expr.args->size, sizeof(LLVMValueRef));
-    if (NULL == args)
+    if (!builtin)
     {
-        goto l_cleanup;
-    }
-
-    VECTOR_FOR_EACH(node->call_expr.args, args_iter)
-    {
-        arg = ITERATOR_GET_AS(t_ast_node_ptr, &args_iter);
-        if ((arg->type == AST_TYPE_VARIABLE)
-            && (arg->variable.type->type == TYPE_ARRAY)
-            && (((size_t) arg->variable.type->payload) != 0))
-        {
-            /* Arrays decay to pointers */
-            t_named_value *val = NULL;
-
-            LLVMValueRef indices[2] = {LLVMConstInt(LLVMInt32Type(), 0, 0),
-                                       LLVMConstInt(LLVMInt32Type(), 0, 0)};
-
-            HASH_FIND_STR(named_values, arg->variable.name, val);
-            if (NULL == val)
-            {
-                (void) LOGGER_log(logger, L_ERROR,
-                                  "Variable %s is undefined.\n",
-                                  arg->variable.name);
-                (void) exit(LUKA_CODEGEN_ERROR);
-            }
-            args[i] = LLVMBuildInBoundsGEP2(
-                builder, val->type, val->alloca_inst, indices, 2, "tempgep");
-        }
-        else
-        {
-            args[i] = GEN_codegen(arg, module, builder, logger);
-        }
-        if (NULL == args[i])
+        args = calloc(node->call_expr.args->size, sizeof(LLVMValueRef));
+        if (NULL == args)
         {
             goto l_cleanup;
         }
 
-        if (i < required_params_count)
+        VECTOR_FOR_EACH(node->call_expr.args, args_iter)
         {
-            type = LLVMTypeOf(args[i]);
-            dest_type = LLVMTypeOf(LLVMGetParam(func, i));
-            if (type != dest_type)
+            arg = ITERATOR_GET_AS(t_ast_node_ptr, &args_iter);
+            if ((arg->type == AST_TYPE_VARIABLE)
+                && (arg->variable.type->type == TYPE_ARRAY)
+                && (((size_t) arg->variable.type->payload) != 0))
             {
-                if (arg->type != AST_TYPE_TYPE_EXPR)
+                /* Arrays decay to pointers */
+                t_named_value *val = NULL;
+
+                LLVMValueRef indices[2] = {LLVMConstInt(LLVMInt32Type(), 0, 0),
+                                           LLVMConstInt(LLVMInt32Type(), 0, 0)};
+
+                HASH_FIND_STR(named_values, arg->variable.name, val);
+                if (NULL == val)
                 {
-                    args[i]
-                        = gen_codegen_cast(builder, args[i], dest_type, logger);
+                    (void) LOGGER_log(logger, L_ERROR,
+                                      "Variable %s is undefined.\n",
+                                      arg->variable.name);
+                    (void) exit(LUKA_CODEGEN_ERROR);
+                }
+                args[i] = LLVMBuildInBoundsGEP2(builder, val->type,
+                                                val->alloca_inst, indices, 2,
+                                                "tempgep");
+            }
+            else
+            {
+                args[i] = GEN_codegen(arg, module, builder, logger);
+            }
+            if (NULL == args[i])
+            {
+                goto l_cleanup;
+            }
+
+            if (i < required_params_count)
+            {
+                type = LLVMTypeOf(args[i]);
+                dest_type = LLVMTypeOf(LLVMGetParam(func, i));
+                if (type != dest_type)
+                {
+                    if (arg->type != AST_TYPE_TYPE_EXPR)
+                    {
+                        args[i] = gen_codegen_cast(builder, args[i], dest_type,
+                                                   logger);
+                    }
                 }
             }
+            ++i;
         }
-        ++i;
     }
 
     if (builtin)
@@ -2712,6 +2735,27 @@ void GEN_module_prototypes(t_module *module, LLVMModuleRef llvm_module,
                                logger);
         }
     }
+}
+
+void GEN_module_structs_without_functions(t_module *module,
+                                          LLVMModuleRef llvm_module,
+                                          LLVMBuilderRef builder,
+                                          t_logger *logger)
+{
+    t_ast_node *node = NULL;
+    t_vector *original_functions = NULL;
+    t_vector empty_functions;
+
+    (void) vector_setup(&empty_functions, 0, sizeof(t_ast_node_ptr));
+    VECTOR_FOR_EACH(module->structs, structs)
+    {
+        node = ITERATOR_GET_AS(t_ast_node_ptr, &structs);
+        original_functions = node->struct_definition.struct_functions;
+        node->struct_definition.struct_functions = &empty_functions;
+        (void) GEN_codegen(node, llvm_module, builder, logger);
+        node->struct_definition.struct_functions = original_functions;
+    }
+    (void) vector_destroy(&empty_functions);
 }
 
 /**

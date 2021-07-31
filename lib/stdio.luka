@@ -20,7 +20,14 @@ extern fclose(stream: FILE*): s32;
 extern fread(ptr: mut any*, size: size_t, nmemb: size_t, stream: mut FILE*): size_t;
 extern fwrite(ptr: any*, size: size_t, nmemb: size_t, stream: mut FILE*): size_t;
 
+extern fflush(stream: mut FILE*): s32;
+extern fgets(s: mut u8*, n: s32, stream: mut FILE*): mut u8*;
+
 let EOF: s32 = -1;
+
+extern stdin: FILE*;
+extern stdout: FILE*;
+extern stderr: FILE*;
 
 fn print(str: u8*): s32
 {

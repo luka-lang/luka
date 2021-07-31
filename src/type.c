@@ -311,7 +311,8 @@ const char *TYPE_to_string(t_type *type, t_logger *logger, char *buffer,
         return buffer;
     }
 
-    if (type->mutable)
+    if ((type->mutable) && (type->type != TYPE_PTR)
+        && (type->type != TYPE_ARRAY))
     {
         (void) snprintf(buffer, buffer_size, "mut ");
         buffer = buffer + strlen("mut ");
@@ -364,11 +365,13 @@ const char *TYPE_to_string(t_type *type, t_logger *logger, char *buffer,
         case TYPE_PTR:
             (void) TYPE_to_string(type->inner_type, logger, buffer,
                                   buffer_size);
+            (void) snprintf(buffer + strlen(buffer), buffer_size, " mut ");
             (void) snprintf(buffer + strlen(buffer), buffer_size, "*");
             break;
         case TYPE_ARRAY:
             (void) TYPE_to_string(type->inner_type, logger, buffer,
                                   buffer_size);
+            (void) snprintf(buffer + strlen(buffer), buffer_size, " mut ");
             if ((size_t) type->payload != 0)
             {
                 (void) snprintf(buffer + strlen(buffer), buffer_size, "[%zu]",

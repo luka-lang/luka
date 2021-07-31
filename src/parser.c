@@ -618,12 +618,37 @@ t_module *PARSER_parse_file(t_parser *parser)
                 }
             case T_EXTERN:
                 {
+                    t_token *token_after_ident = *(t_token_ptr *) vector_get(
+                        parser->tokens, parser->index + 2);
                     starting_token = *(t_token_ptr *) vector_get(parser->tokens,
                                                                  parser->index);
-                    node = parser_parse_prototype(parser);
-                    node = AST_new_function(node, NULL);
-                    node->token = starting_token;
-                    (void) vector_push_back(module->functions, &node);
+                    /* Extern Variable */
+                    if (token_after_ident->type == T_COLON)
+                    {
+                        ADVANCE(parser);
+                        MATCH_ADVANCE(
+                            parser, T_IDENTIFIER,
+                            "An identifier should come after 'extern' keyword");
+                        ;
+                        parser->index -= 1;
+                        name = (*((t_token_ptr *) vector_get(parser->tokens,
+                                                             parser->index)))
+                                   ->content;
+                        type = parser_parse_type(parser, true);
+                        node = AST_new_let_stmt(
+                            AST_new_variable(name, type, true), NULL, true);
+                        node->token = starting_token;
+                        (void) vector_push_back(module->variables, &node);
+                    }
+                    /* Extern Function */
+                    else
+                    {
+                        node = parser_parse_prototype(parser);
+                        node = AST_new_function(node, NULL);
+                        node->token = starting_token;
+                        (void) vector_push_back(module->functions, &node);
+                    }
+
                     EXPECT_ADVANCE(
                         parser, T_SEMI_COLON,
                         "Expected a `;` at the end of an extern statement.");
@@ -1079,8 +1104,22 @@ t_ast_node *parser_parse_ident_expr(t_parser *parser)
             ADVANCE(parser);
             mutable = true;
         }
-        node = AST_new_variable(ident_name, parser_parse_type(parser, true),
-                                mutable);
+
+        if (parser_is_struct_name(parser, ident_name))
+        {
+            type = TYPE_initialize_type(TYPE_STRUCT);
+            type->payload = (void *) strdup(ident_name);
+            node = AST_new_type_expr(type);
+        }
+        else if (parser_is_enum_name(parser, ident_name))
+        {
+            type = TYPE_initialize_type(TYPE_ENUM);
+            type->payload = (void *) strdup(ident_name);
+            node = AST_new_type_expr(type);
+        } else {
+            node = AST_new_variable(ident_name, parser_parse_type(parser, true),
+                                    mutable);
+        }
         node->token = starting_token;
     }
 
