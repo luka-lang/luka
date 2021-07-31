@@ -1,6 +1,6 @@
 import "stddef";
 
-// Should probably fix someday.
+// TODO: Should probably fix someday.
 type locale_t = any;
 
 extern memccpy(dest: mut any*, src: any*, c: int, n: size_t): mut any*;

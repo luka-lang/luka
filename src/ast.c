@@ -490,7 +490,6 @@ t_type *ast_fix_type(t_type *type, t_module *module)
 
 t_ast_node *AST_fix_types(t_ast_node *node, t_module *module, t_logger *logger)
 {
-    (void) logger;
     size_t i = 0;
 
     switch (node->type)
@@ -501,6 +500,30 @@ t_ast_node *AST_fix_types(t_ast_node *node, t_module *module, t_logger *logger)
                 {
                     node->let_stmt.var
                         = AST_fix_types(node->let_stmt.var, module, logger);
+                }
+                break;
+            }
+        case AST_TYPE_EXPRESSION_STMT:
+            {
+                if (NULL != node->expression_stmt.expr)
+                {
+                    node->expression_stmt.expr = AST_fix_types(
+                        node->expression_stmt.expr, module, logger);
+                }
+                break;
+            }
+        case AST_TYPE_ASSIGNMENT_EXPR:
+            {
+                if (NULL != node->assignment_expr.lhs)
+                {
+                    node->assignment_expr.lhs = AST_fix_types(
+                        node->assignment_expr.lhs, module, logger);
+                }
+
+                if (NULL != node->assignment_expr.rhs)
+                {
+                    node->assignment_expr.rhs = AST_fix_types(
+                        node->assignment_expr.rhs, module, logger);
                 }
                 break;
             }
@@ -649,6 +672,30 @@ t_ast_node *AST_resolve_type_aliases(t_ast_node *node, t_vector *type_aliases,
                 {
                     node->let_stmt.var = AST_resolve_type_aliases(
                         node->let_stmt.var, type_aliases, logger);
+                }
+                break;
+            }
+        case AST_TYPE_EXPRESSION_STMT:
+            {
+                if (NULL != node->expression_stmt.expr)
+                {
+                    node->expression_stmt.expr = AST_resolve_type_aliases(
+                        node->expression_stmt.expr, type_aliases, logger);
+                }
+                break;
+            }
+        case AST_TYPE_ASSIGNMENT_EXPR:
+            {
+                if (NULL != node->assignment_expr.lhs)
+                {
+                    node->assignment_expr.lhs = AST_resolve_type_aliases(
+                        node->assignment_expr.lhs, type_aliases, logger);
+                }
+
+                if (NULL != node->assignment_expr.rhs)
+                {
+                    node->assignment_expr.rhs = AST_resolve_type_aliases(
+                        node->assignment_expr.rhs, type_aliases, logger);
                 }
                 break;
             }

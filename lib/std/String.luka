@@ -37,7 +37,7 @@ struct String {
     /// :param str (u8*): a byte array the represents the bytes of the string.
     /// :returns mut String*: a mutable pointer to the String struct that was created.
     fn new(str: u8*): mut String* {
-        let instance: mut String* = malloc(sizeof(String));
+        let instance: mut String* = malloc(@sizeOf(String));
         if (null == instance) {
             return null as mut String*;
         }

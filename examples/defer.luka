@@ -8,10 +8,9 @@ fn main(): s32 {
   let buffer: mut u8* = malloc(buffer_size);
   defer drop(&buffer);
   if (null == buffer) { return EXIT_FAILURE; }
-  let s = "Please enter your name: ";
-  write(STDOUT_FILENO, s, strlen(s));
-  read(STDIN_FILENO, buffer, buffer_size);
+  printf("Please enter your name: ");
+  fflush(stdout);
+  fgets(buffer, buffer_size, stdin);
   buffer[strlen(buffer) - 1] = 0;
   printf("Your name is %s!\n", buffer);
-  EXIT_SUCCESS
 }

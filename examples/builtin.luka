@@ -1,0 +1,7 @@
+import "stdio";
+
+fn main(): s32 {
+    let a = @sizeOf(s32);
+    printf("@sizeOf(s32) = %zu\n", a);
+    0
+}

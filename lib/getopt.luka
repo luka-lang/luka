@@ -9,3 +9,11 @@ let no_argument = 0;
 let required_argument = 1;
 let optional_argument = 2;
 
+extern optarg: u8*;
+extern optind: s32;
+extern opterr: s32;
+extern optopt: s32;
+
+extern getopt(argc: s32, argv: u8**, shortopts: u8*): s32;
+extern getopt_long(argc: s32, argv: u8**, shortopts: u8*, longopts: option*, longind: s32): s32;
+extern getopt_long_only(argc: s32, argv: u8**, shortopts: u8*, longopts: option*, longind: s32): s32;
