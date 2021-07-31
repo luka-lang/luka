@@ -527,6 +527,46 @@ t_ast_node *AST_fix_types(t_ast_node *node, t_module *module, t_logger *logger)
                 }
                 break;
             }
+        case AST_TYPE_GET_EXPR:
+            {
+                if (NULL != node->get_expr.variable)
+                {
+                    node->get_expr.variable = AST_fix_types(
+                        node->get_expr.variable, module, logger);
+                }
+                break;
+            }
+        case AST_TYPE_CALL_EXPR:
+            {
+                if (NULL != node->call_expr.callable)
+                {
+                    node->call_expr.callable = AST_fix_types(
+                        node->call_expr.callable, module, logger);
+                }
+
+                if (NULL != node->call_expr.args)
+                {
+                    t_vector *args = NULL;
+                    t_ast_node *arg = NULL;
+                    size_t i = 0;
+
+                    args = node->call_expr.args;
+                    for (i = 0; i < args->size; ++i)
+                    {
+                        arg = *(t_ast_node **) vector_get(args, i);
+                        arg = AST_fix_types(arg, module,
+                                                       logger);
+                        if (vector_assign(args, i, &arg))
+                        {
+                            (void) LOGGER_log(logger, L_ERROR,
+                                              "Failed while assigning arg "
+                                              "to the vector");
+                            (void) exit(LUKA_VECTOR_FAILURE);
+                        }
+                    }
+                }
+                break;
+            }
         case AST_TYPE_CAST_EXPR:
             {
                 node->cast_expr.type
@@ -696,6 +736,46 @@ t_ast_node *AST_resolve_type_aliases(t_ast_node *node, t_vector *type_aliases,
                 {
                     node->assignment_expr.rhs = AST_resolve_type_aliases(
                         node->assignment_expr.rhs, type_aliases, logger);
+                }
+                break;
+            }
+        case AST_TYPE_GET_EXPR:
+            {
+                if (NULL != node->get_expr.variable)
+                {
+                    node->get_expr.variable = AST_resolve_type_aliases(
+                        node->get_expr.variable, type_aliases, logger);
+                }
+                break;
+            }
+        case AST_TYPE_CALL_EXPR:
+            {
+                if (NULL != node->call_expr.callable)
+                {
+                    node->call_expr.callable = AST_resolve_type_aliases(
+                        node->call_expr.callable, type_aliases, logger);
+                }
+
+                if (NULL != node->call_expr.args)
+                {
+                    t_vector *args = NULL;
+                    t_ast_node *arg = NULL;
+                    size_t i = 0;
+
+                    args = node->call_expr.args;
+                    for (i = 0; i < args->size; ++i)
+                    {
+                        arg = *(t_ast_node **) vector_get(args, i);
+                        arg = AST_resolve_type_aliases(arg, type_aliases,
+                                                       logger);
+                        if (vector_assign(args, i, &arg))
+                        {
+                            (void) LOGGER_log(logger, L_ERROR,
+                                              "Failed while assigning arg "
+                                              "to the vector");
+                            (void) exit(LUKA_VECTOR_FAILURE);
+                        }
+                    }
                 }
                 break;
             }

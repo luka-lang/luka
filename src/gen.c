@@ -13,6 +13,7 @@
 #include "logger.h"
 #include "type.h"
 #include "uthash.h"
+#include "utils.h"
 #include "vector.h"
 
 t_named_value *named_values = NULL;
@@ -2022,35 +2023,13 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
     LLVMTypeRef func_type = NULL, type = NULL, dest_type = NULL;
     t_ast_node *arg = NULL;
     size_t i = 0;
-    bool vararg = NULL, builtin = false;
+    bool vararg = NULL, builtin = false, pushed_first_arg = false;
     size_t required_params_count = 0;
-    t_ast_node_type callable_type = node->call_expr.callable->type;
     char function_name_buffer[1024] = {0};
 
-    if (callable_type == AST_TYPE_VARIABLE)
-    {
-        (void) snprintf(function_name_buffer, sizeof(function_name_buffer),
-                        "%s", node->call_expr.callable->variable.name);
-    }
-    else if (callable_type == AST_TYPE_GET_EXPR)
-    {
-        (void) snprintf(
-            function_name_buffer, sizeof(function_name_buffer), "%s.%s",
-            node->call_expr.callable->get_expr.variable->variable.name,
-            node->call_expr.callable->get_expr.key);
-    }
-    else if (callable_type == AST_TYPE_BUILTIN)
-    {
-        (void) snprintf(function_name_buffer, sizeof(function_name_buffer),
-                        "%s", node->call_expr.callable->builtin.name);
-        builtin = true;
-    }
-    else
-    {
-        LOGGER_LOG_LOC(logger, L_ERROR, node->token,
-                       "gen: Unknown callable type - %d\n", callable_type);
-        (void) exit(LUKA_CODEGEN_ERROR);
-    }
+    (void) UTILS_fill_function_name(function_name_buffer,
+                                    sizeof(function_name_buffer), node,
+                                    &pushed_first_arg, &builtin, logger);
 
     if (builtin)
     {
@@ -2179,6 +2158,11 @@ l_cleanup:
     {
         (void) free(args);
         args = NULL;
+    }
+
+    if (pushed_first_arg)
+    {
+        (void) UTILS_pop_first_arg(node, logger);
     }
 
     return call;

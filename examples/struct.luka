@@ -20,11 +20,11 @@ struct Person {
 fn main(): s32 {
     let mut bob: Person = Person { name: "Bob", age: 14 as u8 };
 
-    Person.hello(&bob);
+    bob.hello();
 
-    Person.dbg(&bob);
+    bob.dbg();
 
     Person.age(&mut bob);
 
-    Person.dbg(&bob);
+    bob.dbg();
 }
