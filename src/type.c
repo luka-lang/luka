@@ -4,6 +4,7 @@
 #include "defs.h"
 #include "lib.h"
 #include "logger.h"
+#include "utils.h"
 #include "vector.h"
 
 #include <stdlib.h>
@@ -576,35 +577,15 @@ t_type *TYPE_get_type(const t_ast_node *node, t_logger *logger,
             return TYPE_get_type(node->binary_expr.rhs, logger, module);
         case AST_TYPE_CALL_EXPR:
             {
-                t_ast_node_type callable_type = node->call_expr.callable->type;
                 char function_name_buffer[1024] = {0};
 
-                if (callable_type == AST_TYPE_VARIABLE)
-                {
-                    (void) snprintf(function_name_buffer,
-                                    sizeof(function_name_buffer), "%s",
-                                    node->call_expr.callable->variable.name);
-                }
-                else if (callable_type == AST_TYPE_GET_EXPR)
-                {
-                    (void) snprintf(function_name_buffer,
-                                    sizeof(function_name_buffer), "%s.%s",
-                                    node->call_expr.callable->get_expr.variable
-                                        ->variable.name,
-                                    node->call_expr.callable->get_expr.key);
-                }
-                else if (callable_type == AST_TYPE_BUILTIN)
-                {
-                    return TYPE_get_type(node->call_expr.callable, logger,
-                                         module);
-                }
-                else
-                {
-                    LOGGER_LOG_LOC(logger, L_ERROR, node->token,
-                                   "type: Unknown callable type - %d\n",
-                                   callable_type);
-                    (void) exit(LUKA_TYPE_CHECK_ERROR);
-                }
+                (void) UTILS_fill_function_name(
+                    function_name_buffer, sizeof(function_name_buffer),
+                    (t_ast_node *)
+                        node /* When passing NULL to pushed_first arg,
+                                UTILS_fill_function_name does not modify node */
+                    ,
+                    NULL, NULL, logger);
 
                 if (NULL == module)
                 {
