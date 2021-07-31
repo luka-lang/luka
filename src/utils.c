@@ -2,7 +2,9 @@
 #include "ast.h"
 #include "type.h"
 #include "vector.h"
+#include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 char *UTILS_fill_function_name(char *function_name_buffer, size_t buffer_length,
                                t_ast_node *node, bool *pushed_first_arg,
@@ -21,17 +23,36 @@ char *UTILS_fill_function_name(char *function_name_buffer, size_t buffer_length,
                    *arg = NULL;
         t_type *type = variable->variable.type;
         char *name = variable->variable.name;
+        bool derefed = false;
+        char *var_name = variable->variable.name, *type_payload = NULL;
 
-        /* Check if using syntactic sugar only if */
-        if ((type->type == TYPE_PTR) && (type->inner_type->type == TYPE_STRUCT))
+        if (type->type == TYPE_PTR)
         {
-            name = (char *) type->inner_type->payload;
+            type = type->inner_type;
+            derefed = true;
+        }
+
+        type_payload = (char *) type->payload;
+
+        /* Check if using syntactic sugar */
+        /* The second condition makes sure the variable is not the struct name
+         */
+        if ((type->type == TYPE_STRUCT)
+            && (0 != strcmp(var_name, type_payload)))
+        {
+            name = (char *) type->payload;
             /* Push first arg only if relevant */
             if (NULL != pushed_first_arg)
             {
                 arg = AST_new_variable(strdup(variable->variable.name),
                                        TYPE_dup_type(variable->variable.type),
                                        variable->variable.mutable);
+                if (!derefed)
+                {
+                    /* If the original is not a pointer to a structure, pass a
+                     * pointer to match thiscall convention */
+                    arg = AST_new_unary_expr(UNOP_REF, arg, false);
+                }
                 vector_push_front(node->call_expr.args, &arg);
                 *pushed_first_arg = true;
             }
