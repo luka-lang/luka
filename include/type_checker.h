@@ -1,6 +1,6 @@
 /** @file type_checker.h */
-#ifndef __TYPE_CHECKER_H__
-#define __TYPE_CHECKER_H__
+#ifndef LUKA_TYPE_CHECKER_H
+#define LUKA_TYPE_CHECKER_H
 
 #include "defs.h"
 #include "logger.h"
@@ -17,4 +17,4 @@
  */
 bool CHECK_function(const t_module *module, const t_ast_node *function, t_logger *logger);
 
-#endif
+#endif // LUKA_TYPE_CHECKER_H

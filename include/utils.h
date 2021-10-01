@@ -1,6 +1,6 @@
 /** @file utils.h */
-#ifndef __UTILS_H__
-#define __UTILS_H__
+#ifndef LUKA_UTILS_H
+#define LUKA_UTILS_H
 
 #include "defs.h"
 #include "logger.h"
@@ -13,4 +13,4 @@ char *UTILS_fill_function_name(char *function_name_buffer, size_t buffer_length,
 
 void UTILS_pop_first_arg(t_ast_node *node, t_logger *logger);
 
-#endif /* __UTILS_H__ */
+#endif /* LUKA_UTILS_H */

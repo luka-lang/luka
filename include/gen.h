@@ -1,6 +1,6 @@
 /** @file gen.h */
-#ifndef __GEN_H__
-#define __GEN_H__
+#ifndef LUKA_GEN_H
+#define LUKA_GEN_H
 
 #include <llvm-c/Analysis.h>
 #include <llvm-c/Core.h>
@@ -84,4 +84,4 @@ void GEN_codegen_initialize();
  */
 void GEN_codegen_reset();
 
-#endif // __GEN_H__
+#endif // LUKA_GEN_H

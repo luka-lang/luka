@@ -1,6 +1,6 @@
 /** @file lib.h */
-#ifndef __LIB_H__
-#define __LIB_H__
+#ifndef LUKA_LIB_H
+#define LUKA_LIB_H
 
 #include "defs.h"
 #include "logger.h"
@@ -102,4 +102,4 @@ bool LIB_is_enum_name(const t_module *module, const char *name,
 t_ast_node *LIB_resolve_func_name(const t_module *module, const char *name,
                                   const t_module *original_module);
 
-#endif // __LIB_H__
+#endif // LUKA_LIB_H

@@ -1,6 +1,6 @@
 /** @file logger.h */
-#ifndef __LOGGER_H__
-#define __LOGGER_H__
+#ifndef LUKA_LOGGER_H
+#define LUKA_LOGGER_H
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -73,4 +73,4 @@ void LOGGER_log(t_logger *logger, const char *level, const char *format, ...);
  */
 void LOGGER_free(t_logger *logger);
 
-#endif // __LOGGER_H__
+#endif // LUKA_LOGGER_H

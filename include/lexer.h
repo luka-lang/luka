@@ -1,6 +1,6 @@
 /** @file lexer.h */
-#ifndef __LEXER_H__
-#define __LEXER_H__
+#ifndef LUKA_LEXER_H
+#define LUKA_LEXER_H
 
 #include "defs.h"
 #include "logger.h"
@@ -23,4 +23,4 @@
 t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                                     t_logger *logger, const char *file_path);
 
-#endif // __LEXER_H__
+#endif // LUKA_LEXER_H

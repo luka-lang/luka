@@ -1,6 +1,6 @@
 /** @file io.h */
-#ifndef __IO_H__
-#define __IO_H__
+#ifndef LUKA_IO_H
+#define LUKA_IO_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,4 +61,4 @@ char *IO_resolve_path(const char *requested_path, const char *current_path,
  */
 bool IO_file_exists(const char *const full_path);
 
-#endif // __IO_H__
+#endif // LUKA_IO_H

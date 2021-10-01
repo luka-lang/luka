@@ -1,6 +1,6 @@
 /** @file defs.h */
-#ifndef __DEFS_H__
-#define __DEFS_H__
+#ifndef LUKA_DEFS_H
+#define LUKA_DEFS_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -532,4 +532,4 @@ typedef struct
 typedef char
     *t_char_ptr; /**< A type alias for getting this type from a vector */
 
-#endif // __DEFS_H__
+#endif // LUKA_DEFS_H

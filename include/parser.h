@@ -1,6 +1,6 @@
 /** @file parser.h */
-#ifndef __PARSER_H__
-#define __PARSER_H__
+#ifndef LUKA_PARSER_H
+#define LUKA_PARSER_H
 
 #include <assert.h>
 #include <stdint.h>
@@ -61,4 +61,4 @@ void PARSER_print_parser_tokens(t_parser *parser);
  */
 void PARSER_free(t_parser *parser);
 
-#endif // __PARSER_H__
+#endif // LUKA_PARSER_H

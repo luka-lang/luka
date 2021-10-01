@@ -1,6 +1,6 @@
 /** @file ast.h  */
-#ifndef __AST_H__
-#define __AST_H__
+#ifndef LUKA_AST_H
+#define LUKA_AST_H
 
 #include "defs.h"
 #include "logger.h"
@@ -433,4 +433,4 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger);
  */
 bool AST_is_cond_binop(t_ast_binop_type op);
 
-#endif // __AST_H__
+#endif // LUKA_AST_H
