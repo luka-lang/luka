@@ -1,6 +1,6 @@
 /** @file logger.h */
-#ifndef __LOGGER_H__
-#define __LOGGER_H__
+#ifndef LUKA_LOGGER_H
+#define LUKA_LOGGER_H
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -15,9 +15,9 @@ typedef struct
     size_t verbosity; /**< The verbosity of the logger */
 } t_logger;
 
-#define L_DEBUG   "DEBUG" /**< Log string for the DEBUG level */
-#define L_ERROR   "ERROR" /**< Log string for the ERROR level*/
-#define L_INFO    "INFO" /**< Log string for the INFO level*/
+#define L_DEBUG   "DEBUG"   /**< Log string for the DEBUG level */
+#define L_ERROR   "ERROR"   /**< Log string for the ERROR level*/
+#define L_INFO    "INFO"    /**< Log string for the INFO level*/
 #define L_WARNING "WARNING" /**< Log string for the WARNING level*/
 
 /**
@@ -73,4 +73,4 @@ void LOGGER_log(t_logger *logger, const char *level, const char *format, ...);
  */
 void LOGGER_free(t_logger *logger);
 
-#endif // __LOGGER_H__
+#endif // LUKA_LOGGER_H

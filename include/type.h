@@ -1,6 +1,6 @@
 /** @file type.h */
-#ifndef __TYPE_H_
-#define __TYPE_H_
+#ifndef LUKA_TYPE_H
+#define LUKA_TYPE_H
 
 #include "defs.h"
 #include "logger.h"
@@ -116,4 +116,4 @@ const char *TYPE_to_string(t_type *type, t_logger *logger, char *buffer,
 t_type *TYPE_get_type(const t_ast_node *node, t_logger *logger,
                       const t_module *module);
 
-#endif // __TYPE_H_
+#endif // LUKA_TYPE_H

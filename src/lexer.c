@@ -26,7 +26,7 @@ const char *keywords[NUMBER_OF_KEYWORDS]
  * @return -1 if the identifier is not a keyword or the index of the keyword in
  * the #keywords arrays.
  */
-int lexer_is_keyword(const char *identifier)
+static int lexer_is_keyword(const char *identifier)
 {
     for (int i = 0; i < NUMBER_OF_KEYWORDS; ++i)
     {
@@ -53,7 +53,7 @@ int lexer_is_keyword(const char *identifier)
  *
  * @return the string representation of the number.
  */
-char *lexer_lex_number(const char *source, size_t *index, t_logger *logger)
+static char *lexer_lex_number(const char *source, size_t *index, t_logger *logger)
 {
     bool is_floating = false;
     size_t start_index = *index;
@@ -73,7 +73,7 @@ char *lexer_lex_number(const char *source, size_t *index, t_logger *logger)
             (void) LOGGER_log(logger, L_ERROR,
                               "Floating point numbers must have at least one "
                               "digit after the '.'\n");
-            (void) exit(LUKA_LEXER_FAILED);
+            exit(LUKA_LEXER_FAILED);
         }
 
         do
@@ -87,7 +87,7 @@ char *lexer_lex_number(const char *source, size_t *index, t_logger *logger)
     {
         (void) LOGGER_log(logger, L_ERROR,
                           "Couldn't allocate memory for number substring.\n");
-        (void) exit(LUKA_CANT_ALLOC_MEMORY);
+        exit(LUKA_CANT_ALLOC_MEMORY);
     }
     memcpy(substring, &source[start_index], string_length);
     substring[string_length] = '\0';
@@ -112,7 +112,7 @@ char *lexer_lex_number(const char *source, size_t *index, t_logger *logger)
  *
  * @return the string representation of the identifier.
  */
-char *lexer_lex_identifier(const char *source, size_t *index, bool builtin)
+static char *lexer_lex_identifier(const char *source, size_t *index, bool builtin)
 {
     size_t i = *index;
     if (isalpha(source[i]) || ('_' == source[i]))
@@ -151,10 +151,10 @@ char *lexer_lex_identifier(const char *source, size_t *index, bool builtin)
  *
  * @details strings are enclosed in `"` and can have the following escape
  * characters:
- * - `\n` is a newline
- * - `\t` is a tab
- * - `\\` is a backslash
- * - `\"` is a quotation mark
+ * - `\\n` is a newline
+ * - `\\t` is a tab
+ * - `\\\\` is a backslash
+ * - `\\"` is a quotation mark
  *
  * @param[in] source the source code.
  * @param[in,out] index the index to start from, will point at the next
@@ -163,7 +163,7 @@ char *lexer_lex_identifier(const char *source, size_t *index, bool builtin)
  *
  * @return the string representation of the string.
  */
-char *lexer_lex_string(const char *source, size_t *index, t_logger *logger)
+static char *lexer_lex_string(const char *source, size_t *index, t_logger *logger)
 {
     size_t i = *index;
     size_t char_count = 0, off = 0, ind = 0;
@@ -183,7 +183,7 @@ char *lexer_lex_string(const char *source, size_t *index, t_logger *logger)
                     (void) LOGGER_log(logger, L_ERROR,
                                       "\\%c is not a valid esacpe sequence.\n",
                                       source[i + 1]);
-                    (void) exit(1);
+                    exit(1);
             }
         }
 
@@ -224,7 +224,7 @@ char *lexer_lex_string(const char *source, size_t *index, t_logger *logger)
                     (void) LOGGER_log(logger, L_ERROR,
                                       "\\%c is not a valid esacpe sequence.\n",
                                       source[*index + ind + off + 1]);
-                    (void) exit(1);
+                    exit(1);
             }
 
             ++off;
@@ -379,7 +379,6 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                         break;
                     }
                 }
-                break;
             case '/':
                 {
                     if ('/' == source[i + 1])
@@ -556,7 +555,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                     (void) LOGGER_log(logger, L_ERROR,
                                       "Unrecognized character %c at %ld:%ld.\n",
                                       character, line, offset);
-                    (void) exit(1);
+                    exit(1);
                 }
         }
 

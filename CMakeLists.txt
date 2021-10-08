@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.17)
 
 project(luka)
 
+set(CMAKE_C_COMPILER "clang")
+set(CMAKE_CXX_COMPILER "clang++")
+
 find_package(LLVM REQUIRED)
 include_directories(${LLVM_INCLUDE_DIRS})
 link_directories(${LLVM_LIBRARY_DIRS})
@@ -16,6 +19,7 @@ execute_process(
 )
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/third_party/include)
 
 file(GLOB_RECURSE SOURCES src/*.c)
 file(GLOB_RECURSE LIBS    libs/*)
@@ -25,7 +29,7 @@ add_executable(luka ${SOURCES})
 add_library(vector STATIC libs/vector.c)
 target_link_libraries(luka vector)
 target_link_libraries(luka ${LLVM_LIBRARIES})
-target_compile_options(luka PRIVATE -Wall -Wextra -pedantic -Werror)
+target_compile_options(luka PRIVATE -Wall -Wextra -Wmost -Weverything -pedantic -Werror -Wno-padded)
 
 add_custom_target(docs cd ${PROJECT_SOURCE_DIR}/docs
   COMMAND doxygen && cd -

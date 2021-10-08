@@ -1,6 +1,6 @@
 /** @file gen.h */
-#ifndef __GEN_H__
-#define __GEN_H__
+#ifndef LUKA_GEN_H
+#define LUKA_GEN_H
 
 #include <llvm-c/Analysis.h>
 #include <llvm-c/Core.h>
@@ -11,7 +11,7 @@
 
 typedef struct
 {
-    const char *name;         /**< The name of the named value */
+    char *name;               /**< The name of the named value */
     LLVMValueRef alloca_inst; /**< The alloca instruction of the named value */
     LLVMTypeRef type;         /**< The LLVM type of the named value */
     t_type *ttype;            /**< The luka type of the named value */
@@ -41,8 +41,8 @@ typedef struct
 
 /**
  * @brief Generate prototypes for all functions in a given luka module.
- * @param[in] n the AST node.
- * @param[in] module the LLVM module.
+ * @param[in] module the luka module.
+ * @param[in] llvm_module the LLVM module.
  * @param[in] builder the LLVM IR builder.
  * @param[in] logger a logger that can be used to log messages.
  */
@@ -50,9 +50,10 @@ void GEN_module_prototypes(t_module *module, LLVMModuleRef llvm_module,
                            LLVMBuilderRef builder, t_logger *logger);
 
 /**
- * @brief Generate all structs in a given luka module without codegen for their functions.
- * @param[in] n the AST node.
- * @param[in] module the LLVM module.
+ * @brief Generate all structs in a given luka module without codegen for their
+ * functions.
+ * @param[in] module the luka module.
+ * @param[in] llvm_module the LLVM module.
  * @param[in] builder the LLVM IR builder.
  * @param[in] logger a logger that can be used to log messages.
  */
@@ -77,11 +78,11 @@ LLVMValueRef GEN_codegen(t_ast_node *n, LLVMModuleRef module,
 /**
  * @brief Initializing the codegen environment.
  */
-void GEN_codegen_initialize();
+void GEN_codegen_initialize(void);
 
 /**
  * @brief Resetting the codegen environment.
  */
-void GEN_codegen_reset();
+void GEN_codegen_reset(void);
 
-#endif // __GEN_H__
+#endif // LUKA_GEN_H

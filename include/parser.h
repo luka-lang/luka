@@ -1,6 +1,6 @@
 /** @file parser.h */
-#ifndef __PARSER_H__
-#define __PARSER_H__
+#ifndef LUKA_PARSER_H
+#define LUKA_PARSER_H
 
 #include <assert.h>
 #include <stdint.h>
@@ -33,10 +33,12 @@ typedef struct
  * @param[in] tokens the tokens vector that the parser should operate on.
  * @param[in] file_path the path of the file the tokens came from.
  * @param[in] logger the logger that the parser should log messages to.
- * @param[in] type_aliases the type aliases vector that the parser should add type aliases to.
+ * @param[in] type_aliases the type aliases vector that the parser should add
+ * type aliases to.
  */
 void PARSER_initialize(t_parser *parser, t_vector *tokens,
-                       const char *file_path, t_logger *logger, t_vector *type_aliases);
+                       const char *file_path, t_logger *logger,
+                       t_vector *type_aliases);
 
 /**
  * @brief Parse top level declarations and definitions.
@@ -61,4 +63,4 @@ void PARSER_print_parser_tokens(t_parser *parser);
  */
 void PARSER_free(t_parser *parser);
 
-#endif // __PARSER_H__
+#endif // LUKA_PARSER_H

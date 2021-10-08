@@ -16,18 +16,19 @@
 #include "utils.h"
 #include "vector.h"
 
-t_named_value *named_values = NULL;
-t_struct_info *struct_infos = NULL;
-t_enum_info *enum_infos = NULL;
-t_vector *loop_blocks = NULL;
-t_vector *defer_blocks = NULL;
+static t_named_value *named_values = NULL;
+static t_struct_info *struct_infos = NULL;
+static t_enum_info *enum_infos = NULL;
+static t_vector *loop_blocks = NULL;
+static t_vector *defer_blocks = NULL;
 
-LLVMValueRef gen_codegen_sizeof(t_ast_node *node, t_type *type,
-                                t_logger *logger);
+static LLVMValueRef gen_codegen_sizeof(t_ast_node *node, t_type *type,
+                                       t_logger *logger);
 
-LLVMValueRef gen_codegen_stmts(t_vector *statements, LLVMModuleRef module,
-                               LLVMBuilderRef builder, bool *has_return_stmt,
-                               t_logger *logger);
+static LLVMValueRef gen_codegen_stmts(t_vector *statements,
+                                      LLVMModuleRef module,
+                                      LLVMBuilderRef builder,
+                                      bool *has_return_stmt, t_logger *logger);
 
 /**
  * @brief Generate LLVM IR for all currently defined defer blocks.
@@ -36,8 +37,8 @@ LLVMValueRef gen_codegen_stmts(t_vector *statements, LLVMModuleRef module,
  * @param[in] builder the LLVM builder.
  * @param[in] logger a logger that can be used to log messages.
  */
-void gen_codegen_defer_blocks(LLVMModuleRef module, LLVMBuilderRef builder,
-                              t_logger *logger)
+static void gen_codegen_defer_blocks(LLVMModuleRef module,
+                                     LLVMBuilderRef builder, t_logger *logger)
 {
     size_t i = 0;
     t_ast_node *node = NULL;
@@ -61,12 +62,12 @@ void gen_codegen_defer_blocks(LLVMModuleRef module, LLVMBuilderRef builder,
  *
  * @return the Luka type.
  */
-t_type *gen_llvm_type_to_ttype(LLVMTypeRef type, t_logger *logger)
+static t_type *gen_llvm_type_to_ttype(LLVMTypeRef type, t_logger *logger)
 {
     t_type *ttype = calloc(1, sizeof(t_type));
     if (NULL == type)
     {
-        (void) exit(LUKA_CANT_ALLOC_MEMORY);
+        exit(LUKA_CANT_ALLOC_MEMORY);
     }
 
     ttype->payload = NULL;
@@ -150,7 +151,7 @@ t_type *gen_llvm_type_to_ttype(LLVMTypeRef type, t_logger *logger)
         (void) LOGGER_log(
             logger, L_ERROR,
             "\nI don't know how to translate LLVM type %d to t_type.\n", type);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
     return ttype;
@@ -166,11 +167,12 @@ t_type *gen_llvm_type_to_ttype(LLVMTypeRef type, t_logger *logger)
  *
  * @return a GEP instruction to the struct field.
  */
-LLVMValueRef gen_get_struct_field_pointer(t_named_value *variable, char *key,
-                                          LLVMBuilderRef builder,
-                                          t_logger *logger)
+static LLVMValueRef gen_get_struct_field_pointer(t_named_value *variable,
+                                                 char *key,
+                                                 LLVMBuilderRef builder,
+                                                 t_logger *logger)
 {
-    size_t index = 0;
+    unsigned int index = 0;
     bool found_field = false;
     t_struct_info *struct_info = NULL;
     t_type *type = NULL;
@@ -181,14 +183,14 @@ LLVMValueRef gen_get_struct_field_pointer(t_named_value *variable, char *key,
     {
         (void) LOGGER_log(logger, L_ERROR, "Struct variable is NULL.\n",
                           variable->name);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
     if (NULL == variable->ttype)
     {
         (void) LOGGER_log(logger, L_ERROR, "Struct %s ttype is NULL.\n",
                           variable->name);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
     type = variable->ttype;
@@ -200,7 +202,7 @@ LLVMValueRef gen_get_struct_field_pointer(t_named_value *variable, char *key,
             (void) LOGGER_log(logger, L_ERROR,
                               "Struct %s ttype after dereference is NULL.\n",
                               variable->name);
-            (void) exit(LUKA_CODEGEN_ERROR);
+            exit(LUKA_CODEGEN_ERROR);
         }
         should_deref = true;
     }
@@ -209,7 +211,7 @@ LLVMValueRef gen_get_struct_field_pointer(t_named_value *variable, char *key,
     {
         (void) LOGGER_log(logger, L_ERROR, "Struct %s ttype payload is NULL.\n",
                           variable->name);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
     HASH_FIND_STR(struct_infos, (char *) type->payload, struct_info);
@@ -217,10 +219,11 @@ LLVMValueRef gen_get_struct_field_pointer(t_named_value *variable, char *key,
     if (NULL == struct_info)
     {
         (void) LOGGER_log(logger, L_ERROR, "Couldn't find struct info.\n");
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
-    for (size_t i = 0; i < struct_info->number_of_fields && !found_field; ++i)
+    for (unsigned int i = 0; i < struct_info->number_of_fields && !found_field;
+         ++i)
     {
         if ((NULL != struct_info->struct_fields)
             && (0 == strcmp(key, struct_info->struct_fields[i])))
@@ -235,7 +238,7 @@ LLVMValueRef gen_get_struct_field_pointer(t_named_value *variable, char *key,
         (void) LOGGER_log(logger, L_ERROR,
                           "`%s` is not a field in struct `%s`.\n", key,
                           struct_info->struct_name);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
     var = variable->alloca_inst;
@@ -260,8 +263,9 @@ LLVMValueRef gen_get_struct_field_pointer(t_named_value *variable, char *key,
  *
  * @return whether a cast has happend.
  */
-bool gen_llvm_cast_sizes_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs,
-                                   LLVMBuilderRef builder, t_logger *logger)
+static bool gen_llvm_cast_sizes_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs,
+                                          LLVMBuilderRef builder,
+                                          t_logger *logger)
 {
     t_type *lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*lhs), logger);
     t_type *rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*rhs), logger);
@@ -311,7 +315,7 @@ bool gen_llvm_cast_sizes_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs,
 /**
  * @brief Clearing currently defined named values.
  */
-void gen_named_values_clear()
+static void gen_named_values_clear(void)
 {
     t_named_value *named_value = NULL, *named_value_iter = NULL;
 
@@ -322,7 +326,7 @@ void gen_named_values_clear()
         {
             if (NULL != named_value->name)
             {
-                (void) free((char *) named_value->name);
+                (void) free(named_value->name);
                 named_value->name = NULL;
             }
 
@@ -346,7 +350,7 @@ void gen_named_values_clear()
  *
  * @return the LLVM type.
  */
-LLVMTypeRef gen_type_to_llvm_type(t_type *type, t_logger *logger)
+static LLVMTypeRef gen_type_to_llvm_type(t_type *type, t_logger *logger)
 {
     t_struct_info *struct_info = NULL;
 
@@ -361,6 +365,7 @@ LLVMTypeRef gen_type_to_llvm_type(t_type *type, t_logger *logger)
             return LLVMInt8Type();
         case TYPE_SINT16:
             return LLVMInt16Type();
+        case TYPE_ENUM:
         case TYPE_SINT32:
             return LLVMInt32Type();
         case TYPE_SINT64:
@@ -389,7 +394,7 @@ LLVMTypeRef gen_type_to_llvm_type(t_type *type, t_logger *logger)
             {
                 return LLVMArrayType(
                     gen_type_to_llvm_type(type->inner_type, logger),
-                    (size_t) type->payload);
+                    (unsigned int) (size_t) type->payload);
             }
             return LLVMPointerType(
                 gen_type_to_llvm_type(type->inner_type, logger), 0);
@@ -405,20 +410,14 @@ LLVMTypeRef gen_type_to_llvm_type(t_type *type, t_logger *logger)
                 "gen_type_to_llvm_type: I don't know how to translate struct "
                 "named %s to LLVM types without a previous definition.\n",
                 (char *) type->payload);
-            (void) exit(LUKA_CODEGEN_ERROR);
+            exit(LUKA_CODEGEN_ERROR);
 
         case TYPE_ALIAS:
             (void) LOGGER_log(
                 logger, L_ERROR,
                 "Unresolved alias %s got to gen_type_to_llvm_type.\n",
                 (char *) type->payload);
-            (void) exit(LUKA_CODEGEN_ERROR);
-        default:
-            (void) LOGGER_log(logger, L_ERROR,
-                              "gen_type_to_llvm_type: I don't know how to "
-                              "translate type %d to LLVM types.\n",
-                              type);
-            (void) exit(LUKA_CODEGEN_ERROR);
+            exit(LUKA_CODEGEN_ERROR);
     }
 }
 
@@ -432,9 +431,9 @@ LLVMTypeRef gen_type_to_llvm_type(t_type *type, t_logger *logger)
  *
  * @return an alloca instruction.
  */
-LLVMValueRef gen_create_entry_block_allca(LLVMValueRef function,
-                                          LLVMTypeRef type,
-                                          const char *var_name)
+static LLVMValueRef gen_create_entry_block_allca(LLVMValueRef function,
+                                                 LLVMTypeRef type,
+                                                 const char *var_name)
 {
     LLVMBuilderRef builder = NULL;
     LLVMValueRef alloca_inst = NULL;
@@ -466,8 +465,8 @@ LLVMValueRef gen_create_entry_block_allca(LLVMValueRef function,
  *
  * @return the opcode that should be used to cast from `type` to `dest_type`.
  */
-LLVMOpcode gen_llvm_get_cast_op(LLVMTypeRef type, LLVMTypeRef dest_type,
-                                t_logger *logger)
+static LLVMOpcode gen_llvm_get_cast_op(LLVMTypeRef type, LLVMTypeRef dest_type,
+                                       t_logger *logger)
 {
     t_type *ttype = gen_llvm_type_to_ttype(type, logger),
            *dest_ttype = gen_llvm_type_to_ttype(dest_type, logger);
@@ -547,9 +546,9 @@ LLVMOpcode gen_llvm_get_cast_op(LLVMTypeRef type, LLVMTypeRef dest_type,
  *
  * @return the value casted to the `dest_type`.
  */
-LLVMValueRef gen_codegen_cast(LLVMBuilderRef builder,
-                              LLVMValueRef original_value,
-                              LLVMTypeRef dest_type, t_logger *logger)
+static LLVMValueRef gen_codegen_cast(LLVMBuilderRef builder,
+                                     LLVMValueRef original_value,
+                                     LLVMTypeRef dest_type, t_logger *logger)
 {
     LLVMTypeRef type = LLVMTypeOf(original_value);
 
@@ -581,8 +580,9 @@ LLVMValueRef gen_codegen_cast(LLVMBuilderRef builder,
  *
  * @return whether a cast has happend.
  */
-bool gen_llvm_cast_to_fp_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs,
-                                   LLVMBuilderRef builder, t_logger *logger)
+static bool gen_llvm_cast_to_fp_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs,
+                                          LLVMBuilderRef builder,
+                                          t_logger *logger)
 {
     t_type *lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*lhs), logger);
     t_type *rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*rhs), logger);
@@ -643,8 +643,10 @@ bool gen_llvm_cast_to_fp_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs,
  *
  * @return whether a cast has happend.
  */
-bool gen_llvm_cast_to_signed_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs,
-                                       LLVMBuilderRef builder, t_logger *logger)
+static bool gen_llvm_cast_to_signed_if_needed(LLVMValueRef *lhs,
+                                              LLVMValueRef *rhs,
+                                              LLVMBuilderRef builder,
+                                              t_logger *logger)
 {
     t_type *lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*lhs), logger);
     t_type *rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*rhs), logger);
@@ -685,13 +687,12 @@ bool gen_llvm_cast_to_signed_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs,
  *
  * @param[in,out] lhs the left hand side.
  * @param[in,out] rhs the right hand side.
- * @param[in] builder the LLVM IR builder.
  * @param[in] logger a logger that can be used to log messages.
  *
  * @return whether a cast has happend.
  */
-bool gen_llvm_cast_null_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs,
-                                  t_logger *logger)
+static bool gen_llvm_cast_null_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs,
+                                         t_logger *logger)
 {
     t_type *lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*lhs), logger);
     t_type *rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(*rhs), logger);
@@ -738,9 +739,9 @@ bool gen_llvm_cast_null_if_needed(LLVMValueRef *lhs, LLVMValueRef *rhs,
  * @param[in] builder the LLVM IR builder.
  * @param[in] logger a logger that can be used to log messages.
  */
-LLVMOpcode gen_get_llvm_opcode(t_ast_binop_type op, LLVMValueRef *lhs,
-                               LLVMValueRef *rhs, LLVMBuilderRef builder,
-                               t_logger *logger)
+static LLVMOpcode gen_get_llvm_opcode(t_ast_binop_type op, LLVMValueRef *lhs,
+                                      LLVMValueRef *rhs, LLVMBuilderRef builder,
+                                      t_logger *logger)
 {
     switch (op)
     {
@@ -794,11 +795,16 @@ LLVMOpcode gen_get_llvm_opcode(t_ast_binop_type op, LLVMValueRef *lhs,
 
             (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
             return LLVMURem;
-        default:
+        case BINOP_EQUALS:
+        case BINOP_GEQ:
+        case BINOP_GREATER:
+        case BINOP_LEQ:
+        case BINOP_LESSER:
+        case BINOP_NEQ:
             {
                 (void) LOGGER_log(logger, L_ERROR,
                                   "No handler found for op: %d\n", op);
-                (void) exit(LUKA_CODEGEN_ERROR);
+                exit(LUKA_CODEGEN_ERROR);
             }
     }
 }
@@ -813,7 +819,7 @@ LLVMOpcode gen_get_llvm_opcode(t_ast_binop_type op, LLVMValueRef *lhs,
  *
  * @return whether the comparison will be an integer comparison.
  */
-bool gen_is_icmp(LLVMValueRef lhs, LLVMValueRef rhs, t_logger *logger)
+static bool gen_is_icmp(LLVMValueRef lhs, LLVMValueRef rhs, t_logger *logger)
 {
     t_type *lhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(lhs), logger);
     t_type *rhs_t = gen_llvm_type_to_ttype(LLVMTypeOf(rhs), logger);
@@ -839,11 +845,11 @@ bool gen_is_icmp(LLVMValueRef lhs, LLVMValueRef rhs, t_logger *logger)
  *
  * @return an integer predicate for the comparison.
  */
-LLVMIntPredicate gen_llvm_get_int_predicate(t_ast_binop_type op,
-                                            LLVMValueRef *lhs,
-                                            LLVMValueRef *rhs,
-                                            LLVMBuilderRef builder,
-                                            t_logger *logger)
+static LLVMIntPredicate gen_llvm_get_int_predicate(t_ast_binop_type op,
+                                                   LLVMValueRef *lhs,
+                                                   LLVMValueRef *rhs,
+                                                   LLVMBuilderRef builder,
+                                                   t_logger *logger)
 {
     switch (op)
     {
@@ -889,12 +895,16 @@ LLVMIntPredicate gen_llvm_get_int_predicate(t_ast_binop_type op,
 
             (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
             return LLVMIntUGE;
-        default:
+        case BINOP_ADD:
+        case BINOP_DIVIDE:
+        case BINOP_MODULOS:
+        case BINOP_MULTIPLY:
+        case BINOP_SUBTRACT:
             {
                 (void) LOGGER_log(logger, L_ERROR,
                                   "Op %d is not a int comparison operator.\n",
                                   op);
-                (void) exit(LUKA_CODEGEN_ERROR);
+                exit(LUKA_CODEGEN_ERROR);
             }
     }
 }
@@ -910,11 +920,11 @@ LLVMIntPredicate gen_llvm_get_int_predicate(t_ast_binop_type op,
  *
  * @return a real predicate for the comparison.
  */
-LLVMRealPredicate gen_llvm_get_real_predicate(t_ast_binop_type op,
-                                              LLVMValueRef *lhs,
-                                              LLVMValueRef *rhs,
-                                              LLVMBuilderRef builder,
-                                              t_logger *logger)
+static LLVMRealPredicate gen_llvm_get_real_predicate(t_ast_binop_type op,
+                                                     LLVMValueRef *lhs,
+                                                     LLVMValueRef *rhs,
+                                                     LLVMBuilderRef builder,
+                                                     t_logger *logger)
 {
     (void) gen_llvm_cast_to_fp_if_needed(lhs, rhs, builder, logger);
     switch (op)
@@ -931,12 +941,16 @@ LLVMRealPredicate gen_llvm_get_real_predicate(t_ast_binop_type op,
             return LLVMRealOLE;
         case BINOP_GEQ:
             return LLVMRealOGE;
-        default:
+        case BINOP_ADD:
+        case BINOP_DIVIDE:
+        case BINOP_MODULOS:
+        case BINOP_MULTIPLY:
+        case BINOP_SUBTRACT:
             {
                 (void) LOGGER_log(logger, L_ERROR,
                                   "Op %d is not a real comparison operator.\n",
                                   op);
-                (void) exit(LUKA_CODEGEN_ERROR);
+                exit(LUKA_CODEGEN_ERROR);
             }
     }
 }
@@ -946,8 +960,8 @@ LLVMRealPredicate gen_llvm_get_real_predicate(t_ast_binop_type op,
  *
  * @param[in] node the AST node.
  */
-LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
-                             LLVMBuilderRef builder, t_logger *logger)
+static LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
+                                    LLVMBuilderRef builder, t_logger *logger)
 {
     switch (node->type)
     {
@@ -965,7 +979,7 @@ LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
                 LOGGER_LOG_LOC(logger, L_ERROR, node->token,
                                "Variable %s is undefined.\n",
                                node->variable.name);
-                (void) exit(LUKA_CODEGEN_ERROR);
+                exit(LUKA_CODEGEN_ERROR);
             }
         case AST_TYPE_GET_EXPR:
             {
@@ -975,7 +989,7 @@ LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
                 {
                     LOGGER_LOG_LOC(logger, L_ERROR, node->token,
                                    "Get expr variable name is null.\n", NULL);
-                    (void) exit(LUKA_CODEGEN_ERROR);
+                    exit(LUKA_CODEGEN_ERROR);
                 }
 
                 HASH_FIND_STR(named_values,
@@ -985,7 +999,7 @@ LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
                     LOGGER_LOG_LOC(logger, L_ERROR, node->token,
                                    "Couldn't find a variable named `%s`.\n",
                                    node->get_expr.variable->variable.name);
-                    (void) exit(LUKA_CODEGEN_ERROR);
+                    exit(LUKA_CODEGEN_ERROR);
                 }
 
                 return gen_get_struct_field_pointer(
@@ -1006,7 +1020,7 @@ LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
                     LOGGER_LOG_LOC(logger, L_ERROR, node->token,
                                    "Variable %s is undefined.\n",
                                    node->array_deref.variable->variable.name);
-                    (void) exit(LUKA_CODEGEN_ERROR);
+                    exit(LUKA_CODEGEN_ERROR);
                 }
 
                 val_type_kind = LLVMGetTypeKind(val->type);
@@ -1018,7 +1032,7 @@ LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
                         logger, L_ERROR, node->token,
                         "Variable %s is not an array or a pointer.\n",
                         node->array_deref.variable->variable.name);
-                    (void) exit(LUKA_CODEGEN_ERROR);
+                    exit(LUKA_CODEGEN_ERROR);
                 }
 
                 index = GEN_codegen(node->array_deref.index, module, builder,
@@ -1029,7 +1043,7 @@ LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
                         logger, L_ERROR, node->array_deref.index->token,
                         "Couldn't generate index in array dereference.\n",
                         NULL);
-                    (void) exit(LUKA_CODEGEN_ERROR);
+                    exit(LUKA_CODEGEN_ERROR);
                 }
 
                 if (LLVMIntegerTypeKind != LLVMGetTypeKind(LLVMTypeOf(index)))
@@ -1039,7 +1053,7 @@ LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
                                    "Index in array dereference should "
                                    "resolve to an integer.\n",
                                    NULL);
-                    (void) exit(LUKA_CODEGEN_ERROR);
+                    exit(LUKA_CODEGEN_ERROR);
                 }
 
                 ptr = val->alloca_inst;
@@ -1051,28 +1065,48 @@ LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
                 return LLVMBuildGEP2(builder, LLVMGetElementType(val->type),
                                      ptr, &index, 1, "arrdereftmp");
             }
-        default:
+        case AST_TYPE_UNARY_EXPR:
             {
-                if (node->type != AST_TYPE_UNARY_EXPR)
-                {
-                    LOGGER_LOG_LOC(logger, L_ERROR, node->token,
-                                   "Can't get address of %d.\n", node->type);
-                    (void) exit(LUKA_CODEGEN_ERROR);
-                }
-
                 if (node->unary_expr.operator!= UNOP_DEREF)
                 {
                     LOGGER_LOG_LOC(
                         logger, L_ERROR, node->token,
                         "Can't assign to unary expr not of type deref %d.\n",
                         node->unary_expr.operator);
-                    (void) exit(LUKA_CODEGEN_ERROR);
+                    exit(LUKA_CODEGEN_ERROR);
                 }
 
                 return LLVMBuildLoad(builder,
                                      gen_get_address(node->unary_expr.rhs,
                                                      module, builder, logger),
                                      "loadtmp");
+            }
+        case AST_TYPE_ARRAY_LITERAL:
+        case AST_TYPE_ASSIGNMENT_EXPR:
+        case AST_TYPE_BINARY_EXPR:
+        case AST_TYPE_BREAK_STMT:
+        case AST_TYPE_BUILTIN:
+        case AST_TYPE_CALL_EXPR:
+        case AST_TYPE_CAST_EXPR:
+        case AST_TYPE_DEFER_STMT:
+        case AST_TYPE_ENUM_DEFINITION:
+        case AST_TYPE_EXPRESSION_STMT:
+        case AST_TYPE_FUNCTION:
+        case AST_TYPE_IF_EXPR:
+        case AST_TYPE_LET_STMT:
+        case AST_TYPE_LITERAL:
+        case AST_TYPE_NUMBER:
+        case AST_TYPE_PROTOTYPE:
+        case AST_TYPE_RETURN_STMT:
+        case AST_TYPE_STRING:
+        case AST_TYPE_STRUCT_DEFINITION:
+        case AST_TYPE_STRUCT_VALUE:
+        case AST_TYPE_TYPE_EXPR:
+        case AST_TYPE_WHILE_EXPR:
+            {
+                LOGGER_LOG_LOC(logger, L_ERROR, node->token,
+                               "Can't get address of %d.\n", node->type);
+                exit(LUKA_CODEGEN_ERROR);
             }
     }
 }
@@ -1087,8 +1121,8 @@ LLVMValueRef gen_get_address(t_ast_node *node, LLVMModuleRef module,
  *
  * @return the built LLVM IR for the unary expression.
  */
-LLVMValueRef gen_codegen_unexpr(t_ast_node *n, LLVMModuleRef module,
-                                LLVMBuilderRef builder, t_logger *logger)
+static LLVMValueRef gen_codegen_unexpr(t_ast_node *n, LLVMModuleRef module,
+                                       LLVMBuilderRef builder, t_logger *logger)
 {
     LLVMValueRef rhs = NULL;
     t_type *type = NULL;
@@ -1101,7 +1135,7 @@ LLVMValueRef gen_codegen_unexpr(t_ast_node *n, LLVMModuleRef module,
     {
         LOGGER_LOG_LOC(logger, L_ERROR, n->unary_expr.rhs->token,
                        "Couldn't codegen rhs for unary expression.\n", NULL);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
     switch (n->unary_expr.operator)
@@ -1133,13 +1167,13 @@ LLVMValueRef gen_codegen_unexpr(t_ast_node *n, LLVMModuleRef module,
             {
                 return LLVMBuildLoad(builder, rhs, "loadtmp");
             }
-        default:
+        case UNOP_PLUS:
             {
                 LOGGER_LOG_LOC(logger, L_ERROR, n->token,
                                "Currently not supporting %d operator in "
                                "unary expression.\n",
                                n->unary_expr.operator);
-                (void) exit(LUKA_CODEGEN_ERROR);
+                exit(LUKA_CODEGEN_ERROR);
             }
     }
 }
@@ -1154,8 +1188,9 @@ LLVMValueRef gen_codegen_unexpr(t_ast_node *n, LLVMModuleRef module,
  *
  * @return the built LLVM IR for the binary expression.
  */
-LLVMValueRef gen_codegen_binexpr(t_ast_node *n, LLVMModuleRef module,
-                                 LLVMBuilderRef builder, t_logger *logger)
+static LLVMValueRef gen_codegen_binexpr(t_ast_node *n, LLVMModuleRef module,
+                                        LLVMBuilderRef builder,
+                                        t_logger *logger)
 {
     LLVMValueRef lhs = NULL, rhs = NULL;
     LLVMOpcode opcode = LLVMAdd;
@@ -1176,7 +1211,7 @@ LLVMValueRef gen_codegen_binexpr(t_ast_node *n, LLVMModuleRef module,
     {
         LOGGER_LOG_LOC(logger, L_ERROR, n->token,
                        "Binexpr lhs or rhs is null.\n", NULL);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
     if (AST_is_cond_binop(n->binary_expr.operator))
@@ -1198,7 +1233,7 @@ LLVMValueRef gen_codegen_binexpr(t_ast_node *n, LLVMModuleRef module,
     return LLVMBuildBinOp(builder, opcode, lhs, rhs, "binoptmp");
 }
 
-LLVMTypeRef gen_function_type(t_ast_node *prototype, t_logger *logger)
+static LLVMTypeRef gen_function_type(t_ast_node *prototype, t_logger *logger)
 {
     size_t i = 0, arity = prototype->prototype.arity;
     bool vararg = prototype->prototype.vararg;
@@ -1214,7 +1249,7 @@ LLVMTypeRef gen_function_type(t_ast_node *prototype, t_logger *logger)
         (void) LOGGER_log(
             logger, L_ERROR,
             "Failed to assign memory for params in prototype generaion.\n");
-        (void) exit(LUKA_CANT_ALLOC_MEMORY);
+        exit(LUKA_CANT_ALLOC_MEMORY);
     }
 
     for (i = 0; i < arity; ++i)
@@ -1225,7 +1260,7 @@ LLVMTypeRef gen_function_type(t_ast_node *prototype, t_logger *logger)
 
     return LLVMFunctionType(
         gen_type_to_llvm_type(prototype->prototype.return_type, logger), params,
-        arity, vararg);
+        (unsigned int) arity, vararg);
 }
 
 /**
@@ -1238,13 +1273,14 @@ LLVMTypeRef gen_function_type(t_ast_node *prototype, t_logger *logger)
  *
  * @return the built LLVM IR for the function prototype.
  */
-LLVMValueRef gen_codegen_prototype(t_ast_node *n, LLVMModuleRef module,
-                                   LLVMBuilderRef UNUSED(builder),
-                                   t_logger *logger)
+static LLVMValueRef gen_codegen_prototype(t_ast_node *n, LLVMModuleRef module,
+                                          LLVMBuilderRef UNUSED(builder),
+                                          t_logger *logger)
 {
     LLVMValueRef func = NULL, module_func = NULL, param = NULL;
     LLVMTypeRef func_type = NULL;
-    size_t i = 0, arity = n->prototype.arity;
+    unsigned int i = 0;
+    size_t arity = n->prototype.arity;
     bool vararg = n->prototype.vararg;
     LLVMTypeRef *params = NULL;
     char *func_type_str = NULL, *module_func_str = NULL;
@@ -1307,9 +1343,10 @@ l_cleanup:
  *
  * @return the built LLVM IR for the statements.
  */
-LLVMValueRef gen_codegen_stmts(t_vector *statements, LLVMModuleRef module,
-                               LLVMBuilderRef builder, bool *has_return_stmt,
-                               t_logger *logger)
+static LLVMValueRef gen_codegen_stmts(t_vector *statements,
+                                      LLVMModuleRef module,
+                                      LLVMBuilderRef builder,
+                                      bool *has_return_stmt, t_logger *logger)
 {
     t_ast_node *stmt = NULL;
     LLVMValueRef ret_val = NULL;
@@ -1343,8 +1380,9 @@ LLVMValueRef gen_codegen_stmts(t_vector *statements, LLVMModuleRef module,
  *
  * @return the built LLVM IR for the function.
  */
-LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
-                                  LLVMBuilderRef builder, t_logger *logger)
+static LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
+                                         LLVMBuilderRef builder,
+                                         t_logger *logger)
 {
     LLVMValueRef func = NULL, ret_val = NULL;
     LLVMBasicBlockRef block = NULL;
@@ -1352,7 +1390,8 @@ LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
     bool has_return_stmt = false;
     t_type *return_ttype;
     LLVMTypeRef return_type = NULL, expected_func_type = NULL, func_type = NULL;
-    size_t i = 0, arity = 0;
+    unsigned int i = 0;
+    size_t arity = 0;
     t_named_value *val = NULL;
     char **args = NULL;
 
@@ -1367,7 +1406,7 @@ LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
         LOGGER_LOG_LOC(logger, L_ERROR, n->token,
                        "Cannot redefine function %s\n",
                        n->function.prototype->prototype.name);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
     else if ((func_type = LLVMGetElementType(LLVMTypeOf(func)))
              != expected_func_type)
@@ -1378,7 +1417,7 @@ LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
                        n->function.prototype->prototype.name,
                        LLVMPrintTypeToString(func_type),
                        LLVMPrintTypeToString(expected_func_type));
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
     if (NULL == func)
@@ -1386,7 +1425,7 @@ LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
         LOGGER_LOG_LOC(logger, L_ERROR, n->token,
                        "Prototype generation failed in function generation\n",
                        NULL);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
     if (NULL == n->function.body)
@@ -1413,7 +1452,7 @@ LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
                            "Couldn't allocate memory for named value in "
                            "gen_codegen_function.",
                            NULL);
-            (void) exit(LUKA_CODEGEN_ERROR);
+            exit(LUKA_CODEGEN_ERROR);
         }
 
         val->name = strdup(args[i]);
@@ -1466,7 +1505,13 @@ LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
                 case TYPE_UINT64:
                     ret_val = LLVMConstInt(return_type, 0, false);
                     break;
-                default:
+                case TYPE_ALIAS:
+                case TYPE_ARRAY:
+                case TYPE_BOOL:
+                case TYPE_ENUM:
+                case TYPE_PTR:
+                case TYPE_STRUCT:
+                case TYPE_TYPE:
                     ret_val = LLVMConstInt(return_type, 0, false);
                     break;
             }
@@ -1491,7 +1536,7 @@ LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
                        n->function.prototype->prototype.name);
         (void) LLVMVerifyFunction(func, LLVMPrintMessageAction);
         (void) LLVMDeleteFunction(func);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
     return func;
@@ -1507,8 +1552,9 @@ LLVMValueRef gen_codegen_function(t_ast_node *n, LLVMModuleRef module,
  *
  * @return the built LLVM IR for the return statement.
  */
-LLVMValueRef gen_codegen_return_stmt(t_ast_node *n, LLVMModuleRef module,
-                                     LLVMBuilderRef builder, t_logger *logger)
+static LLVMValueRef gen_codegen_return_stmt(t_ast_node *n, LLVMModuleRef module,
+                                            LLVMBuilderRef builder,
+                                            t_logger *logger)
 {
     LLVMValueRef expr = NULL;
 
@@ -1516,7 +1562,7 @@ LLVMValueRef gen_codegen_return_stmt(t_ast_node *n, LLVMModuleRef module,
     {
         LOGGER_LOG_LOC(logger, L_ERROR, n->token,
                        "Return statement has no expr.\n", NULL);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
     (void) gen_codegen_defer_blocks(module, builder, logger);
@@ -1526,7 +1572,7 @@ LLVMValueRef gen_codegen_return_stmt(t_ast_node *n, LLVMModuleRef module,
     {
         LOGGER_LOG_LOC(logger, L_ERROR, n->token,
                        "Expression generation failed in return stmt\n", NULL);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
     (void) LLVMBuildRet(builder, expr);
     return NULL;
@@ -1542,8 +1588,9 @@ LLVMValueRef gen_codegen_return_stmt(t_ast_node *n, LLVMModuleRef module,
  *
  * @return the built LLVM IR for the if expression.
  */
-LLVMValueRef gen_codegen_if_expr(t_ast_node *n, LLVMModuleRef module,
-                                 LLVMBuilderRef builder, t_logger *logger)
+static LLVMValueRef gen_codegen_if_expr(t_ast_node *n, LLVMModuleRef module,
+                                        LLVMBuilderRef builder,
+                                        t_logger *logger)
 {
     LLVMValueRef cond = NULL, then_value = NULL, else_value = NULL, phi = NULL,
                  func = NULL, incoming_values[2] = {NULL, NULL};
@@ -1571,7 +1618,7 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n, LLVMModuleRef module,
     {
         LOGGER_LOG_LOC(logger, L_ERROR, n->token,
                        "Condition generation failed in if expr\n", NULL);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
     if (NULL != n->if_expr.else_body)
@@ -1628,7 +1675,7 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n, LLVMModuleRef module,
             logger, L_ERROR, n->token,
             "If one branch returns a values, both must return a value.\n",
             NULL);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
     if ((NULL != n->if_expr.else_body)
@@ -1638,7 +1685,7 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n, LLVMModuleRef module,
                        "Values of then and else branches must be of the "
                        "same type in if expr.\n",
                        NULL);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
     phi = LLVMBuildPhi(builder, LLVMTypeOf(then_value), "phi");
@@ -1668,8 +1715,9 @@ LLVMValueRef gen_codegen_if_expr(t_ast_node *n, LLVMModuleRef module,
  *
  * @return the built LLVM IR for the while expression.
  */
-LLVMValueRef gen_codegen_while_expr(t_ast_node *n, LLVMModuleRef module,
-                                    LLVMBuilderRef builder, t_logger *logger)
+static LLVMValueRef gen_codegen_while_expr(t_ast_node *n, LLVMModuleRef module,
+                                           LLVMBuilderRef builder,
+                                           t_logger *logger)
 {
     LLVMValueRef func = NULL, cond = NULL, body_value = NULL;
     LLVMBasicBlockRef cond_block = NULL, body_block = NULL, end_block = NULL;
@@ -1694,7 +1742,7 @@ LLVMValueRef gen_codegen_while_expr(t_ast_node *n, LLVMModuleRef module,
     {
         LOGGER_LOG_LOC(logger, L_ERROR, n->token,
                        "Condition generation failed in while expr\n", NULL);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
     (void) LLVMBuildCondBr(builder, cond, body_block, end_block);
@@ -1707,7 +1755,7 @@ LLVMValueRef gen_codegen_while_expr(t_ast_node *n, LLVMModuleRef module,
     {
         LOGGER_LOG_LOC(logger, L_ERROR, n->token,
                        "Condition generation failed in while expr\n", NULL);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
     (void) LLVMBuildCondBr(builder, cond, body_block, end_block);
 
@@ -1732,8 +1780,10 @@ LLVMValueRef gen_codegen_while_expr(t_ast_node *n, LLVMModuleRef module,
  *
  * @return the built LLVM IR for the cast expression.
  */
-LLVMValueRef gen_codegen_cast_expr(t_ast_node *node, LLVMModuleRef module,
-                                   LLVMBuilderRef builder, t_logger *logger)
+static LLVMValueRef gen_codegen_cast_expr(t_ast_node *node,
+                                          LLVMModuleRef module,
+                                          LLVMBuilderRef builder,
+                                          t_logger *logger)
 {
     LLVMValueRef expr = NULL;
     LLVMTypeRef dest_type = NULL;
@@ -1753,9 +1803,10 @@ LLVMValueRef gen_codegen_cast_expr(t_ast_node *node, LLVMModuleRef module,
  *
  * @return the built LLVM IR for the variable reference.
  */
-LLVMValueRef gen_codegen_variable(t_ast_node *node,
-                                  LLVMModuleRef UNUSED(module),
-                                  LLVMBuilderRef builder, t_logger *logger)
+static LLVMValueRef gen_codegen_variable(t_ast_node *node,
+                                         LLVMModuleRef UNUSED(module),
+                                         LLVMBuilderRef builder,
+                                         t_logger *logger)
 {
     t_named_value *val = NULL;
 
@@ -1768,7 +1819,7 @@ LLVMValueRef gen_codegen_variable(t_ast_node *node,
 
     LOGGER_LOG_LOC(logger, L_ERROR, node->token, "Variable %s is undefined.\n",
                    node->variable.name);
-    (void) exit(LUKA_CODEGEN_ERROR);
+    exit(LUKA_CODEGEN_ERROR);
 }
 
 /**
@@ -1781,8 +1832,9 @@ LLVMValueRef gen_codegen_variable(t_ast_node *node,
  *
  * @return the built LLVM IR for the let statement.
  */
-LLVMValueRef gen_codegen_let_stmt(t_ast_node *node, LLVMModuleRef module,
-                                  LLVMBuilderRef builder, t_logger *logger)
+static LLVMValueRef gen_codegen_let_stmt(t_ast_node *node, LLVMModuleRef module,
+                                         LLVMBuilderRef builder,
+                                         t_logger *logger)
 {
     LLVMValueRef expr = NULL;
     t_ast_variable variable;
@@ -1806,7 +1858,7 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node, LLVMModuleRef module,
         {
             LOGGER_LOG_LOC(logger, L_ERROR, node->token,
                            "Expression generation in let stmt failed.\n", NULL);
-            (void) exit(LUKA_CODEGEN_ERROR);
+            exit(LUKA_CODEGEN_ERROR);
         }
     }
     else
@@ -1888,13 +1940,14 @@ LLVMValueRef gen_codegen_let_stmt(t_ast_node *node, LLVMModuleRef module,
  *
  * @return the built LLVM IR for the assignment expression.
  */
-LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node, LLVMModuleRef module,
-                                         LLVMBuilderRef builder,
-                                         t_logger *logger)
+static LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node,
+                                                LLVMModuleRef module,
+                                                LLVMBuilderRef builder,
+                                                t_logger *logger)
 {
     LLVMValueRef lhs = NULL, rhs = NULL, store = NULL;
     LLVMTypeRef dest_type = NULL;
-    size_t alignment = 0;
+    ssize_t alignment = 0;
     t_ast_node *variable = NULL;
     t_named_value *val = NULL;
 
@@ -1910,7 +1963,7 @@ LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node, LLVMModuleRef module,
                     logger, L_ERROR, node->token,
                     "variable: Cannot assign to undeclared variable '%s'.\n",
                     variable->variable.name);
-                (void) exit(LUKA_CODEGEN_ERROR);
+                exit(LUKA_CODEGEN_ERROR);
             }
 
             lhs = gen_get_address(node->assignment_expr.lhs, module, builder,
@@ -1927,7 +1980,7 @@ LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node, LLVMModuleRef module,
                     logger, L_ERROR, node->token,
                     "get_expr: Cannot assign to undeclared variable '%s'.\n",
                     variable->get_expr.variable->variable.name);
-                (void) exit(LUKA_CODEGEN_ERROR);
+                exit(LUKA_CODEGEN_ERROR);
             }
 
             lhs = gen_get_address(node->assignment_expr.lhs, module, builder,
@@ -1944,7 +1997,7 @@ LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node, LLVMModuleRef module,
                     logger, L_ERROR, node->token,
                     "array_deref: Cannot assign to undeclared variable '%s'.\n",
                     variable->array_deref.variable->variable.name);
-                (void) exit(LUKA_CODEGEN_ERROR);
+                exit(LUKA_CODEGEN_ERROR);
             }
 
             lhs = gen_get_address(node->assignment_expr.lhs, module, builder,
@@ -1967,7 +2020,7 @@ LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node, LLVMModuleRef module,
         LOGGER_LOG_LOC(logger, L_ERROR, node->token,
                        "Expression generation in assignment expr failed.\n",
                        NULL);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
     dest_type = LLVMGetElementType(LLVMTypeOf(lhs));
@@ -1978,15 +2031,15 @@ LLVMValueRef gen_codegen_assignment_expr(t_ast_node *node, LLVMModuleRef module,
     alignment = TYPE_sizeof(gen_llvm_type_to_ttype(LLVMTypeOf(lhs), logger));
     if (0 != alignment)
     {
-        (void) LLVMSetAlignment(store, alignment);
+        (void) LLVMSetAlignment(store, (unsigned int) alignment);
     }
     return rhs;
 }
 
-LLVMValueRef gen_codegen_builtin_call(t_ast_node *node,
-                                      LLVMModuleRef UNUSED(module),
-                                      LLVMBuilderRef UNUSED(builder),
-                                      t_logger *logger)
+static LLVMValueRef gen_codegen_builtin_call(t_ast_node *node,
+                                             LLVMModuleRef UNUSED(module),
+                                             LLVMBuilderRef UNUSED(builder),
+                                             t_logger *logger)
 {
     switch (node->call_expr.callable->builtin.id)
     {
@@ -1998,7 +2051,6 @@ LLVMValueRef gen_codegen_builtin_call(t_ast_node *node,
                 return gen_codegen_sizeof(node, type, logger);
             }
         case BUILTIN_ID_INVALID:
-        default:
             return NULL;
     }
 }
@@ -2013,8 +2065,8 @@ LLVMValueRef gen_codegen_builtin_call(t_ast_node *node,
  *
  * @return the built LLVM IR for the call expression.
  */
-LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
-                              LLVMBuilderRef builder, t_logger *logger)
+static LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
+                                     LLVMBuilderRef builder, t_logger *logger)
 {
     LLVMValueRef call = NULL;
     LLVMValueRef func = NULL;
@@ -2022,7 +2074,7 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
     LLVMValueRef *varargs = NULL;
     LLVMTypeRef func_type = NULL, type = NULL, dest_type = NULL;
     t_ast_node *arg = NULL;
-    size_t i = 0;
+    unsigned int i = 0;
     bool vararg = NULL, builtin = false, pushed_first_arg = false;
     size_t required_params_count = 0;
     char function_name_buffer[1024] = {0};
@@ -2048,7 +2100,7 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
             "Couldn't find a function named `%s`, are you sure you defined it "
             "or wrote a proper extern line for it?\n",
             function_name_buffer);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
     func_type = LLVMGetElementType(LLVMTypeOf(func));
@@ -2062,7 +2114,7 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
                        "expected %d arguments but got %d arguments.\n",
                        function_name_buffer, required_params_count,
                        node->call_expr.args->size);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
     if (vararg && node->call_expr.args->size < required_params_count)
@@ -2073,7 +2125,7 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
             "expected at least %d arguments but got %d arguments.\n",
             function_name_buffer, node->call_expr.args->size,
             required_params_count);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
     if (!builtin)
@@ -2103,7 +2155,7 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
                     (void) LOGGER_log(logger, L_ERROR,
                                       "Variable %s is undefined.\n",
                                       arg->variable.name);
-                    (void) exit(LUKA_CODEGEN_ERROR);
+                    exit(LUKA_CODEGEN_ERROR);
                 }
                 args[i] = LLVMBuildInBoundsGEP2(builder, val->type,
                                                 val->alloca_inst, indices, 2,
@@ -2143,7 +2195,8 @@ LLVMValueRef gen_codegen_call(t_ast_node *node, LLVMModuleRef module,
     else
     {
         call = LLVMBuildCall2(
-            builder, func_type, func, args, node->call_expr.args->size,
+            builder, func_type, func, args,
+            (unsigned int) node->call_expr.args->size,
             LLVMGetReturnType(func_type) != LLVMVoidType() ? "calltmp" : "");
     }
 
@@ -2178,9 +2231,10 @@ l_cleanup:
  *
  * @return the built LLVM IR for the expression statement.
  */
-LLVMValueRef gen_codegen_expression_stmt(t_ast_node *n, LLVMModuleRef module,
-                                         LLVMBuilderRef builder,
-                                         t_logger *logger)
+static LLVMValueRef gen_codegen_expression_stmt(t_ast_node *n,
+                                                LLVMModuleRef module,
+                                                LLVMBuilderRef builder,
+                                                t_logger *logger)
 {
     if (NULL != n->expression_stmt.expr)
     {
@@ -2200,8 +2254,10 @@ LLVMValueRef gen_codegen_expression_stmt(t_ast_node *n, LLVMModuleRef module,
  *
  * @return the built LLVM IR for the break statement.
  */
-LLVMValueRef gen_codegen_break_stmt(t_ast_node *n, LLVMModuleRef UNUSED(module),
-                                    LLVMBuilderRef builder, t_logger *logger)
+static LLVMValueRef gen_codegen_break_stmt(t_ast_node *n,
+                                           LLVMModuleRef UNUSED(module),
+                                           LLVMBuilderRef builder,
+                                           t_logger *logger)
 {
     LLVMBasicBlockRef dest_block = NULL;
 
@@ -2226,49 +2282,66 @@ LLVMValueRef gen_codegen_break_stmt(t_ast_node *n, LLVMModuleRef UNUSED(module),
 /**
  * @brief Generate LLVM IR for a number literal.
  *
- * @param[in] n the AST node.
- * @param[in] module the LLVM module.
- * @param[in] builder the LLVM builder.
+ * @param[in] node the AST node.
  * @param[in] logger a logger that can be used to log messages.
  *
  * @return the built LLVM IR for the number literal.
  */
-LLVMValueRef gen_codegen_number(t_ast_node *node, t_logger *logger)
+static LLVMValueRef gen_codegen_number(t_ast_node *node, t_logger *logger)
 {
     LLVMTypeRef type = gen_type_to_llvm_type(node->number.type, logger);
     switch (node->number.type->type)
     {
         case TYPE_F32:
-            return LLVMConstReal(type, node->number.value.f32);
+            return LLVMConstReal(type, (double) node->number.value.f32);
         case TYPE_F64:
             return LLVMConstReal(type, node->number.value.f64);
         case TYPE_SINT8:
-            return LLVMConstInt(type, node->number.value.s8, true);
+            return LLVMConstInt(
+                type, (unsigned long long) node->number.value.s8, true);
         case TYPE_SINT16:
-            return LLVMConstInt(type, node->number.value.s16, true);
+            return LLVMConstInt(
+                type, (unsigned long long) node->number.value.s16, true);
         case TYPE_SINT32:
-            return LLVMConstInt(type, node->number.value.s32, true);
+            return LLVMConstInt(
+                type, (unsigned long long) node->number.value.s32, true);
         case TYPE_SINT64:
-            return LLVMConstInt(type, node->number.value.s64, true);
+            return LLVMConstInt(
+                type, (unsigned long long) node->number.value.s64, true);
         case TYPE_UINT8:
-            return LLVMConstInt(type, node->number.value.u8, false);
+            return LLVMConstInt(
+                type, (unsigned long long) node->number.value.u8, false);
         case TYPE_UINT16:
-            return LLVMConstInt(type, node->number.value.u16, false);
+            return LLVMConstInt(
+                type, (unsigned long long) node->number.value.u16, false);
         case TYPE_UINT32:
-            return LLVMConstInt(type, node->number.value.u32, false);
+            return LLVMConstInt(
+                type, (unsigned long long) node->number.value.u32, false);
         case TYPE_UINT64:
             return LLVMConstInt(type, node->number.value.u64, false);
-        default:
-            LOGGER_LOG_LOC(logger, L_ERROR, node->token,
-                           "%d is not a number type.\n",
-                           node->number.type->type);
-            (void) exit(LUKA_GENERAL_ERROR);
+        case TYPE_ALIAS:
+        case TYPE_ANY:
+        case TYPE_ARRAY:
+        case TYPE_BOOL:
+        case TYPE_ENUM:
+        case TYPE_PTR:
+        case TYPE_STRING:
+        case TYPE_STRUCT:
+        case TYPE_TYPE:
+        case TYPE_VOID:
+            {
+                LOGGER_LOG_LOC(logger, L_ERROR, node->token,
+                               "%d is not a number type.\n",
+                               node->number.type->type);
+                exit(LUKA_GENERAL_ERROR);
+            }
     }
 }
 
-void gen_generate_struct_functions(t_struct_info *struct_info,
-                                   LLVMModuleRef module, LLVMBuilderRef builder,
-                                   t_logger *logger)
+static void gen_generate_struct_functions(t_struct_info *struct_info,
+                                          LLVMModuleRef module,
+                                          LLVMBuilderRef builder,
+                                          t_logger *logger)
 {
     size_t i = 0, functions_count = struct_info->number_of_functions;
     t_ast_node *function = NULL;
@@ -2284,7 +2357,7 @@ void gen_generate_struct_functions(t_struct_info *struct_info,
             (void) LOGGER_log(
                 logger, L_ERROR,
                 "Failed allocating memory for new function name.\n");
-            (void) exit(LUKA_CANT_ALLOC_MEMORY);
+            exit(LUKA_CANT_ALLOC_MEMORY);
         }
         snprintf(new_name, 1024, "%s.%s", struct_info->struct_name,
                  function_name);
@@ -2297,17 +2370,17 @@ void gen_generate_struct_functions(t_struct_info *struct_info,
 /**
  * @brief Generate LLVM IR for a struct definition.
  *
- * @param[in] n the AST node.
+ * @param[in] node the AST node.
  * @param[in] module the LLVM module.
  * @param[in] builder the LLVM builder.
  * @param[in] logger a logger that can be used to log messages.
  *
  * @return the built LLVM IR for the struct definition.
  */
-LLVMValueRef gen_codegen_struct_definition(t_ast_node *node,
-                                           LLVMModuleRef module,
-                                           LLVMBuilderRef builder,
-                                           t_logger *logger)
+static LLVMValueRef gen_codegen_struct_definition(t_ast_node *node,
+                                                  LLVMModuleRef module,
+                                                  LLVMBuilderRef builder,
+                                                  t_logger *logger)
 {
     t_ast_struct_definition struct_definition = node->struct_definition;
     size_t elements_count = struct_definition.struct_fields->size;
@@ -2374,7 +2447,8 @@ LLVMValueRef gen_codegen_struct_definition(t_ast_node *node,
                          ->name);
     }
 
-    (void) LLVMStructSetBody(struct_type, element_types, elements_count, false);
+    (void) LLVMStructSetBody(struct_type, element_types,
+                             (unsigned int) elements_count, false);
 
     struct_info->struct_type = struct_type;
 
@@ -2418,15 +2492,17 @@ l_cleanup:
 /**
  * @brief Generate LLVM IR for a struct value.
  *
- * @param[in] n the AST node.
+ * @param[in] node the AST node.
  * @param[in] module the LLVM module.
  * @param[in] builder the LLVM builder.
  * @param[in] logger a logger that can be used to log messages.
  *
  * @return the built LLVM IR for the struct value.
  */
-LLVMValueRef gen_codegen_struct_value(t_ast_node *node, LLVMModuleRef module,
-                                      LLVMBuilderRef builder, t_logger *logger)
+static LLVMValueRef gen_codegen_struct_value(t_ast_node *node,
+                                             LLVMModuleRef module,
+                                             LLVMBuilderRef builder,
+                                             t_logger *logger)
 {
     size_t elements_count = node->struct_value.struct_values->size;
     t_struct_value_field *struct_value_field = NULL;
@@ -2459,7 +2535,8 @@ LLVMValueRef gen_codegen_struct_value(t_ast_node *node, LLVMModuleRef module,
         }
     }
 
-    struct_value = LLVMConstStruct(element_values, elements_count, false);
+    struct_value
+        = LLVMConstStruct(element_values, (unsigned int) elements_count, false);
 
     struct_var = LLVMAddGlobal(module, LLVMTypeOf(struct_value), "struct_val");
 
@@ -2471,17 +2548,17 @@ LLVMValueRef gen_codegen_struct_value(t_ast_node *node, LLVMModuleRef module,
 /**
  * @brief Generate LLVM IR for an enum definition.
  *
- * @param[in] n the AST node.
+ * @param[in] node the AST node.
  * @param[in] module the LLVM module.
  * @param[in] builder the LLVM builder.
  * @param[in] logger a logger that can be used to log messages.
  *
  * @return the built LLVM IR for the enum definition.
  */
-LLVMValueRef gen_codegen_enum_definition(t_ast_node *node,
-                                         LLVMModuleRef UNUSED(module),
-                                         LLVMBuilderRef UNUSED(builder),
-                                         t_logger *UNUSED(logger))
+static LLVMValueRef gen_codegen_enum_definition(t_ast_node *node,
+                                                LLVMModuleRef UNUSED(module),
+                                                LLVMBuilderRef UNUSED(builder),
+                                                t_logger *UNUSED(logger))
 {
     size_t elements_count = node->enum_definition.enum_fields->size;
     t_enum_info *enum_info = NULL;
@@ -2568,20 +2645,21 @@ l_cleanup:
 /**
  * @brief Generate LLVM IR for a get expression.
  *
- * @param[in] n the AST node.
+ * @param[in] node the AST node.
  * @param[in] module the LLVM module.
  * @param[in] builder the LLVM builder.
  * @param[in] logger a logger that can be used to log messages.
  *
  * @return the built LLVM IR for the get expression.
  */
-LLVMValueRef gen_codegen_get_expr(t_ast_node *node, LLVMModuleRef module,
-                                  LLVMBuilderRef builder, t_logger *logger)
+static LLVMValueRef gen_codegen_get_expr(t_ast_node *node, LLVMModuleRef module,
+                                         LLVMBuilderRef builder,
+                                         t_logger *logger)
 {
     LLVMValueRef field_pointer = NULL, load = NULL;
     t_enum_info *enum_info = NULL;
     char *key = node->get_expr.key;
-    size_t alignment = 0;
+    ssize_t alignment = 0;
 
     if (node->get_expr.is_enum)
     {
@@ -2594,7 +2672,7 @@ LLVMValueRef gen_codegen_get_expr(t_ast_node *node, LLVMModuleRef module,
             LOGGER_LOG_LOC(logger, L_ERROR, node->token,
                            "Couldn't find enum info for enum %s.\n",
                            node->get_expr.variable->variable.name);
-            (void) exit(LUKA_CODEGEN_ERROR);
+            exit(LUKA_CODEGEN_ERROR);
         }
 
         for (size_t i = 0; i < enum_info->number_of_fields; ++i)
@@ -2602,15 +2680,16 @@ LLVMValueRef gen_codegen_get_expr(t_ast_node *node, LLVMModuleRef module,
             if ((NULL != enum_info->enum_field_names)
                 && (0 == strcmp(key, enum_info->enum_field_names[i])))
             {
-                return LLVMConstInt(LLVMInt32Type(),
-                                    enum_info->enum_field_values[i], true);
+                return LLVMConstInt(
+                    LLVMInt32Type(),
+                    (unsigned long long) enum_info->enum_field_values[i], true);
             }
         }
 
         LOGGER_LOG_LOC(logger, L_ERROR, node->token,
                        "Enum %s has no member %s.\n", enum_info->enum_name,
                        key);
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
     field_pointer = gen_get_address(node, module, builder, logger);
@@ -2622,7 +2701,7 @@ LLVMValueRef gen_codegen_get_expr(t_ast_node *node, LLVMModuleRef module,
         gen_llvm_type_to_ttype(LLVMTypeOf(field_pointer), logger));
     if (0 != alignment)
     {
-        (void) LLVMSetAlignment(load, alignment);
+        (void) LLVMSetAlignment(load, (unsigned int) alignment);
     }
     return load;
 }
@@ -2630,15 +2709,17 @@ LLVMValueRef gen_codegen_get_expr(t_ast_node *node, LLVMModuleRef module,
 /**
  * @brief Generate LLVM IR for a array dereference.
  *
- * @param[in] n the AST node.
+ * @param[in] node the AST node.
  * @param[in] module the LLVM module.
  * @param[in] builder the LLVM builder.
  * @param[in] logger a logger that can be used to log messages.
  *
  * @return the built LLVM IR for the array dereference.
  */
-LLVMValueRef gen_codegen_array_deref(t_ast_node *node, LLVMModuleRef module,
-                                     LLVMBuilderRef builder, t_logger *logger)
+static LLVMValueRef gen_codegen_array_deref(t_ast_node *node,
+                                            LLVMModuleRef module,
+                                            LLVMBuilderRef builder,
+                                            t_logger *logger)
 {
     return LLVMBuildLoad(
         builder, gen_get_address(node, module, builder, logger), "loadtmp");
@@ -2647,16 +2728,11 @@ LLVMValueRef gen_codegen_array_deref(t_ast_node *node, LLVMModuleRef module,
 /**
  * @brief Generate LLVM IR for a literal.
  *
- * @param[in] n the AST node.
- * @param[in] module the LLVM module.
- * @param[in] builder the LLVM builder.
- * @param[in] logger a logger that can be used to log messages.
+ * @param[in] node the AST node.
  *
  * @return the built LLVM IR for the literal.
  */
-LLVMValueRef gen_codegen_literal(t_ast_node *node, LLVMModuleRef UNUSED(module),
-                                 LLVMBuilderRef UNUSED(builder),
-                                 t_logger *logger)
+static LLVMValueRef gen_codegen_literal(t_ast_node *node)
 {
     switch (node->literal.type)
     {
@@ -2666,26 +2742,20 @@ LLVMValueRef gen_codegen_literal(t_ast_node *node, LLVMModuleRef UNUSED(module),
             return LLVMConstInt(LLVMInt1Type(), 1, false);
         case AST_LITERAL_FALSE:
             return LLVMConstInt(LLVMInt1Type(), 0, false);
-        default:
-            LOGGER_LOG_LOC(logger, L_ERROR, node->token,
-                           "gen_codegen_literal: literal not handled %d.\n",
-                           node->literal.type);
-            (void) exit(LUKA_CODEGEN_ERROR);
     }
 }
 
 /**
  * @brief Generate LLVM IR for a sizeof.
  *
- * @param[in] n the AST node.
- * @param[in] module the LLVM module.
- * @param[in] builder the LLVM builder.
+ * @param[in] node the AST node.
+ * @param[in] type the type the sizeof is performed on.
  * @param[in] logger a logger that can be used to log messages.
  *
  * @return the size of the type in the sizeof expr.
  */
-LLVMValueRef gen_codegen_sizeof(t_ast_node *node, t_type *type,
-                                t_logger *logger)
+static LLVMValueRef gen_codegen_sizeof(t_ast_node *node, t_type *type,
+                                       t_logger *logger)
 {
     LLVMTypeRef llvm_type = NULL;
     ssize_t size = -1;
@@ -2703,7 +2773,7 @@ LLVMValueRef gen_codegen_sizeof(t_ast_node *node, t_type *type,
         return LLVMSizeOf(llvm_type);
     }
 
-    return LLVMConstInt(LLVMInt64Type(), size, false);
+    return LLVMConstInt(LLVMInt64Type(), (unsigned long long) size, false);
 }
 
 void GEN_module_prototypes(t_module *module, LLVMModuleRef llvm_module,
@@ -2745,15 +2815,17 @@ void GEN_module_structs_without_functions(t_module *module,
 /**
  * @brief Generate LLVM IR for an array literal.
  *
- * @param[in] n the AST node.
+ * @param[in] node the AST node.
  * @param[in] module the LLVM module.
  * @param[in] builder the LLVM builder.
  * @param[in] logger a logger that can be used to log messages.
  *
  * @return a reference to the array literal in the global scope.
  */
-LLVMValueRef gen_codegen_array_literal(t_ast_node *node, LLVMModuleRef module,
-                                       LLVMBuilderRef builder, t_logger *logger)
+static LLVMValueRef gen_codegen_array_literal(t_ast_node *node,
+                                              LLVMModuleRef module,
+                                              LLVMBuilderRef builder,
+                                              t_logger *logger)
 {
     t_ast_array_literal lit = node->array_literal;
     size_t i = 0, elements_count = lit.exprs->size;
@@ -2764,7 +2836,7 @@ LLVMValueRef gen_codegen_array_literal(t_ast_node *node, LLVMModuleRef module,
     {
         (void) LOGGER_log(logger, L_ERROR,
                           "Couldn't allocate memory for constant_vals.\n");
-        (void) exit(LUKA_CANT_ALLOC_MEMORY);
+        exit(LUKA_CANT_ALLOC_MEMORY);
     }
 
     for (i = 0; i < elements_count; ++i)
@@ -2773,30 +2845,31 @@ LLVMValueRef gen_codegen_array_literal(t_ast_node *node, LLVMModuleRef module,
         constant_vals[i] = GEN_codegen(expr, module, builder, logger);
     }
 
-    arr_val = LLVMAddGlobal(
-        module,
-        LLVMArrayType(gen_type_to_llvm_type(lit.type, logger), elements_count),
-        "arraylit");
+    arr_val
+        = LLVMAddGlobal(module,
+                        LLVMArrayType(gen_type_to_llvm_type(lit.type, logger),
+                                      (unsigned int) elements_count),
+                        "arraylit");
 
-    LLVMSetInitializer(arr_val,
-                       LLVMConstArray(gen_type_to_llvm_type(lit.type, logger),
-                                      constant_vals, elements_count));
+    LLVMSetInitializer(
+        arr_val, LLVMConstArray(gen_type_to_llvm_type(lit.type, logger),
+                                constant_vals, (unsigned int) elements_count));
 
     return arr_val;
 }
 
-LLVMValueRef gen_codegen_type_expr(t_ast_node *node,
-                                   LLVMModuleRef UNUSED(module),
-                                   LLVMBuilderRef UNUSED(builder),
-                                   t_logger *UNUSED(logger))
+static LLVMValueRef gen_codegen_type_expr(t_ast_node *node,
+                                          LLVMModuleRef UNUSED(module),
+                                          LLVMBuilderRef UNUSED(builder),
+                                          t_logger *UNUSED(logger))
 {
     return (LLVMValueRef) node->type_expr.type;
 }
 
-LLVMValueRef gen_codegen_defer_stmt(t_ast_node *node,
-                                    LLVMModuleRef UNUSED(module),
-                                    LLVMBuilderRef UNUSED(builder),
-                                    t_logger *logger)
+static LLVMValueRef gen_codegen_defer_stmt(t_ast_node *node,
+                                           LLVMModuleRef UNUSED(module),
+                                           LLVMBuilderRef UNUSED(builder),
+                                           t_logger *logger)
 {
     if (NULL != defer_blocks)
     {
@@ -2805,7 +2878,7 @@ LLVMValueRef gen_codegen_defer_stmt(t_ast_node *node,
     else
     {
         (void) LOGGER_log(logger, L_ERROR, "Defer blocks is null\n");
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
 
     return NULL;
@@ -2859,19 +2932,17 @@ LLVMValueRef GEN_codegen(t_ast_node *node, LLVMModuleRef module,
         case AST_TYPE_ARRAY_DEREF:
             return gen_codegen_array_deref(node, module, builder, logger);
         case AST_TYPE_LITERAL:
-            return gen_codegen_literal(node, module, builder, logger);
+            return gen_codegen_literal(node);
         case AST_TYPE_ARRAY_LITERAL:
             return gen_codegen_array_literal(node, module, builder, logger);
         case AST_TYPE_TYPE_EXPR:
             return gen_codegen_type_expr(node, module, builder, logger);
         case AST_TYPE_DEFER_STMT:
             return gen_codegen_defer_stmt(node, module, builder, logger);
-        default:
+        case AST_TYPE_BUILTIN:
             {
-                LOGGER_LOG_LOC(logger, L_ERROR, node->token,
-                               "No codegen function was found for type - %d\n",
-                               node->type);
-                (void) exit(LUKA_CODEGEN_ERROR);
+                /* No code needs to be generated for builtin identifiers */
+                return NULL;
             }
     }
 }
@@ -2881,14 +2952,14 @@ void GEN_codegen_initialize()
     loop_blocks = calloc(1, sizeof(t_vector));
     if (NULL == loop_blocks)
     {
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
     (void) vector_setup(loop_blocks, 6, sizeof(LLVMBasicBlockRef));
 
     defer_blocks = calloc(1, sizeof(t_vector));
     if (NULL == defer_blocks)
     {
-        (void) exit(LUKA_CODEGEN_ERROR);
+        exit(LUKA_CODEGEN_ERROR);
     }
     (void) vector_setup(defer_blocks, 6, sizeof(t_ast_node));
 }

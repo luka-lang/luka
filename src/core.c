@@ -17,7 +17,7 @@
 #define ALLOC_ARGS(amount)  ALLOC_GENERIC((amount), args, char *)
 #define ALLOC_TYPES(amount) ALLOC_GENERIC((amount), types, t_type *)
 
-t_ast_node *g_builtins[NUMBER_OF_BUILTINS] = {0};
+static t_ast_node *g_builtins[NUMBER_OF_BUILTINS] = {0};
 
 bool CORE_initialize_builtins(t_logger *logger)
 {

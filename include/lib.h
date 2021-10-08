@@ -1,6 +1,6 @@
 /** @file lib.h */
-#ifndef __LIB_H__
-#define __LIB_H__
+#ifndef LUKA_LIB_H
+#define LUKA_LIB_H
 
 #include "defs.h"
 #include "logger.h"
@@ -65,9 +65,11 @@ bool LIB_module_in_list(t_vector *codegen_modules, const t_module *module);
  *
  * @param[in] module the module to search in.
  * @param[in] name the name of the struct type.
- * @param[in] original_module used for solving pointless recursion, use NULL when calling this function.
+ * @param[in] original_module used for solving pointless recursion, use NULL
+ * when calling this function.
  *
- * @return boolean that represents if @p name is the name of a struct type in @p module.
+ * @return boolean that represents if @p name is the name of a struct type in @p
+ * module.
  */
 bool LIB_is_struct_name(const t_module *module, const char *name,
                         const t_module *original_module);
@@ -85,7 +87,7 @@ bool LIB_is_struct_name(const t_module *module, const char *name,
  * module.
  */
 bool LIB_is_enum_name(const t_module *module, const char *name,
-                        const t_module *original_module);
+                      const t_module *original_module);
 
 /**
  * @brief Find a function inside a given @p module or any of its imported
@@ -102,4 +104,4 @@ bool LIB_is_enum_name(const t_module *module, const char *name,
 t_ast_node *LIB_resolve_func_name(const t_module *module, const char *name,
                                   const t_module *original_module);
 
-#endif // __LIB_H__
+#endif // LUKA_LIB_H

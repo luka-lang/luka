@@ -39,7 +39,6 @@
 #define DEFAULT_LOG_PATH ("/tmp/luka.log")
 #define OUT_FILENAME     ("./a.out")
 #define DEFAULT_OPT      ('3')
-#define CMD_LEN          (14 + 4096)
 
 static struct option S_LONG_OPTIONS[]
     = {{"help", no_argument, NULL, 'h'},
@@ -223,14 +222,14 @@ static t_return_code get_args(t_main_context *context)
     size_t i = 0;
 
     while (-1
-           != (ch = getopt_long(context->argc, context->argv, "hvo:bO:t:cS",
-                                S_LONG_OPTIONS, NULL)))
+           != (ch = (char) getopt_long(context->argc, context->argv,
+                                       "hvo:bO:t:cS", S_LONG_OPTIONS, NULL)))
     {
         switch (ch)
         {
             case 'h':
                 (void) print_help();
-                (void) exit(LUKA_SUCCESS);
+                exit(LUKA_SUCCESS);
             case 'v':
                 ++context->verbosity;
                 break;
@@ -256,7 +255,7 @@ static t_return_code get_args(t_main_context *context)
             case '?':
                 break;
             default:
-                (void) abort();
+                abort();
         }
     }
 
@@ -267,7 +266,7 @@ static t_return_code get_args(t_main_context *context)
         goto l_cleanup;
     }
 
-    context->files_count = context->argc - optind;
+    context->files_count = (size_t) (context->argc - optind);
     context->file_paths = calloc(context->files_count, sizeof(char **));
     if (NULL == context->file_paths)
     {

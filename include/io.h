@@ -1,6 +1,6 @@
 /** @file io.h */
-#ifndef __IO_H__
-#define __IO_H__
+#ifndef LUKA_IO_H
+#define LUKA_IO_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,7 +23,7 @@ char *IO_get_file_contents(const char *file_path);
  * @param[in] line the line that should be printed.
  * @param[in] offset the offset of token that starts the error.
  */
-void IO_print_error(const char *file_path, int line, int offset);
+void IO_print_error(const char *file_path, long line, long offset);
 
 /**
  * @brief Copy the contents from the file at @p original_file_path to @p
@@ -61,4 +61,4 @@ char *IO_resolve_path(const char *requested_path, const char *current_path,
  */
 bool IO_file_exists(const char *const full_path);
 
-#endif // __IO_H__
+#endif // LUKA_IO_H

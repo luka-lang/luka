@@ -1,6 +1,6 @@
 /** @file ast.h  */
-#ifndef __AST_H__
-#define __AST_H__
+#ifndef LUKA_AST_H
+#define LUKA_AST_H
 
 #include "defs.h"
 #include "logger.h"
@@ -65,7 +65,8 @@ t_ast_node *AST_new_binary_expr(t_ast_binop_type operator, t_ast_node * lhs,
  * types, arity, return_type and vararg.
  */
 t_ast_node *AST_new_prototype(char *name, char **args, t_type **types,
-                              int arity, t_type *return_type, bool vararg);
+                              unsigned int arity, t_type *return_type,
+                              bool vararg);
 
 /**
  * @brief Creates a new AST node of a function.
@@ -201,7 +202,7 @@ t_ast_node *AST_new_expression_stmt(t_ast_node *expr);
  *
  * @return an AST node of a break statement.
  */
-t_ast_node *AST_new_break_stmt();
+t_ast_node *AST_new_break_stmt(void);
 
 /**
  * @brief Creates a new AST node of a struct defintion.
@@ -303,7 +304,7 @@ t_ast_node *AST_new_array_literal(t_vector *exprs, t_type *type);
 /**
  * @brief Creates a new AST node of a builtin.
  *
- * @param[in] name the name of the builtin.
+ * @param[in] builtin the name of the builtin.
  *
  * @return an AST node of a builtin with the passed in name.
  */
@@ -321,7 +322,7 @@ t_ast_node *AST_new_type_expr(t_type *type);
 /**
  * @brief Creates a new AST node of a defer stmt.
  *
- * @param[in] type the type of the defer stmt.
+ * @param[in] body the type of the defer stmt.
  *
  * @return an AST node of a defer stmt with the passed in body.
  */
@@ -349,7 +350,8 @@ t_ast_node *AST_fix_function_last_expression_stmt(t_ast_node *node);
  * @brief Fix structs and enums that were classified as type aliases.
  *
  * @param[in] node the AST node that should be fixed.
- * @param[in] module the module that should be used to look up structs and enums.
+ * @param[in] module the module that should be used to look up structs and
+ * enums.
  * @param[in] logger the logger to be used to log messages.
  *
  * @return the same AST node with the type possibly fixed.
@@ -433,4 +435,4 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger);
  */
 bool AST_is_cond_binop(t_ast_binop_type op);
 
-#endif // __AST_H__
+#endif // LUKA_AST_H
