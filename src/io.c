@@ -3,6 +3,7 @@
 
 #include <ctype.h>
 #include <libgen.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,7 +25,7 @@ char *IO_get_file_contents(const char *file_path)
 {
     FILE *fp = NULL;
     char *file_contents = NULL;
-    int size;
+    long size;
 
     fp = fopen(file_path, "r");
 
@@ -36,16 +37,22 @@ char *IO_get_file_contents(const char *file_path)
 
     (void) fseek(fp, 0L, SEEK_END);
     size = ftell(fp);
+    if (size == -1)
+    {
+        perror("IO_get_file_contents: ftell failed");
+        goto l_cleanup;
+    }
+
     (void) fseek(fp, 0L, SEEK_SET);
 
-    file_contents = (char *) calloc(sizeof(char), size + 2);
+    file_contents = (char *) calloc(sizeof(char), (size_t) size + 2);
     if (NULL == file_contents)
     {
         (void) perror("Couldn't allocate memory for file contents");
         goto l_cleanup;
     }
 
-    (void) fread(file_contents, size, 1, fp);
+    (void) fread(file_contents, (size_t) size, 1, fp);
     file_contents[size] = EOF;
     file_contents[size + 1] = '\0';
 
@@ -59,7 +66,7 @@ l_cleanup:
     return file_contents;
 }
 
-size_t io_linelen(const char *buf, int start)
+static size_t io_linelen(const char *buf, size_t start)
 {
     const char *p = buf + start;
     while (*p != '\0')
@@ -71,10 +78,10 @@ size_t io_linelen(const char *buf, int start)
         ++p;
     }
 
-    return p - (buf + start) + 1;
+    return (size_t) (p - (buf + start)) + 1;
 }
 
-int number_len(int num)
+static int number_len(long num)
 {
     int len = 0;
 
@@ -93,7 +100,7 @@ int number_len(int num)
     return len;
 }
 
-void IO_print_error(const char *file_path, int line, int offset)
+void IO_print_error(const char *file_path, long line, long offset)
 {
     char *contents = IO_get_file_contents(file_path);
     size_t i = 0, length = strlen(contents), line_length = 0;
@@ -119,8 +126,8 @@ void IO_print_error(const char *file_path, int line, int offset)
     (void) strncpy(err_line, contents + i, line_length);
     err_line[line_length] = '\0';
 
-    (void) printf(" %d | %s", line, err_line);
-    (void) printf(" %*s | %*s^\n", line_num_length, "", offset - 1, "");
+    (void) printf(" %ld | %s", line, err_line);
+    (void) printf(" %*s | %*s^\n", line_num_length, "", (int) offset - 1, "");
 
 l_cleanup:
     if (NULL != contents)
@@ -194,7 +201,7 @@ l_cleanup:
  *
  * @return true if @p path starts with @p start, otherwise false.
  */
-bool io_starts_with(const char *path, const char *start)
+static bool io_starts_with(const char *path, const char *start)
 {
     size_t path_length = strlen(path);
     size_t start_length = strlen(start);
@@ -216,13 +223,13 @@ bool io_starts_with(const char *path, const char *start)
     return i == start_length;
 }
 
-bool io_is_absolute(const char *path)
+static bool io_is_absolute(const char *path)
 {
     return '/' == path[0]
         || (isalpha(path[0]) && (':' == path[1]) && ('\\' == path[2]));
 }
 
-bool io_is_relative(const char *path)
+static bool io_is_relative(const char *path)
 {
     const char current_dir[3] = {'.', PATH_SEPERATOR, '\0'};
     const char parent_dir[4] = {'.', '.', PATH_SEPERATOR, '\0'};
@@ -238,7 +245,7 @@ bool io_is_relative(const char *path)
  *
  * @return true if @p path ends with @p end, otherwise false.
  */
-bool io_ends_with(const char *path, const char *end)
+static bool io_ends_with(const char *path, const char *end)
 {
     size_t path_length = strlen(path);
     size_t end_length = strlen(end);
@@ -260,7 +267,7 @@ bool io_ends_with(const char *path, const char *end)
     return (i - 1) == end_length;
 }
 
-char *io_append_path(char *path, const char *additional)
+static char *io_append_path(char *path, const char *additional)
 {
     size_t new_length = strlen(path) + strlen(additional) + 1;
     path = realloc(path, new_length);
@@ -294,6 +301,8 @@ char *IO_resolve_path(const char *requested_path, const char *current_path,
         {
             possible_path = io_append_path(strdup("/usr/local/lib/luka/"),
                                            requested_path);
+            possible_path
+                = io_append_path(strdup("/usr/lib/luka/"), requested_path);
             if (!io_ends_with(possible_path, FILE_EXTENSION))
             {
                 possible_path = io_append_path(possible_path, FILE_EXTENSION);

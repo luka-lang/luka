@@ -43,7 +43,8 @@ l_cleanup:
     return NULL;
 }
 
-void LOGGER_log(t_logger *logger, const char *level, const char *format, ...)
+__attribute__((format(printf, 3, 4))) void
+LOGGER_log(t_logger *logger, const char *level, const char *format, ...)
 {
     va_list args;
     time_t now = {0};

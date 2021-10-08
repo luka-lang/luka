@@ -34,7 +34,7 @@ void LIB_free_tokens_vector(t_vector *tokens)
     tokens = NULL;
 }
 
-void lib_free_nodes_vector(t_vector *nodes, t_logger *logger)
+static void lib_free_nodes_vector(t_vector *nodes, t_logger *logger)
 {
     t_ast_node *node = NULL;
     t_iterator iterator = vector_begin(nodes);
@@ -52,7 +52,7 @@ void lib_free_nodes_vector(t_vector *nodes, t_logger *logger)
     nodes = NULL;
 }
 
-void lib_free_strings_vector(t_vector *strings)
+static void lib_free_strings_vector(t_vector *strings)
 {
     char *string = NULL;
     t_iterator iterator = vector_begin(strings);
@@ -70,7 +70,7 @@ void lib_free_strings_vector(t_vector *strings)
     strings = NULL;
 }
 
-void lib_free_modules_vector(t_vector *modules, t_logger *logger)
+static void lib_free_modules_vector(t_vector *modules, t_logger *logger)
 {
     t_module *module = NULL;
     t_iterator iterator = vector_begin(modules);

@@ -12,7 +12,7 @@
  * https://stackoverflow.com/questions/3599160/how-to-suppress-unused-parameter-warnings-in-c
  */
 #ifdef __GNUC__
-#define UNUSED(x) UNUSED_##x __attribute__((__unused__))
+#define UNUSED(x) x __attribute__((__unused__))
 #else
 #define UNUSED(x) UNUSED_##x
 #endif
@@ -419,7 +419,7 @@ typedef struct
 
 typedef struct
 {
-  t_vector *body;
+    t_vector *body;
 } t_ast_defer_stmt;
 
 typedef struct s_ast_node
@@ -455,10 +455,10 @@ typedef struct s_ast_node
         t_ast_array_literal array_literal; /**< Array literal AST node value */
         t_ast_builtin builtin;             /**< Builtin AST node value */
         t_ast_type_expr type_expr;         /**< Type expr AST node value */
-        t_ast_defer_stmt defer_stmt;         /**< Defer statement AST node value */
-    };                                     /**< All possible AST node values */
-    t_token *token;                        /**< The origin token of the node */
-} t_ast_node;                              /**< A struct for AST nodes */
+        t_ast_defer_stmt defer_stmt; /**< Defer statement AST node value */
+    };                               /**< All possible AST node values */
+    t_token *token;                  /**< The origin token of the node */
+} t_ast_node;                        /**< A struct for AST nodes */
 
 typedef t_ast_node
     *t_ast_node_ptr; /**< A type alias for getting this type from a vector */

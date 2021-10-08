@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-bool type_can_cast(const t_type *type1, const t_type *type2);
+static bool type_can_cast(const t_type *type1, const t_type *type2);
 
 bool TYPE_is_floating_point(const char *s)
 {
@@ -35,7 +35,7 @@ t_type *TYPE_initialize_type(t_base_type type)
     t_type *ttype = calloc(1, sizeof(t_type));
     if (NULL == ttype)
     {
-        (void) exit(LUKA_CANT_ALLOC_MEMORY);
+        exit(LUKA_CANT_ALLOC_MEMORY);
     }
 
     ttype->type = type;
@@ -45,7 +45,7 @@ t_type *TYPE_initialize_type(t_base_type type)
     return ttype;
 }
 
-bool type_is_payload_type(const t_type *type)
+static bool type_is_payload_type(const t_type *type)
 {
     switch (type->type)
     {
@@ -53,13 +53,29 @@ bool type_is_payload_type(const t_type *type)
         case TYPE_ENUM:
         case TYPE_ALIAS:
             return true;
-        default:
+        case TYPE_ANY:
+        case TYPE_ARRAY:
+        case TYPE_BOOL:
+        case TYPE_F32:
+        case TYPE_F64:
+        case TYPE_PTR:
+        case TYPE_SINT16:
+        case TYPE_SINT32:
+        case TYPE_SINT64:
+        case TYPE_SINT8:
+        case TYPE_STRING:
+        case TYPE_TYPE:
+        case TYPE_UINT16:
+        case TYPE_UINT32:
+        case TYPE_UINT64:
+        case TYPE_UINT8:
+        case TYPE_VOID:
             return false;
     }
 }
 
 /** can cast type1 to type2 */
-bool type_can_cast(const t_type *type1, const t_type *type2)
+static bool type_can_cast(const t_type *type1, const t_type *type2)
 {
     bool result = false;
 
@@ -83,7 +99,16 @@ bool type_can_cast(const t_type *type1, const t_type *type2)
                 case TYPE_F64:
                     result = true;
                     break;
-                default:
+                case TYPE_ALIAS:
+                case TYPE_ANY:
+                case TYPE_ARRAY:
+                case TYPE_BOOL:
+                case TYPE_ENUM:
+                case TYPE_PTR:
+                case TYPE_STRING:
+                case TYPE_STRUCT:
+                case TYPE_TYPE:
+                case TYPE_VOID:
                     break;
             }
             break;
@@ -102,7 +127,19 @@ bool type_can_cast(const t_type *type1, const t_type *type2)
                 case TYPE_F64:
                     result = true;
                     break;
-                default:
+                case TYPE_ALIAS:
+                case TYPE_ANY:
+                case TYPE_ARRAY:
+                case TYPE_ENUM:
+                case TYPE_PTR:
+                case TYPE_SINT16:
+                case TYPE_SINT32:
+                case TYPE_SINT64:
+                case TYPE_SINT8:
+                case TYPE_STRING:
+                case TYPE_STRUCT:
+                case TYPE_TYPE:
+                case TYPE_VOID:
                     break;
             }
             break;
@@ -121,7 +158,19 @@ bool type_can_cast(const t_type *type1, const t_type *type2)
                 case TYPE_F64:
                     result = true;
                     break;
-                default:
+                case TYPE_ALIAS:
+                case TYPE_ANY:
+                case TYPE_ARRAY:
+                case TYPE_ENUM:
+                case TYPE_PTR:
+                case TYPE_STRING:
+                case TYPE_STRUCT:
+                case TYPE_TYPE:
+                case TYPE_UINT16:
+                case TYPE_UINT32:
+                case TYPE_UINT64:
+                case TYPE_UINT8:
+                case TYPE_VOID:
                     break;
             }
             break;
@@ -132,7 +181,24 @@ bool type_can_cast(const t_type *type1, const t_type *type2)
                 case TYPE_F64:
                     result = true;
                     break;
-                default:
+                case TYPE_ALIAS:
+                case TYPE_ANY:
+                case TYPE_ARRAY:
+                case TYPE_ENUM:
+                case TYPE_F32:
+                case TYPE_PTR:
+                case TYPE_SINT16:
+                case TYPE_SINT32:
+                case TYPE_SINT64:
+                case TYPE_SINT8:
+                case TYPE_STRING:
+                case TYPE_STRUCT:
+                case TYPE_TYPE:
+                case TYPE_UINT16:
+                case TYPE_UINT32:
+                case TYPE_UINT64:
+                case TYPE_UINT8:
+                case TYPE_VOID:
                     break;
             }
             break;
@@ -157,14 +223,34 @@ bool type_can_cast(const t_type *type1, const t_type *type2)
                                   ? true
                                   : !type2->inner_type->mutable);
                     break;
-                default:
+                case TYPE_ALIAS:
+                case TYPE_ANY:
+                case TYPE_BOOL:
+                case TYPE_ENUM:
+                case TYPE_F32:
+                case TYPE_F64:
+                case TYPE_SINT16:
+                case TYPE_SINT32:
+                case TYPE_SINT64:
+                case TYPE_SINT8:
+                case TYPE_STRING:
+                case TYPE_STRUCT:
+                case TYPE_TYPE:
+                case TYPE_UINT16:
+                case TYPE_UINT32:
+                case TYPE_UINT64:
+                case TYPE_UINT8:
+                case TYPE_VOID:
                     break;
             }
             break;
         case TYPE_ALIAS:
             /* TODO: Check aliases match */
             result = true;
-        default:
+        case TYPE_VOID:
+        case TYPE_STRUCT:
+        case TYPE_ENUM:
+        case TYPE_TYPE:
             break;
     }
 
@@ -283,8 +369,8 @@ ssize_t TYPE_sizeof(t_type *type)
             return sizeof(char *);
         case TYPE_STRUCT:
         case TYPE_ANY:
-            return -1;
-        default:
+        case TYPE_TYPE:
+        case TYPE_ALIAS:
             return -1;
     }
 }
@@ -298,7 +384,22 @@ bool TYPE_is_signed(t_type *type)
         case TYPE_SINT32:
         case TYPE_SINT64:
             return true;
-        default:
+case TYPE_ALIAS:
+case TYPE_ANY:
+case TYPE_ARRAY:
+case TYPE_BOOL:
+case TYPE_ENUM:
+case TYPE_F32:
+case TYPE_F64:
+case TYPE_PTR:
+case TYPE_STRING:
+case TYPE_STRUCT:
+case TYPE_TYPE:
+case TYPE_UINT16:
+case TYPE_UINT32:
+case TYPE_UINT64:
+case TYPE_UINT8:
+case TYPE_VOID:
             return false;
     }
 }
@@ -392,14 +493,6 @@ const char *TYPE_to_string(t_type *type, t_logger *logger, char *buffer,
         case TYPE_TYPE:
             (void) snprintf(buffer + strlen(buffer), buffer_size, "type");
             break;
-
-        default:
-            (void) LOGGER_log(logger, L_ERROR,
-                              "TYPE_to_string: I don't know how to "
-                              "translate type %d to string.\n",
-                              type);
-            (void) snprintf(buffer, buffer_size, "s32");
-            break;
     }
 
     if (type->mutable)
@@ -410,8 +503,8 @@ const char *TYPE_to_string(t_type *type, t_logger *logger, char *buffer,
     return buffer;
 }
 
-t_type *type_last_stmt_type(t_vector *body, t_logger *logger,
-                            const t_module *module)
+static t_type *type_last_stmt_type(t_vector *body, t_logger *logger,
+                                   const t_module *module)
 {
     t_ast_node *last_stmt = NULL;
 
@@ -433,6 +526,7 @@ t_type *TYPE_get_type(const t_ast_node *node, t_logger *logger,
         case AST_TYPE_BREAK_STMT:
         case AST_TYPE_EXPRESSION_STMT:
         case AST_TYPE_LET_STMT:
+        case AST_TYPE_DEFER_STMT:
             return TYPE_initialize_type(TYPE_VOID);
         case AST_TYPE_LITERAL:
             switch (node->literal.type)
@@ -570,22 +664,25 @@ t_type *TYPE_get_type(const t_ast_node *node, t_logger *logger,
                     inner = TYPE_dup_type(type->inner_type);
                     (void) TYPE_free_type(type);
                     return inner;
-                default:
-                    return TYPE_initialize_type(TYPE_ANY);
             }
         case AST_TYPE_BINARY_EXPR:
             return TYPE_get_type(node->binary_expr.rhs, logger, module);
         case AST_TYPE_CALL_EXPR:
             {
+                bool builtin = false;
                 char function_name_buffer[1024] = {0};
 
+                /* When passing NULL to pushed_first arg,
+                 * UTILS_fill_function_name does not modify node */
                 (void) UTILS_fill_function_name(
                     function_name_buffer, sizeof(function_name_buffer),
-                    (t_ast_node *)
-                        node /* When passing NULL to pushed_first arg,
-                                UTILS_fill_function_name does not modify node */
-                    ,
-                    NULL, NULL, logger);
+                    node, NULL, &builtin, logger);
+
+                if (builtin)
+                {
+                    return TYPE_get_type(node->call_expr.callable, logger,
+                                         module);
+                }
 
                 if (NULL == module)
                 {
@@ -632,10 +729,5 @@ t_type *TYPE_get_type(const t_ast_node *node, t_logger *logger,
             type->inner_type = TYPE_dup_type(node->array_literal.type);
             type->payload = (void *) node->array_literal.exprs->size;
             return type;
-        default:
-            LOGGER_LOG_LOC(logger, L_ERROR, node->token,
-                           "TYPE_get_type: Unhandled node type %d\n",
-                           node->type);
-            return TYPE_initialize_type(TYPE_ANY);
     }
 }

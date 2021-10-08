@@ -15,9 +15,9 @@ typedef struct
     size_t verbosity; /**< The verbosity of the logger */
 } t_logger;
 
-#define L_DEBUG   "DEBUG" /**< Log string for the DEBUG level */
-#define L_ERROR   "ERROR" /**< Log string for the ERROR level*/
-#define L_INFO    "INFO" /**< Log string for the INFO level*/
+#define L_DEBUG   "DEBUG"   /**< Log string for the DEBUG level */
+#define L_ERROR   "ERROR"   /**< Log string for the ERROR level*/
+#define L_INFO    "INFO"    /**< Log string for the INFO level*/
 #define L_WARNING "WARNING" /**< Log string for the WARNING level*/
 
 /**

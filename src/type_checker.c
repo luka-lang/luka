@@ -10,13 +10,10 @@
 #include "vector.h"
 #include <string.h>
 
-bool check_expr(const t_module *module, const t_ast_node *expr,
-                t_logger *logger);
-bool check_stmt(const t_module *module, const t_ast_node *stmt,
-                t_logger *logger);
+bool check_expr(const t_module *module, t_ast_node *expr, t_logger *logger);
+bool check_stmt(const t_module *module, t_ast_node *stmt, t_logger *logger);
 
-bool check_expr(const t_module *module, const t_ast_node *expr,
-                t_logger *logger)
+bool check_expr(const t_module *module, t_ast_node *expr, t_logger *logger)
 {
     t_ast_node *func = NULL, *proto = NULL, *stmt = NULL, *node = NULL;
     bool vararg = false, success = false, builtin = false,
@@ -35,9 +32,9 @@ bool check_expr(const t_module *module, const t_ast_node *expr,
             {
                 char function_name_buffer[1024] = {0};
 
-                UTILS_fill_function_name(
-                    function_name_buffer, sizeof(function_name_buffer),
-                    (t_ast_node *) expr, &pushed_first_arg, &builtin, logger);
+                UTILS_fill_function_name(function_name_buffer,
+                                         sizeof(function_name_buffer), expr,
+                                         &pushed_first_arg, &builtin, logger);
 
                 if (NULL == expr->call_expr.args)
                 {
@@ -69,11 +66,24 @@ bool check_expr(const t_module *module, const t_ast_node *expr,
                     }
                     proto = func->function.prototype;
                 }
+                else
+                {
+                    proto = CORE_lookup_builtin(expr->call_expr.callable);
+                }
 
                 if (NULL == expr->call_expr.args)
                 {
                     LOGGER_LOG_LOC(logger, L_ERROR, expr->token,
                                    "Call expr for func %s args are NULL\n",
+                                   function_name_buffer);
+                    success = false;
+                    goto l_cleanup_call_expr;
+                }
+
+                if (NULL == proto)
+                {
+                    LOGGER_LOG_LOC(logger, L_ERROR, expr->token,
+                                   "Proto for func %s is NULL\n",
                                    function_name_buffer);
                     success = false;
                     goto l_cleanup_call_expr;
@@ -293,15 +303,30 @@ l_cleanup_call_expr:
                 return false;
             }
             return true;
-        default:
+        case AST_TYPE_UNARY_EXPR:
+        case AST_TYPE_PROTOTYPE:
+        case AST_TYPE_FUNCTION:
+        case AST_TYPE_RETURN_STMT:
+        case AST_TYPE_CAST_EXPR:
+        case AST_TYPE_VARIABLE:
+        case AST_TYPE_LET_STMT:
+        case AST_TYPE_EXPRESSION_STMT:
+        case AST_TYPE_BREAK_STMT:
+        case AST_TYPE_STRUCT_DEFINITION:
+        case AST_TYPE_STRUCT_VALUE:
+        case AST_TYPE_ENUM_DEFINITION:
+        case AST_TYPE_ARRAY_DEREF:
+        case AST_TYPE_ARRAY_LITERAL:
+        case AST_TYPE_BUILTIN:
+        case AST_TYPE_TYPE_EXPR:
+        case AST_TYPE_DEFER_STMT:
             (void) LOGGER_log(logger, L_INFO, "check_expr: default case %d\n",
                               expr->type);
             return true;
     }
 }
 
-bool check_stmt(const t_module *module, const t_ast_node *stmt,
-                t_logger *logger)
+bool check_stmt(const t_module *module, t_ast_node *stmt, t_logger *logger)
 {
     t_type *type1 = NULL, *type2 = NULL;
     char type1_str[1024], type2_str[1024];
@@ -335,7 +360,30 @@ bool check_stmt(const t_module *module, const t_ast_node *stmt,
                 return false;
             }
             return true;
-        default:
+        case AST_TYPE_NUMBER:
+        case AST_TYPE_STRING:
+        case AST_TYPE_UNARY_EXPR:
+        case AST_TYPE_BINARY_EXPR:
+        case AST_TYPE_PROTOTYPE:
+        case AST_TYPE_FUNCTION:
+        case AST_TYPE_RETURN_STMT:
+        case AST_TYPE_IF_EXPR:
+        case AST_TYPE_WHILE_EXPR:
+        case AST_TYPE_CAST_EXPR:
+        case AST_TYPE_VARIABLE:
+        case AST_TYPE_ASSIGNMENT_EXPR:
+        case AST_TYPE_CALL_EXPR:
+        case AST_TYPE_BREAK_STMT:
+        case AST_TYPE_STRUCT_DEFINITION:
+        case AST_TYPE_STRUCT_VALUE:
+        case AST_TYPE_ENUM_DEFINITION:
+        case AST_TYPE_GET_EXPR:
+        case AST_TYPE_ARRAY_DEREF:
+        case AST_TYPE_LITERAL:
+        case AST_TYPE_ARRAY_LITERAL:
+        case AST_TYPE_BUILTIN:
+        case AST_TYPE_TYPE_EXPR:
+        case AST_TYPE_DEFER_STMT:
             (void) LOGGER_log(logger, L_INFO, "check_stmt: default case %d\n",
                               stmt->type);
             return check_expr(module, stmt, logger);

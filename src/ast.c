@@ -10,7 +10,7 @@
 #include "type.h"
 #include "vector.h"
 
-t_builtin_id ast_builtin_id_from_name(const char *name);
+static t_builtin_id ast_builtin_id_from_name(const char *name);
 
 t_ast_node *AST_new_number(t_type *type, void *value)
 {
@@ -50,9 +50,18 @@ t_ast_node *AST_new_number(t_type *type, void *value)
         case TYPE_UINT64:
             node->number.value.u64 = *(uint64_t *) value;
             break;
-        default:
+        case TYPE_ALIAS:
+        case TYPE_ANY:
+        case TYPE_ARRAY:
+        case TYPE_BOOL:
+        case TYPE_ENUM:
+        case TYPE_PTR:
+        case TYPE_STRING:
+        case TYPE_STRUCT:
+        case TYPE_TYPE:
+        case TYPE_VOID:
             (void) fprintf(stderr, "%d is not a number type.\n", type->type);
-            (void) exit(LUKA_GENERAL_ERROR);
+            exit(LUKA_GENERAL_ERROR);
     }
     return node;
 }
@@ -92,7 +101,8 @@ t_ast_node *AST_new_binary_expr(t_ast_binop_type operator, t_ast_node * lhs,
 }
 
 t_ast_node *AST_new_prototype(char *name, char **args, t_type **types,
-                              int arity, t_type *return_type, bool vararg)
+                              unsigned int arity, t_type *return_type,
+                              bool vararg)
 {
     t_ast_node *node = calloc(1, sizeof(t_ast_node));
     node->type = AST_TYPE_PROTOTYPE;
@@ -427,8 +437,8 @@ t_ast_node *AST_fix_function_last_expression_stmt(t_ast_node *node)
     return node;
 }
 
-t_type *ast_resolve_type(t_type *aliased_type, t_vector *type_aliases,
-                         t_logger *logger)
+static t_type *ast_resolve_type(t_type *aliased_type, t_vector *type_aliases,
+                                t_logger *logger)
 {
     t_type_alias *type_alias = NULL;
     if (NULL != aliased_type->inner_type)
@@ -454,10 +464,10 @@ t_type *ast_resolve_type(t_type *aliased_type, t_vector *type_aliases,
 
     (void) LOGGER_log(logger, L_ERROR, "Unknown type %s.\n",
                       (char *) aliased_type->payload);
-    (void) exit(LUKA_TYPE_CHECK_ERROR);
+    exit(LUKA_TYPE_CHECK_ERROR);
 }
 
-t_type *ast_fix_type(t_type *type, t_module *module)
+static t_type *ast_fix_type(t_type *type, t_module *module)
 {
     if (NULL == type)
     {
@@ -548,20 +558,18 @@ t_ast_node *AST_fix_types(t_ast_node *node, t_module *module, t_logger *logger)
                 {
                     t_vector *args = NULL;
                     t_ast_node *arg = NULL;
-                    size_t i = 0;
 
                     args = node->call_expr.args;
                     for (i = 0; i < args->size; ++i)
                     {
                         arg = *(t_ast_node **) vector_get(args, i);
-                        arg = AST_fix_types(arg, module,
-                                                       logger);
+                        arg = AST_fix_types(arg, module, logger);
                         if (vector_assign(args, i, &arg))
                         {
                             (void) LOGGER_log(logger, L_ERROR,
                                               "Failed while assigning arg "
                                               "to the vector");
-                            (void) exit(LUKA_VECTOR_FAILURE);
+                            exit(LUKA_VECTOR_FAILURE);
                         }
                     }
                 }
@@ -598,7 +606,6 @@ t_ast_node *AST_fix_types(t_ast_node *node, t_module *module, t_logger *logger)
                 {
                     t_vector *ast_nodes = NULL;
                     t_ast_node *ast_node = NULL;
-                    size_t i = 0;
 
                     ast_nodes = node->function.body;
                     for (i = 0; i < ast_nodes->size; ++i)
@@ -610,7 +617,7 @@ t_ast_node *AST_fix_types(t_ast_node *node, t_module *module, t_logger *logger)
                             (void) LOGGER_log(logger, L_ERROR,
                                               "Failed while assigning ast node "
                                               "to the vector");
-                            (void) exit(LUKA_VECTOR_FAILURE);
+                            exit(LUKA_VECTOR_FAILURE);
                         }
                     }
                     break;
@@ -621,7 +628,6 @@ t_ast_node *AST_fix_types(t_ast_node *node, t_module *module, t_logger *logger)
             {
                 t_vector *struct_fields = NULL;
                 t_struct_field *struct_field = NULL;
-                size_t i = 0;
 
                 struct_fields = node->struct_definition.struct_fields;
                 for (i = 0; i < struct_fields->size; ++i)
@@ -635,12 +641,33 @@ t_ast_node *AST_fix_types(t_ast_node *node, t_module *module, t_logger *logger)
                         (void) LOGGER_log(logger, L_ERROR,
                                           "Failed while assigning struct field "
                                           "to the vector");
-                        (void) exit(LUKA_VECTOR_FAILURE);
+                        exit(LUKA_VECTOR_FAILURE);
                     }
                 }
                 break;
             }
-        default:
+        case AST_TYPE_BREAK_STMT:
+        case AST_TYPE_WHILE_EXPR:
+        case AST_TYPE_IF_EXPR:
+        case AST_TYPE_BINARY_EXPR:
+        case AST_TYPE_DEFER_STMT:
+        case AST_TYPE_NUMBER:
+        case AST_TYPE_STRING:
+        case AST_TYPE_STRUCT_VALUE:
+        case AST_TYPE_UNARY_EXPR:
+        case AST_TYPE_ARRAY_DEREF:
+        case AST_TYPE_ARRAY_LITERAL:
+        case AST_TYPE_BUILTIN:
+        case AST_TYPE_ENUM_DEFINITION:
+        case AST_TYPE_LITERAL:
+        case AST_TYPE_RETURN_STMT:
+        case AST_TYPE_TYPE_EXPR:
+            {
+                (void) LOGGER_log(
+                    logger, L_WARNING,
+                    "Fixing types is currently not implement for AST type %d\n",
+                    node->type);
+            }
             break;
     }
     return node;
@@ -686,7 +713,6 @@ t_ast_node *AST_resolve_type_aliases(t_ast_node *node, t_vector *type_aliases,
                 {
                     t_vector *ast_nodes = NULL;
                     t_ast_node *ast_node = NULL;
-                    size_t i = 0;
 
                     ast_nodes = node->function.body;
                     for (i = 0; i < ast_nodes->size; ++i)
@@ -699,7 +725,7 @@ t_ast_node *AST_resolve_type_aliases(t_ast_node *node, t_vector *type_aliases,
                             (void) LOGGER_log(logger, L_ERROR,
                                               "Failed while assigning ast node "
                                               "to the vector");
-                            (void) exit(LUKA_VECTOR_FAILURE);
+                            exit(LUKA_VECTOR_FAILURE);
                         }
                     }
                     break;
@@ -760,7 +786,6 @@ t_ast_node *AST_resolve_type_aliases(t_ast_node *node, t_vector *type_aliases,
                 {
                     t_vector *args = NULL;
                     t_ast_node *arg = NULL;
-                    size_t i = 0;
 
                     args = node->call_expr.args;
                     for (i = 0; i < args->size; ++i)
@@ -773,7 +798,7 @@ t_ast_node *AST_resolve_type_aliases(t_ast_node *node, t_vector *type_aliases,
                             (void) LOGGER_log(logger, L_ERROR,
                                               "Failed while assigning arg "
                                               "to the vector");
-                            (void) exit(LUKA_VECTOR_FAILURE);
+                            exit(LUKA_VECTOR_FAILURE);
                         }
                     }
                 }
@@ -783,7 +808,6 @@ t_ast_node *AST_resolve_type_aliases(t_ast_node *node, t_vector *type_aliases,
             {
                 t_vector *struct_fields = NULL;
                 t_struct_field *struct_field = NULL;
-                size_t i = 0;
 
                 struct_fields = node->struct_definition.struct_fields;
                 for (i = 0; i < struct_fields->size; ++i)
@@ -797,19 +821,40 @@ t_ast_node *AST_resolve_type_aliases(t_ast_node *node, t_vector *type_aliases,
                         (void) LOGGER_log(logger, L_ERROR,
                                           "Failed while assigning struct field "
                                           "to the vector");
-                        (void) exit(LUKA_VECTOR_FAILURE);
+                        exit(LUKA_VECTOR_FAILURE);
                     }
                 }
                 break;
             }
-        default:
-            break;
+        case AST_TYPE_ARRAY_DEREF:
+        case AST_TYPE_ARRAY_LITERAL:
+        case AST_TYPE_BINARY_EXPR:
+        case AST_TYPE_BREAK_STMT:
+        case AST_TYPE_BUILTIN:
+        case AST_TYPE_DEFER_STMT:
+        case AST_TYPE_ENUM_DEFINITION:
+        case AST_TYPE_IF_EXPR:
+        case AST_TYPE_LITERAL:
+        case AST_TYPE_NUMBER:
+        case AST_TYPE_RETURN_STMT:
+        case AST_TYPE_STRING:
+        case AST_TYPE_STRUCT_VALUE:
+        case AST_TYPE_TYPE_EXPR:
+        case AST_TYPE_UNARY_EXPR:
+        case AST_TYPE_WHILE_EXPR:
+            {
+                (void) LOGGER_log(logger, L_WARNING,
+                                  "Resolving type aliases is not currently "
+                                  "implented for AST type %d",
+                                  node->type);
+                break;
+            }
     }
     return node;
 }
 
-void ast_fill_let_stmt_var_if_needed(t_ast_node *node, t_logger *logger,
-                                     const t_module *module)
+static void ast_fill_let_stmt_var_if_needed(t_ast_node *node, t_logger *logger,
+                                            const t_module *module)
 {
     t_type *old_type = NULL;
 
@@ -831,8 +876,9 @@ void ast_fill_let_stmt_var_if_needed(t_ast_node *node, t_logger *logger,
     }
 }
 
-void ast_fill_type(t_ast_node *node, const char *var_name, t_type *new_type,
-                   t_logger *logger, const t_module *module)
+static void ast_fill_type(t_ast_node *node, const char *var_name,
+                          t_type *new_type, t_logger *logger,
+                          const t_module *module)
 {
     t_ast_node *stmt = NULL;
     t_struct_value_field *struct_value = NULL;
@@ -844,14 +890,14 @@ void ast_fill_type(t_ast_node *node, const char *var_name, t_type *new_type,
 
     switch (node->type)
     {
-        case AST_TYPE_PROTOTYPE:
-        case AST_TYPE_BREAK_STMT:
-        case AST_TYPE_STRUCT_DEFINITION:
-        case AST_TYPE_ENUM_DEFINITION:
-        case AST_TYPE_STRING:
-        case AST_TYPE_NUMBER:
-        case AST_TYPE_LITERAL:
         case AST_TYPE_ARRAY_LITERAL:
+        case AST_TYPE_BREAK_STMT:
+        case AST_TYPE_ENUM_DEFINITION:
+        case AST_TYPE_LITERAL:
+        case AST_TYPE_NUMBER:
+        case AST_TYPE_PROTOTYPE:
+        case AST_TYPE_STRING:
+        case AST_TYPE_STRUCT_DEFINITION:
             break;
         case AST_TYPE_CAST_EXPR:
             {
@@ -1040,10 +1086,14 @@ void ast_fill_type(t_ast_node *node, const char *var_name, t_type *new_type,
                 }
                 break;
             }
-        default:
-            (void) LOGGER_log(logger, L_INFO,
-                              "ast_fill_type: default case %d\n", node->type);
-            break;
+        case AST_TYPE_BUILTIN:
+        case AST_TYPE_TYPE_EXPR:
+            {
+                (void) LOGGER_log(logger, L_INFO,
+                                  "ast_fill_type: default case %d\n",
+                                  node->type);
+                break;
+            }
     }
 }
 
@@ -1124,8 +1174,34 @@ void AST_fill_variable_types(t_ast_node *node, t_logger *logger,
         case AST_TYPE_DEFER_STMT:
             body = node->defer_stmt.body;
             break;
-        default:
-            return;
+        case AST_TYPE_ARRAY_DEREF:
+        case AST_TYPE_ARRAY_LITERAL:
+        case AST_TYPE_ASSIGNMENT_EXPR:
+        case AST_TYPE_BINARY_EXPR:
+        case AST_TYPE_BREAK_STMT:
+        case AST_TYPE_BUILTIN:
+        case AST_TYPE_CALL_EXPR:
+        case AST_TYPE_CAST_EXPR:
+        case AST_TYPE_ENUM_DEFINITION:
+        case AST_TYPE_EXPRESSION_STMT:
+        case AST_TYPE_GET_EXPR:
+        case AST_TYPE_LET_STMT:
+        case AST_TYPE_LITERAL:
+        case AST_TYPE_NUMBER:
+        case AST_TYPE_PROTOTYPE:
+        case AST_TYPE_RETURN_STMT:
+        case AST_TYPE_STRING:
+        case AST_TYPE_STRUCT_DEFINITION:
+        case AST_TYPE_STRUCT_VALUE:
+        case AST_TYPE_TYPE_EXPR:
+        case AST_TYPE_UNARY_EXPR:
+        case AST_TYPE_VARIABLE:
+            {
+                (void) LOGGER_log(logger, L_INFO,
+                                  "AST_fill_variable_types default case %d\n",
+                                  node->type);
+                return;
+            }
     }
 
     if ((NULL == body))
@@ -1670,14 +1746,6 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
                 }
                 break;
             }
-        default:
-            {
-                (void) LOGGER_log(
-                    logger, L_ERROR,
-                    "I don't know how to free AST node of type - %d\n",
-                    node->type);
-                break;
-            }
     }
 
     (void) free(node);
@@ -1691,8 +1759,8 @@ void AST_free_node(t_ast_node *node, t_logger *logger)
  * @param[in] offset the offset to print at.
  * @param[in] logger a logger that can be used to log messages.
  */
-void ast_print_statements_block(t_vector *statements, int offset,
-                                t_logger *logger)
+static void ast_print_statements_block(t_vector *statements, int offset,
+                                       t_logger *logger)
 {
     t_ast_node *stmt = NULL;
 
@@ -1717,12 +1785,11 @@ void AST_print_functions(t_vector *functions, int offset, t_logger *logger)
 /**
  * @brief Getting the string representation of a unary operator.
  *
- * @param[in] op the operator.
- * @param[in] logger a logger that can be used to log messages.
+ * @param[in] op the unary operator.
  *
  * @return a string representation of the operator.
  */
-char *ast_unop_to_str(t_ast_unop_type op, t_logger *logger)
+static char *ast_unop_to_str(t_ast_unop_type op)
 {
     switch (op)
     {
@@ -1736,22 +1803,17 @@ char *ast_unop_to_str(t_ast_unop_type op, t_logger *logger)
             return "*";
         case UNOP_REF:
             return "&";
-        default:
-            (void) LOGGER_log(logger, L_ERROR, "Unknown unary operator: %d\n",
-                              op);
-            (void) exit(1);
     }
 }
 
 /**
  * @brief Getting the string representation of a binary operator.
  *
- * @param[in] op the operator.
- * @param[in] logger a logger that can be used to log messages.
+ * @param[in] op the binary operator.
  *
  * @return a string representation of the operator.
  */
-char *ast_binop_to_str(t_ast_binop_type op, t_logger *logger)
+static char *ast_binop_to_str(t_ast_binop_type op)
 {
     switch (op)
     {
@@ -1777,10 +1839,6 @@ char *ast_binop_to_str(t_ast_binop_type op, t_logger *logger)
             return "<=";
         case BINOP_GEQ:
             return ">=";
-        default:
-            (void) LOGGER_log(logger, L_ERROR, "Unknown binary operator: %d\n",
-                              op);
-            (void) exit(1);
     }
 }
 
@@ -1791,7 +1849,7 @@ char *ast_binop_to_str(t_ast_binop_type op, t_logger *logger)
  *
  * @return the string representation of the literal.
  */
-char *ast_stringify_literal(t_ast_literal_type type)
+static char *ast_stringify_literal(t_ast_literal_type type)
 {
     switch (type)
     {
@@ -1801,9 +1859,9 @@ char *ast_stringify_literal(t_ast_literal_type type)
             return "true";
         case AST_LITERAL_FALSE:
             return "false";
-        default:
-            return "literal not handled";
     }
+
+    return "literal not handled";
 }
 
 void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
@@ -1852,7 +1910,7 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
                                   offset, ' ');
                 (void) LOGGER_log(
                     logger, L_DEBUG, "%*c\b Operator: %s\n", offset + 2, ' ',
-                    ast_unop_to_str(node->unary_expr.operator, logger));
+                    ast_unop_to_str(node->unary_expr.operator));
 
                 (void) LOGGER_log(logger, L_DEBUG, "%*c\b Expression:\n",
                                   offset + 2, ' ');
@@ -1869,7 +1927,7 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
                                   offset, ' ');
                 (void) LOGGER_log(
                     logger, L_DEBUG, "%*c\b Operator: %s\n", offset + 2, ' ',
-                    ast_binop_to_str(node->binary_expr.operator, logger));
+                    ast_binop_to_str(node->binary_expr.operator));
                 if (NULL != node->binary_expr.lhs)
                     (void) AST_print_ast(node->binary_expr.lhs, offset + 4,
                                          logger);
@@ -2413,13 +2471,6 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
                                                   offset + 2, logger);
                 break;
             }
-        default:
-            {
-                (void) LOGGER_log(logger, L_DEBUG,
-                                  "I don't know how to print type - %d\n",
-                                  node->type);
-                break;
-            }
     }
 }
 
@@ -2434,12 +2485,16 @@ bool AST_is_cond_binop(t_ast_binop_type op)
         case BINOP_LEQ:
         case BINOP_GEQ:
             return true;
-        default:
+        case BINOP_ADD:
+        case BINOP_DIVIDE:
+        case BINOP_MODULOS:
+        case BINOP_MULTIPLY:
+        case BINOP_SUBTRACT:
             return false;
     }
 }
 
-t_builtin_id ast_builtin_id_from_name(const char *name)
+static t_builtin_id ast_builtin_id_from_name(const char *name)
 {
     if (0 == strcmp("@sizeOf", name))
     {

@@ -15,6 +15,7 @@
  *
  * @returns true if the function is valid or false otherwise.
  */
-bool CHECK_function(const t_module *module, const t_ast_node *function, t_logger *logger);
+bool CHECK_function(const t_module *module, const t_ast_node *function,
+                    t_logger *logger);
 
 #endif // LUKA_TYPE_CHECKER_H

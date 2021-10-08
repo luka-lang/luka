@@ -7,7 +7,7 @@
 #include <string.h>
 
 char *UTILS_fill_function_name(char *function_name_buffer, size_t buffer_length,
-                               t_ast_node *node, bool *pushed_first_arg,
+                               const t_ast_node *node, bool *pushed_first_arg,
                                bool *builtin, t_logger *logger)
 {
     t_ast_node_type callable_type = node->call_expr.callable->type;
@@ -74,7 +74,7 @@ char *UTILS_fill_function_name(char *function_name_buffer, size_t buffer_length,
     {
         LOGGER_LOG_LOC(logger, L_ERROR, node->token,
                        "utils: Unknown callable type - %d\n", callable_type);
-        (void) exit(LUKA_GENERAL_ERROR);
+        exit(LUKA_GENERAL_ERROR);
     }
 
     return function_name_buffer;

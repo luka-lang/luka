@@ -1,6 +1,6 @@
 /** @file main_internal.h */
-#ifndef __MAIN_INTERNAL_H__
-#define __MAIN_INTERNAL_H__
+#ifndef LUKA_MAIN_INTERNAL_H
+#define LUKA_MAIN_INTERNAL_H
 
 #include "defs.h"
 #include "parser.h"
@@ -11,7 +11,7 @@
 typedef struct
 {
     t_module *module;
-    const char *file_path;
+    char *file_path;
     UT_hash_handle hh;
 } t_imported_module;
 
