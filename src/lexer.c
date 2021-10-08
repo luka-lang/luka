@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "defs.h"
 #include "lexer.h"
 
 /** A string representation of the keywords in the Luka programming language */
@@ -183,7 +184,7 @@ static char *lexer_lex_string(const char *source, size_t *index, t_logger *logge
                     (void) LOGGER_log(logger, L_ERROR,
                                       "\\%c is not a valid esacpe sequence.\n",
                                       source[i + 1]);
-                    exit(1);
+                    exit(LUKA_LEXER_FAILED);
             }
         }
 
@@ -224,7 +225,7 @@ static char *lexer_lex_string(const char *source, size_t *index, t_logger *logge
                     (void) LOGGER_log(logger, L_ERROR,
                                       "\\%c is not a valid esacpe sequence.\n",
                                       source[*index + ind + off + 1]);
-                    exit(1);
+                    exit(LUKA_LEXER_FAILED);
             }
 
             ++off;
@@ -555,7 +556,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                     (void) LOGGER_log(logger, L_ERROR,
                                       "Unrecognized character %c at %ld:%ld.\n",
                                       character, line, offset);
-                    exit(1);
+                    exit(LUKA_LEXER_FAILED);
                 }
         }
 

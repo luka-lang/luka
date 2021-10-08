@@ -225,7 +225,7 @@ static _Noreturn void parser_err(t_parser *parser, const char *message)
                       parser->file_path, token->line, token->offset, message);
 
     (void) IO_print_error(parser->file_path, token->line, token->offset);
-    exit(1);
+    exit(LUKA_PARSER_FAILED);
 }
 
 /**
@@ -1917,7 +1917,7 @@ t_ast_node *parser_parse_primary(t_parser *parser)
             (void) LOGGER_log(parser->logger, L_ERROR,
                               "parse_primary: Syntax error at %ld:%ld - %s\n",
                               token->line, token->offset, token->content);
-            exit(1);
+            exit(LUKA_PARSER_FAILED);
     }
 
     n->token = starting_token;
@@ -2382,7 +2382,7 @@ static t_ast_node *parser_parse_statement(t_parser *parser)
                 (void) LOGGER_log(parser->logger, L_ERROR,
                                   "Not a statement: %ld:%ld - %s\n",
                                   token->line, token->offset, token->content);
-                exit(1);
+                exit(LUKA_PARSER_FAILED);
             }
     }
 
@@ -2620,7 +2620,7 @@ l_cleanup:
         types = NULL;
     }
 
-    exit(1);
+    exit(LUKA_PARSER_FAILED);
 }
 
 t_ast_node *parser_parse_struct_definition(t_parser *parser)
