@@ -21,6 +21,9 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+_Pragma("GCC diagnostic push")
+_Pragma("GCC diagnostic ignored \"-Wimplicit-fallthrough\"")
+
 #ifndef UTHASH_H
 #define UTHASH_H
 
@@ -1426,5 +1429,7 @@ typedef struct UT_hash_handle
     unsigned keylen;                /* enclosing struct's key len     */
     unsigned hashv;                 /* result of hash-fcn(key)        */
 } UT_hash_handle;
+
+_Pragma("GCC diagnostic push")
 
 #endif /* UTHASH_H */

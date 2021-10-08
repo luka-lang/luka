@@ -133,7 +133,7 @@ bool iterator_is_after(Iterator *first, Iterator *second);
 size_t iterator_index(Vector *vector, Iterator *iterator);
 
 #define VECTOR_FOR_EACH(vector_pointer, iterator_name)                         \
-    for (Iterator(iterator_name) = vector_begin((vector_pointer)),             \
+    for (Iterator iterator_name = vector_begin((vector_pointer)),              \
         end = vector_end((vector_pointer));                                    \
          !iterator_equals(&(iterator_name), &end);                             \
          iterator_increment(&(iterator_name)))

@@ -16,6 +16,7 @@ execute_process(
 )
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/third_party/include)
 
 file(GLOB_RECURSE SOURCES src/*.c)
 file(GLOB_RECURSE LIBS    libs/*)
