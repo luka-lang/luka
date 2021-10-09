@@ -6,6 +6,7 @@
 
 #include "defs.h"
 #include "lexer.h"
+#include "logger.h"
 
 /** A string representation of the keywords in the Luka programming language */
 const char *keywords[NUMBER_OF_KEYWORDS]
@@ -54,7 +55,8 @@ static int lexer_is_keyword(const char *identifier)
  *
  * @return the string representation of the number.
  */
-static char *lexer_lex_number(const char *source, size_t *index, t_logger *logger)
+static char *lexer_lex_number(const char *source, size_t *index,
+                              t_logger *logger)
 {
     bool is_floating = false;
     size_t start_index = *index;
@@ -113,7 +115,8 @@ static char *lexer_lex_number(const char *source, size_t *index, t_logger *logge
  *
  * @return the string representation of the identifier.
  */
-static char *lexer_lex_identifier(const char *source, size_t *index, bool builtin)
+static char *lexer_lex_identifier(const char *source, size_t *index,
+                                  bool builtin)
 {
     size_t i = *index;
     if (isalpha(source[i]) || ('_' == source[i]))
@@ -155,20 +158,24 @@ static char *lexer_lex_identifier(const char *source, size_t *index, bool builti
  * - `\\n` is a newline
  * - `\\t` is a tab
  * - `\\\\` is a backslash
- * - `\\"` is a quotation mark
+ * - `\\"` is a double quotes
+ * - `\\'` is a single quote
+ * - `\\r` is a carriage return
  *
  * @param[in] source the source code.
  * @param[in,out] index the index to start from, will point at the next
  * character after the string when the function returns.
  * @param[in] logger a logger that can be used to log messages.
+ * @param[in] end the ending character.
  *
  * @return the string representation of the string.
  */
-static char *lexer_lex_string(const char *source, size_t *index, t_logger *logger)
+static char *lexer_lex_string(const char *source, size_t *index,
+                              t_logger *logger, char end)
 {
     size_t i = *index;
     size_t char_count = 0, off = 0, ind = 0;
-    while ('"' != source[i])
+    while (end != source[i])
     {
         if ('\\' == source[i])
         {
@@ -178,6 +185,9 @@ static char *lexer_lex_string(const char *source, size_t *index, t_logger *logge
                 case 't':
                 case '\\':
                 case '"':
+                case '\'':
+                case '0':
+                case 'r':
                     ++i;
                     break;
                 default:
@@ -220,6 +230,13 @@ static char *lexer_lex_string(const char *source, size_t *index, t_logger *logge
                     break;
                 case '"':
                     str[ind] = '"';
+                case '\'':
+                    str[ind] = '\'';
+                    break;
+                case '0':
+                    str[ind] = '\0';
+                case 'r':
+                    str[ind] = '\r';
                     break;
                 default:
                     (void) LOGGER_log(logger, L_ERROR,
@@ -250,7 +267,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
     char character = '\0';
     t_token *token = NULL;
     int number = 0;
-    char *identifier;
+    char *parsed_string;
     t_return_code return_code = LUKA_UNINITIALIZED;
     size_t i = 0, saved_i = 0;
 
@@ -468,16 +485,43 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                     ++i;
                     ++offset;
                     saved_i = i;
-                    identifier = lexer_lex_string(source, &i, logger);
+                    parsed_string = lexer_lex_string(source, &i, logger, '"');
                     offset += i - saved_i;
-                    if (NULL == identifier)
+                    if (NULL == parsed_string)
                     {
                         (void) LOGGER_log(logger, L_ERROR,
                                           "Couldn't lex string.\n");
                         return_code = LUKA_LEXER_FAILED;
                         goto l_cleanup;
                     }
-                    token->content = identifier;
+                    token->content = parsed_string;
+                    break;
+                }
+            case '\'':
+                {
+                    token->type = T_CHAR;
+                    ++i;
+                    ++offset;
+                    saved_i = i;
+                    parsed_string = lexer_lex_string(source, &i, logger, '\'');
+                    if (strlen(parsed_string) > 1)
+                    {
+                        (void) LOGGER_log(logger, L_ERROR,
+                                          "Character literal is too long "
+                                          "(should be 1 character): '%s'\n",
+                                          parsed_string);
+                        return_code = LUKA_LEXER_FAILED;
+                        goto l_cleanup;
+                    }
+                    offset += i - saved_i;
+                    if (NULL == parsed_string)
+                    {
+                        (void) LOGGER_log(logger, L_ERROR,
+                                          "Couldn't lex character.\n");
+                        return_code = LUKA_LEXER_FAILED;
+                        goto l_cleanup;
+                    }
+                    token->content = parsed_string;
                     break;
                 }
             case '.':
@@ -502,16 +546,16 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                     token->type = T_BUILTIN;
                     saved_i = i;
                     ++i;
-                    identifier = lexer_lex_identifier(source, &i, true);
+                    parsed_string = lexer_lex_identifier(source, &i, true);
                     offset += i - saved_i;
-                    if (NULL == identifier)
+                    if (NULL == parsed_string)
                     {
                         (void) LOGGER_log(logger, L_ERROR,
                                           "Couldn't lex identifier.\n");
                         return_code = LUKA_LEXER_FAILED;
                         goto l_cleanup;
                     }
-                    token->content = identifier;
+                    token->content = parsed_string;
                     break;
                 }
             case EOF:
@@ -535,21 +579,21 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                     {
                         token->type = T_IDENTIFIER;
                         saved_i = i;
-                        identifier = lexer_lex_identifier(source, &i, false);
+                        parsed_string = lexer_lex_identifier(source, &i, false);
                         offset += i - saved_i;
-                        if (NULL == identifier)
+                        if (NULL == parsed_string)
                         {
                             (void) LOGGER_log(logger, L_ERROR,
                                               "Couldn't lex identifier.\n");
                             return_code = LUKA_LEXER_FAILED;
                             goto l_cleanup;
                         }
-                        number = lexer_is_keyword(identifier);
+                        number = lexer_is_keyword(parsed_string);
                         if (-1 != number)
                         {
                             token->type = number;
                         }
-                        token->content = identifier;
+                        token->content = parsed_string;
                         break;
                     }
 
