@@ -31,6 +31,33 @@ static t_ast_node *parser_parse_expression(t_parser *parser);
 static t_ast_node *parser_parse_assignment(t_parser *parser);
 
 /**
+ * @brief Parse an bor (or a lower precedence expression).
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return an bor AST node.
+ */
+static t_ast_node *parser_parse_bor(t_parser *parser);
+
+/**
+ * @brief Parse an bxor (or a lower precedence expression).
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return an bxor AST node.
+ */
+static t_ast_node *parser_parse_bxor(t_parser *parser);
+
+/**
+ * @brief Parse an band (or a lower precedence expression).
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return an band AST node.
+ */
+static t_ast_node *parser_parse_band(t_parser *parser);
+
+/**
  * @brief Parse an equality (or a lower precedence expression).
  *
  * @param[in,out] parser the parser to parse with.
@@ -47,6 +74,15 @@ static t_ast_node *parser_parse_equality(t_parser *parser);
  * @return a comparison AST node.
  */
 static t_ast_node *parser_parse_comparison(t_parser *parser);
+
+/**
+ * @brief Parse an shift (or a lower precedence expression).
+ *
+ * @param[in,out] parser the parser to parse with.
+ *
+ * @return an shift AST node.
+ */
+static t_ast_node *parser_parse_shift(t_parser *parser);
 
 /**
  * @brief Parse a term (or a lower precedence expression).
@@ -469,6 +505,7 @@ static t_type *parser_parse_type(t_parser *parser, bool parse_prefix)
         case T_BANG:
         case T_BREAK:
         case T_BUILTIN:
+        case T_CARET:
         case T_CHAR:
         case T_CLOSE_ANG:
         case T_CLOSE_BRACE:
@@ -500,12 +537,16 @@ static t_type *parser_parse_type(t_parser *parser, bool parse_prefix)
         case T_OPEN_BRACE:
         case T_OPEN_PAREN:
         case T_PERCENT:
+        case T_PIPE:
         case T_PLUS:
         case T_RETURN:
         case T_SEMI_COLON:
+        case T_SHL:
+        case T_SHR:
         case T_SLASH:
         case T_STRING:
         case T_THREE_DOTS:
+        case T_TILDE:
         case T_TRUE:
         case T_TYPE:
         case T_UNKNOWN:
@@ -799,6 +840,7 @@ t_module *PARSER_parse_file(t_parser *parser)
             case T_BOOL_TYPE:
             case T_BREAK:
             case T_BUILTIN:
+            case T_CARET:
             case T_CHAR:
             case T_CHAR_TYPE:
             case T_CLOSE_ANG:
@@ -834,6 +876,7 @@ t_module *PARSER_parse_file(t_parser *parser)
             case T_OPEN_BRACKET:
             case T_OPEN_PAREN:
             case T_PERCENT:
+            case T_PIPE:
             case T_PLUS:
             case T_RETURN:
             case T_S16_TYPE:
@@ -841,11 +884,14 @@ t_module *PARSER_parse_file(t_parser *parser)
             case T_S64_TYPE:
             case T_S8_TYPE:
             case T_SEMI_COLON:
+            case T_SHL:
+            case T_SHR:
             case T_SLASH:
             case T_STAR:
             case T_STRING:
             case T_STR_TYPE:
             case T_THREE_DOTS:
+            case T_TILDE:
             case T_TRUE:
             case T_U16_TYPE:
             case T_U32_TYPE:
@@ -1251,6 +1297,7 @@ t_ast_node *parser_parse_equality(t_parser *parser)
         case T_BOOL_TYPE:
         case T_BREAK:
         case T_BUILTIN:
+        case T_CARET:
         case T_CHAR:
         case T_CHAR_TYPE:
         case T_CLOSE_ANG:
@@ -1290,6 +1337,7 @@ t_ast_node *parser_parse_equality(t_parser *parser)
         case T_OPEN_BRACKET:
         case T_OPEN_PAREN:
         case T_PERCENT:
+        case T_PIPE:
         case T_PLUS:
         case T_RETURN:
         case T_S16_TYPE:
@@ -1297,12 +1345,15 @@ t_ast_node *parser_parse_equality(t_parser *parser)
         case T_S64_TYPE:
         case T_S8_TYPE:
         case T_SEMI_COLON:
+        case T_SHL:
+        case T_SHR:
         case T_SLASH:
         case T_STAR:
         case T_STRING:
         case T_STRUCT:
         case T_STR_TYPE:
         case T_THREE_DOTS:
+        case T_TILDE:
         case T_TRUE:
         case T_TYPE:
         case T_U16_TYPE:
@@ -1331,7 +1382,7 @@ t_ast_node *parser_parse_comparison(t_parser *parser)
     t_ast_binop_type operator= BINOP_GREATER;
 
     starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-    lhs = parser_parse_term(parser);
+    lhs = parser_parse_shift(parser);
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     switch (token->type)
     {
@@ -1362,6 +1413,7 @@ t_ast_node *parser_parse_comparison(t_parser *parser)
         case T_BOOL_TYPE:
         case T_BREAK:
         case T_BUILTIN:
+        case T_CARET:
         case T_CHAR:
         case T_CHAR_TYPE:
         case T_CLOSE_BRACE:
@@ -1399,6 +1451,115 @@ t_ast_node *parser_parse_comparison(t_parser *parser)
         case T_OPEN_BRACKET:
         case T_OPEN_PAREN:
         case T_PERCENT:
+        case T_PIPE:
+        case T_PLUS:
+        case T_RETURN:
+        case T_S16_TYPE:
+        case T_S32_TYPE:
+        case T_S64_TYPE:
+        case T_S8_TYPE:
+        case T_SEMI_COLON:
+        case T_SHL:
+        case T_SHR:
+        case T_SLASH:
+        case T_STAR:
+        case T_STRING:
+        case T_STRUCT:
+        case T_STR_TYPE:
+        case T_THREE_DOTS:
+        case T_TILDE:
+        case T_TRUE:
+        case T_TYPE:
+        case T_U16_TYPE:
+        case T_U32_TYPE:
+        case T_U64_TYPE:
+        case T_U8_TYPE:
+        case T_UNKNOWN:
+        case T_VOID_TYPE:
+        case T_WHILE:
+            {
+                return lhs;
+            }
+    }
+
+    parser_advance(parser);
+    rhs = parser_parse_shift(parser);
+    node = AST_new_binary_expr(operator, lhs, rhs);
+    node->token = starting_token;
+    return node;
+}
+
+t_ast_node *parser_parse_shift(t_parser *parser)
+{
+    t_ast_node *lhs = NULL, *rhs = NULL, *node = NULL;
+    t_token *token = NULL, *starting_token = NULL;
+    t_ast_binop_type operator= BINOP_SHL;
+
+    starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    lhs = parser_parse_term(parser);
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    switch (token->type)
+    {
+        case T_SHL:
+            {
+                operator= BINOP_SHL;
+                break;
+            }
+        case T_SHR:
+            {
+                operator= BINOP_SHR;
+                break;
+            }
+        case T_AMPERCENT:
+        case T_ANY_TYPE:
+        case T_AS:
+        case T_BANG:
+        case T_BOOL_TYPE:
+        case T_BREAK:
+        case T_BUILTIN:
+        case T_CARET:
+        case T_CHAR:
+        case T_CHAR_TYPE:
+        case T_CLOSE_ANG:
+        case T_CLOSE_BRACE:
+        case T_CLOSE_BRACKET:
+        case T_CLOSE_PAREN:
+        case T_COLON:
+        case T_COMMA:
+        case T_DEFER:
+        case T_DOT:
+        case T_DOUBLE_COLON:
+        case T_DOUBLE_TYPE:
+        case T_ELSE:
+        case T_ENUM:
+        case T_EOF:
+        case T_EQEQ:
+        case T_EQUALS:
+        case T_EXTERN:
+        case T_F32_TYPE:
+        case T_F64_TYPE:
+        case T_FALSE:
+        case T_FLOAT_TYPE:
+        case T_FN:
+        case T_GEQ:
+        case T_IDENTIFIER:
+        case T_IF:
+        case T_IMPORT:
+        case T_INTLIT:
+        case T_INT_TYPE:
+        case T_LEQ:
+        case T_LET:
+        case T_MINUS:
+        case T_MUT:
+        case T_NEQ:
+        case T_NULL:
+        case T_NUMBER:
+        case T_OPEN_ANG:
+        case T_OPEN_BRACE:
+        case T_OPEN_BRACKET:
+        case T_OPEN_PAREN:
+        case T_PERCENT:
+        case T_PIPE:
         case T_PLUS:
         case T_RETURN:
         case T_S16_TYPE:
@@ -1412,6 +1573,7 @@ t_ast_node *parser_parse_comparison(t_parser *parser)
         case T_STRUCT:
         case T_STR_TYPE:
         case T_THREE_DOTS:
+        case T_TILDE:
         case T_TRUE:
         case T_TYPE:
         case T_U16_TYPE:
@@ -1462,6 +1624,7 @@ t_ast_node *parser_parse_term(t_parser *parser)
         case T_BOOL_TYPE:
         case T_BREAK:
         case T_BUILTIN:
+        case T_CARET:
         case T_CHAR:
         case T_CHAR_TYPE:
         case T_CLOSE_ANG:
@@ -1502,18 +1665,22 @@ t_ast_node *parser_parse_term(t_parser *parser)
         case T_OPEN_BRACKET:
         case T_OPEN_PAREN:
         case T_PERCENT:
+        case T_PIPE:
         case T_RETURN:
         case T_S16_TYPE:
         case T_S32_TYPE:
         case T_S64_TYPE:
         case T_S8_TYPE:
         case T_SEMI_COLON:
+        case T_SHL:
+        case T_SHR:
         case T_SLASH:
         case T_STAR:
         case T_STRING:
         case T_STRUCT:
         case T_STR_TYPE:
         case T_THREE_DOTS:
+        case T_TILDE:
         case T_TRUE:
         case T_TYPE:
         case T_U16_TYPE:
@@ -1569,6 +1736,7 @@ t_ast_node *parser_parse_factor(t_parser *parser)
         case T_BOOL_TYPE:
         case T_BREAK:
         case T_BUILTIN:
+        case T_CARET:
         case T_CHAR:
         case T_CHAR_TYPE:
         case T_CLOSE_ANG:
@@ -1609,6 +1777,7 @@ t_ast_node *parser_parse_factor(t_parser *parser)
         case T_OPEN_BRACE:
         case T_OPEN_BRACKET:
         case T_OPEN_PAREN:
+        case T_PIPE:
         case T_PLUS:
         case T_RETURN:
         case T_S16_TYPE:
@@ -1616,10 +1785,13 @@ t_ast_node *parser_parse_factor(t_parser *parser)
         case T_S64_TYPE:
         case T_S8_TYPE:
         case T_SEMI_COLON:
+        case T_SHL:
+        case T_SHR:
         case T_STRING:
         case T_STRUCT:
         case T_STR_TYPE:
         case T_THREE_DOTS:
+        case T_TILDE:
         case T_TRUE:
         case T_TYPE:
         case T_U16_TYPE:
@@ -1689,11 +1861,19 @@ t_ast_node *parser_parse_unary(t_parser *parser)
                 node = AST_new_unary_expr(UNOP_DEREF, unary, false);
                 break;
             }
+        case T_TILDE:
+            {
+                parser_advance(parser);
+                unary = parser_parse_unary(parser);
+                node = AST_new_unary_expr(UNOP_BNOT, unary, false);
+                break;
+            }
         case T_ANY_TYPE:
         case T_AS:
         case T_BOOL_TYPE:
         case T_BREAK:
         case T_BUILTIN:
+        case T_CARET:
         case T_CHAR:
         case T_CHAR_TYPE:
         case T_CLOSE_ANG:
@@ -1734,6 +1914,7 @@ t_ast_node *parser_parse_unary(t_parser *parser)
         case T_OPEN_BRACKET:
         case T_OPEN_PAREN:
         case T_PERCENT:
+        case T_PIPE:
         case T_PLUS:
         case T_RETURN:
         case T_S16_TYPE:
@@ -1741,6 +1922,8 @@ t_ast_node *parser_parse_unary(t_parser *parser)
         case T_S64_TYPE:
         case T_S8_TYPE:
         case T_SEMI_COLON:
+        case T_SHL:
+        case T_SHR:
         case T_SLASH:
         case T_STRING:
         case T_STRUCT:
@@ -1894,6 +2077,7 @@ t_ast_node *parser_parse_primary(t_parser *parser)
         case T_AS:
         case T_BANG:
         case T_BREAK:
+        case T_CARET:
         case T_CLOSE_ANG:
         case T_CLOSE_BRACE:
         case T_CLOSE_BRACKET:
@@ -1922,19 +2106,23 @@ t_ast_node *parser_parse_primary(t_parser *parser)
         case T_OPEN_ANG:
         case T_OPEN_BRACE:
         case T_PERCENT:
+        case T_PIPE:
         case T_PLUS:
         case T_RETURN:
         case T_SEMI_COLON:
+        case T_SHL:
+        case T_SHR:
         case T_SLASH:
         case T_STAR:
         case T_STRUCT:
         case T_THREE_DOTS:
+        case T_TILDE:
         case T_TYPE:
         case T_UNKNOWN:
         case T_WHILE:
-            (void) LOGGER_log(parser->logger, L_ERROR,
-                              "parse_primary: Syntax error at %ld:%ld - %s\n",
-                              token->line, token->offset, token->content);
+            LOGGER_LOG_LOC(parser->logger, L_ERROR, starting_token,
+                           "parse_primary: Syntax error at %ld:%ld - %s\n",
+                           token->line, token->offset, token->content);
             exit(LUKA_PARSER_FAILED);
     }
 
@@ -2063,6 +2251,7 @@ t_ast_node *parser_parse_expression(t_parser *parser)
         case T_BOOL_TYPE:
         case T_BREAK:
         case T_BUILTIN:
+        case T_CARET:
         case T_CHAR:
         case T_CHAR_TYPE:
         case T_CLOSE_ANG:
@@ -2103,6 +2292,7 @@ t_ast_node *parser_parse_expression(t_parser *parser)
         case T_OPEN_BRACKET:
         case T_OPEN_PAREN:
         case T_PERCENT:
+        case T_PIPE:
         case T_PLUS:
         case T_RETURN:
         case T_S16_TYPE:
@@ -2110,12 +2300,15 @@ t_ast_node *parser_parse_expression(t_parser *parser)
         case T_S64_TYPE:
         case T_S8_TYPE:
         case T_SEMI_COLON:
+        case T_SHL:
+        case T_SHR:
         case T_SLASH:
         case T_STAR:
         case T_STRING:
         case T_STRUCT:
         case T_STR_TYPE:
         case T_THREE_DOTS:
+        case T_TILDE:
         case T_TRUE:
         case T_TYPE:
         case T_U16_TYPE:
@@ -2147,7 +2340,7 @@ t_ast_node *parser_parse_assignment(t_parser *parser)
     t_token *starting_token = NULL;
 
     starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
-    lhs = parser_parse_equality(parser);
+    lhs = parser_parse_bor(parser);
 
     if (parser_match(parser, T_EQUALS))
     {
@@ -2170,6 +2363,69 @@ t_ast_node *parser_parse_assignment(t_parser *parser)
 
     lhs->token = starting_token;
     return lhs;
+}
+
+t_ast_node *parser_parse_bor(t_parser *parser)
+{
+    t_ast_node *lhs = NULL, *rhs = NULL, *node = NULL;
+    t_token *token = NULL, *starting_token = NULL;
+
+    starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    lhs = parser_parse_bxor(parser);
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+
+    if (!parser_match(parser, T_PIPE))
+    {
+        return lhs;
+    }
+
+    parser_advance(parser);
+    rhs = parser_parse_bxor(parser);
+    node = AST_new_binary_expr(BINOP_BOR, lhs, rhs);
+    node->token = starting_token;
+    return node;
+}
+
+t_ast_node *parser_parse_bxor(t_parser *parser)
+{
+    t_ast_node *lhs = NULL, *rhs = NULL, *node = NULL;
+    t_token *token = NULL, *starting_token = NULL;
+
+    starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    lhs = parser_parse_band(parser);
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+
+    if (!parser_match(parser, T_CARET))
+    {
+        return lhs;
+    }
+
+    parser_advance(parser);
+    rhs = parser_parse_band(parser);
+    node = AST_new_binary_expr(BINOP_BXOR, lhs, rhs);
+    node->token = starting_token;
+    return node;
+}
+
+t_ast_node *parser_parse_band(t_parser *parser)
+{
+    t_ast_node *lhs = NULL, *rhs = NULL, *node = NULL;
+    t_token *token = NULL, *starting_token = NULL;
+
+    starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+    lhs = parser_parse_equality(parser);
+    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
+
+    if (!parser_match(parser, T_AMPERCENT))
+    {
+        return lhs;
+    }
+
+    parser_advance(parser);
+    rhs = parser_parse_equality(parser);
+    node = AST_new_binary_expr(BINOP_BAND, lhs, rhs);
+    node->token = starting_token;
+    return node;
 }
 
 static t_ast_node *parser_parse_let_statement(t_parser *parser, bool is_global)
@@ -2321,6 +2577,7 @@ static t_ast_node *parser_parse_statement(t_parser *parser)
         case T_BANG:
         case T_BOOL_TYPE:
         case T_BUILTIN:
+        case T_CARET:
         case T_CHAR:
         case T_CHAR_TYPE:
         case T_CLOSE_ANG:
@@ -2359,17 +2616,21 @@ static t_ast_node *parser_parse_statement(t_parser *parser)
         case T_OPEN_BRACKET:
         case T_OPEN_PAREN:
         case T_PERCENT:
+        case T_PIPE:
         case T_PLUS:
         case T_S16_TYPE:
         case T_S32_TYPE:
         case T_S64_TYPE:
         case T_S8_TYPE:
         case T_SEMI_COLON:
+        case T_SHL:
+        case T_SHR:
         case T_SLASH:
         case T_STAR:
         case T_STRING:
         case T_STR_TYPE:
         case T_THREE_DOTS:
+        case T_TILDE:
         case T_TRUE:
         case T_TYPE:
         case T_U16_TYPE:

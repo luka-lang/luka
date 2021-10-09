@@ -795,6 +795,26 @@ static LLVMOpcode gen_get_llvm_opcode(t_ast_binop_type op, LLVMValueRef *lhs,
 
             (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
             return LLVMURem;
+        case BINOP_BAND:
+            (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
+            return LLVMAnd;
+        case BINOP_BOR:
+            (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
+            return LLVMOr;
+        case BINOP_BXOR:
+            (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
+            return LLVMXor;
+        case BINOP_SHL:
+            (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
+            return LLVMShl;
+        case BINOP_SHR:
+            if (gen_llvm_cast_to_signed_if_needed(lhs, rhs, builder, logger))
+            {
+                return LLVMAShr;
+            }
+
+            (void) gen_llvm_cast_sizes_if_needed(lhs, rhs, builder, logger);
+            return LLVMLShr;
         case BINOP_EQUALS:
         case BINOP_GEQ:
         case BINOP_GREATER:
@@ -900,6 +920,11 @@ static LLVMIntPredicate gen_llvm_get_int_predicate(t_ast_binop_type op,
         case BINOP_MODULOS:
         case BINOP_MULTIPLY:
         case BINOP_SUBTRACT:
+        case BINOP_BAND:
+        case BINOP_BOR:
+        case BINOP_BXOR:
+        case BINOP_SHL:
+        case BINOP_SHR:
             {
                 (void) LOGGER_log(logger, L_ERROR,
                                   "Op %d is not a int comparison operator.\n",
@@ -946,6 +971,11 @@ static LLVMRealPredicate gen_llvm_get_real_predicate(t_ast_binop_type op,
         case BINOP_MODULOS:
         case BINOP_MULTIPLY:
         case BINOP_SUBTRACT:
+        case BINOP_BAND:
+        case BINOP_BOR:
+        case BINOP_BXOR:
+        case BINOP_SHL:
+        case BINOP_SHR:
             {
                 (void) LOGGER_log(logger, L_ERROR,
                                   "Op %d is not a real comparison operator.\n",
@@ -1174,6 +1204,13 @@ static LLVMValueRef gen_codegen_unexpr(t_ast_node *n, LLVMModuleRef module,
                                "unary expression.\n",
                                n->unary_expr.operator);
                 exit(LUKA_CODEGEN_ERROR);
+            }
+        case UNOP_BNOT:
+            {
+                return LLVMBuildXor(
+                    builder,
+                    LLVMConstInt(LLVMTypeOf(rhs), (unsigned long) -1, true),
+                    rhs, "bnottmp");
             }
     }
 }

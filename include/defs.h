@@ -122,6 +122,11 @@ typedef enum
     T_GEQ,       /**< A ">=" token */
 
     T_AMPERCENT, /**< A "&" token */
+    T_PIPE,      /**< A "|" token */
+    T_CARET,     /**< A "^" token */
+    T_TILDE,     /**< A "~" token */
+    T_SHL,       /**< A "<<" token */
+    T_SHR,       /**< A ">>" token */
 
     T_COLON,        /**< A ":" token */
     T_DOUBLE_COLON, /**< A "::" token */
@@ -188,6 +193,11 @@ typedef enum
     BINOP_NEQ,      /**< A binary operator for not equals comparison */
     BINOP_LEQ,      /**< A binary operator for lesser or equal comparison */
     BINOP_GEQ,      /**< A binary operator for greater or equal comparison */
+    BINOP_SHL,      /**< A binary operator for shift left */
+    BINOP_SHR,      /**< A binary operator for shift right */
+    BINOP_BAND,      /**< A binary operator for binary and */
+    BINOP_BXOR,      /**< A binary operator for binary xor */
+    BINOP_BOR,      /**< A binary operator for binary or */
 } t_ast_binop_type; /**< An enum for differnt binary operators */
 
 typedef enum
@@ -197,6 +207,7 @@ typedef enum
     UNOP_PLUS,     /**< A unary operator for plus */
     UNOP_DEREF,    /**< A unary operator for dereferencing */
     UNOP_REF,      /**< A unary operator for referencing */
+    UNOP_BNOT,      /**< A unary operator for binary not */
 } t_ast_unop_type; /**< An enum for different unary operators */
 
 typedef enum

@@ -380,6 +380,24 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                     token->content = "&";
                     break;
                 }
+            case '|':
+                {
+                    token->type = T_PIPE;
+                    token->content = "|";
+                    break;
+                }
+            case '^':
+                {
+                    token->type = T_CARET;
+                    token->content = "^";
+                    break;
+                }
+            case '~':
+                {
+                    token->type = T_TILDE;
+                    token->content = "~";
+                    break;
+                }
             case ':':
                 {
                     if (':' == source[i + 1])
@@ -440,6 +458,13 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                         token->type = T_LEQ;
                         token->content = "<=";
                     }
+                    else if ('<' == source[i + 1])
+                    {
+                        ++i;
+                        ++offset;
+                        token->type = T_SHL;
+                        token->content = "<<";
+                    }
                     else
                     {
                         token->type = T_OPEN_ANG;
@@ -455,6 +480,13 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                         ++offset;
                         token->type = T_GEQ;
                         token->content = ">=";
+                    }
+                    else if ('>' == source[i + 1])
+                    {
+                        ++i;
+                        ++offset;
+                        token->type = T_SHR;
+                        token->content = ">>";
                     }
                     else
                     {
