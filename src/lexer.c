@@ -160,6 +160,7 @@ static char *lexer_lex_identifier(const char *source, size_t *index,
  * - `\\\\` is a backslash
  * - `\\"` is a double quotes
  * - `\\'` is a single quote
+ * - `\\r` is a carriage return
  *
  * @param[in] source the source code.
  * @param[in,out] index the index to start from, will point at the next
@@ -185,6 +186,8 @@ static char *lexer_lex_string(const char *source, size_t *index,
                 case '\\':
                 case '"':
                 case '\'':
+                case '0':
+                case 'r':
                     ++i;
                     break;
                 default:
@@ -229,6 +232,11 @@ static char *lexer_lex_string(const char *source, size_t *index,
                     str[ind] = '"';
                 case '\'':
                     str[ind] = '\'';
+                    break;
+                case '0':
+                    str[ind] = '\0';
+                case 'r':
+                    str[ind] = '\r';
                     break;
                 default:
                     (void) LOGGER_log(logger, L_ERROR,
