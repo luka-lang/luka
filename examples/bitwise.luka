@@ -1,0 +1,11 @@
+import "stdio";
+
+
+fn main() {
+    printf("10 & 2 = %d\n", 10 & 2);
+    printf("10 | 2 = %d\n", 10 | 2);
+    printf("10 ^ 2 = %d\n", 10 ^ 2);
+    printf("10 << 2 = %d\n", 10 << 2);
+    printf("10 >> 2 = %d\n", 10 >> 2);
+    printf("~2 = %d\n", ~2);
+}
