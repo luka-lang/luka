@@ -491,7 +491,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                 }
             case '\'':
                 {
-                    token->type = T_NUMBER;
+                    token->type = T_CHAR;
                     ++i;
                     ++offset;
                     saved_i = i;

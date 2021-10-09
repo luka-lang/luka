@@ -104,6 +104,7 @@ typedef enum
     T_COMMA,                           /**< A "," token */
     T_NUMBER,                          /**< A number literal token */
     T_STRING,                          /**< A string literal token */
+    T_CHAR,                            /**< A character literal token */
     T_PLUS,                            /**< A "+" token */
     T_MINUS,                           /**< A "-" token */
     T_STAR,                            /**< A "*" token */

@@ -469,6 +469,7 @@ static t_type *parser_parse_type(t_parser *parser, bool parse_prefix)
         case T_BANG:
         case T_BREAK:
         case T_BUILTIN:
+        case T_CHAR:
         case T_CLOSE_ANG:
         case T_CLOSE_BRACE:
         case T_CLOSE_BRACKET:
@@ -798,6 +799,7 @@ t_module *PARSER_parse_file(t_parser *parser)
             case T_BOOL_TYPE:
             case T_BREAK:
             case T_BUILTIN:
+            case T_CHAR:
             case T_CHAR_TYPE:
             case T_CLOSE_ANG:
             case T_CLOSE_BRACE:
@@ -1249,6 +1251,7 @@ t_ast_node *parser_parse_equality(t_parser *parser)
         case T_BOOL_TYPE:
         case T_BREAK:
         case T_BUILTIN:
+        case T_CHAR:
         case T_CHAR_TYPE:
         case T_CLOSE_ANG:
         case T_CLOSE_BRACE:
@@ -1359,6 +1362,7 @@ t_ast_node *parser_parse_comparison(t_parser *parser)
         case T_BOOL_TYPE:
         case T_BREAK:
         case T_BUILTIN:
+        case T_CHAR:
         case T_CHAR_TYPE:
         case T_CLOSE_BRACE:
         case T_CLOSE_BRACKET:
@@ -1458,6 +1462,7 @@ t_ast_node *parser_parse_term(t_parser *parser)
         case T_BOOL_TYPE:
         case T_BREAK:
         case T_BUILTIN:
+        case T_CHAR:
         case T_CHAR_TYPE:
         case T_CLOSE_ANG:
         case T_CLOSE_BRACE:
@@ -1564,6 +1569,7 @@ t_ast_node *parser_parse_factor(t_parser *parser)
         case T_BOOL_TYPE:
         case T_BREAK:
         case T_BUILTIN:
+        case T_CHAR:
         case T_CHAR_TYPE:
         case T_CLOSE_ANG:
         case T_CLOSE_BRACE:
@@ -1688,6 +1694,7 @@ t_ast_node *parser_parse_unary(t_parser *parser)
         case T_BOOL_TYPE:
         case T_BREAK:
         case T_BUILTIN:
+        case T_CHAR:
         case T_CHAR_TYPE:
         case T_CLOSE_ANG:
         case T_CLOSE_BRACE:
@@ -1796,12 +1803,6 @@ t_ast_node *parser_parse_primary(t_parser *parser)
                         n = AST_new_number(type, &f64);
                     }
                 }
-                else if (strlen(token->content) == 1)
-                {
-		    type->type = TYPE_UINT8;
-                    u8 = (uint8_t) token->content[0];
-                    n = AST_new_number(type, &u8);
-                }
                 else
                 {
                     s32 = (int32_t) strtol(token->content, NULL, 10);
@@ -1810,6 +1811,15 @@ t_ast_node *parser_parse_primary(t_parser *parser)
                 parser_advance(parser);
                 break;
             }
+        case T_CHAR:
+            {
+                type = TYPE_initialize_type(TYPE_UINT8);
+                u8 = (uint8_t) token->content[0];
+                n = AST_new_number(type, &u8);
+                parser_advance(parser);
+                break;
+            }
+
         case T_OPEN_PAREN:
             {
                 n = parser_parse_paren_expr(parser);
@@ -2053,6 +2063,7 @@ t_ast_node *parser_parse_expression(t_parser *parser)
         case T_BOOL_TYPE:
         case T_BREAK:
         case T_BUILTIN:
+        case T_CHAR:
         case T_CHAR_TYPE:
         case T_CLOSE_ANG:
         case T_CLOSE_BRACE:
@@ -2310,6 +2321,7 @@ static t_ast_node *parser_parse_statement(t_parser *parser)
         case T_BANG:
         case T_BOOL_TYPE:
         case T_BUILTIN:
+        case T_CHAR:
         case T_CHAR_TYPE:
         case T_CLOSE_ANG:
         case T_CLOSE_BRACE:
