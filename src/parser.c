@@ -9,6 +9,7 @@
 #include "vector.h"
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
 
 /**
@@ -1765,6 +1766,7 @@ t_ast_node *parser_parse_primary(t_parser *parser)
     int32_t s32;
     double f64;
     float f32;
+    uint8_t u8;
 
     starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
@@ -1793,6 +1795,12 @@ t_ast_node *parser_parse_primary(t_parser *parser)
                         f64 = strtod(token->content, NULL);
                         n = AST_new_number(type, &f64);
                     }
+                }
+                else if (strlen(token->content) == 1)
+                {
+		    type->type = TYPE_UINT8;
+                    u8 = (uint8_t) token->content[0];
+                    n = AST_new_number(type, &u8);
                 }
                 else
                 {
