@@ -504,7 +504,7 @@ t_return_code LEXER_tokenize_source(t_vector *tokens, const char *source,
                     ++offset;
                     saved_i = i;
                     parsed_string = lexer_lex_string(source, &i, logger, '\'');
-                    if (i - saved_i > 1)
+                    if (strlen(parsed_string) > 1)
                     {
                         (void) LOGGER_log(logger, L_ERROR,
                                           "Character literal is too long "
