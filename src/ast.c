@@ -1803,6 +1803,8 @@ static char *ast_unop_to_str(t_ast_unop_type op)
             return "*";
         case UNOP_REF:
             return "&";
+        case UNOP_BNOT:
+            return "~";
     }
 }
 
@@ -1839,6 +1841,16 @@ static char *ast_binop_to_str(t_ast_binop_type op)
             return "<=";
         case BINOP_GEQ:
             return ">=";
+        case BINOP_SHL:
+            return "<<";
+        case BINOP_SHR:
+            return ">>";
+        case BINOP_BAND:
+            return "&";
+        case BINOP_BXOR:
+            return "^";
+        case BINOP_BOR:
+            return "|";
     }
 }
 
@@ -1908,9 +1920,9 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
             {
                 (void) LOGGER_log(logger, L_DEBUG, "%*c\b Unary Expression\n",
                                   offset, ' ');
-                (void) LOGGER_log(
-                    logger, L_DEBUG, "%*c\b Operator: %s\n", offset + 2, ' ',
-                    ast_unop_to_str(node->unary_expr.operator));
+                (void) LOGGER_log(logger, L_DEBUG, "%*c\b Operator: %s\n",
+                                  offset + 2, ' ',
+                                  ast_unop_to_str(node->unary_expr.operator));
 
                 (void) LOGGER_log(logger, L_DEBUG, "%*c\b Expression:\n",
                                   offset + 2, ' ');
@@ -1925,9 +1937,9 @@ void AST_print_ast(t_ast_node *node, int offset, t_logger *logger)
             {
                 (void) LOGGER_log(logger, L_DEBUG, "%*c\b Binary Expression\n",
                                   offset, ' ');
-                (void) LOGGER_log(
-                    logger, L_DEBUG, "%*c\b Operator: %s\n", offset + 2, ' ',
-                    ast_binop_to_str(node->binary_expr.operator));
+                (void) LOGGER_log(logger, L_DEBUG, "%*c\b Operator: %s\n",
+                                  offset + 2, ' ',
+                                  ast_binop_to_str(node->binary_expr.operator));
                 if (NULL != node->binary_expr.lhs)
                     (void) AST_print_ast(node->binary_expr.lhs, offset + 4,
                                          logger);
@@ -2490,6 +2502,11 @@ bool AST_is_cond_binop(t_ast_binop_type op)
         case BINOP_MODULOS:
         case BINOP_MULTIPLY:
         case BINOP_SUBTRACT:
+        case BINOP_SHL:
+        case BINOP_SHR:
+        case BINOP_BAND:
+        case BINOP_BXOR:
+        case BINOP_BOR:
             return false;
     }
 }
