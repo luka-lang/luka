@@ -2,6 +2,7 @@ import "stddef";
 
 extern malloc(size: size_t): any mut*;
 extern realloc(ptr: any mut*, size: size_t): any mut*;
+extern calloc(nmemb: size_t, size: size_t): any mut*;
 extern free(ptr: any mut*): void;
 
 extern rand(): s32;

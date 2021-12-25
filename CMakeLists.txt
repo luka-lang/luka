@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.17)
 
-project(luka)
+project(luka C)
 
 set(CMAKE_C_COMPILER "clang")
 set(CMAKE_CXX_COMPILER "clang++")
@@ -24,11 +24,16 @@ include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/third_party/include)
 file(GLOB_RECURSE SOURCES src/*.c)
 file(GLOB_RECURSE LIBS    libs/*)
 
+file(GLOB SOURCES_WITHOUT_MAIN "${PROJECT_SOURCE_DIR}/src/*.c")
+list(REMOVE_ITEM SOURCES_WITHOUT_MAIN "${PROJECT_SOURCE_DIR}/src/main.c")
+
 add_executable(luka ${SOURCES})
 
 add_library(vector STATIC libs/vector.c)
-target_link_libraries(luka vector)
-target_link_libraries(luka ${LLVM_LIBRARIES})
+add_library(lukad STATIC ${SOURCES_WITHOUT_MAIN})
+target_link_libraries(lukad vector)
+target_link_libraries(lukad ${LLVM_LIBRARIES})
+target_link_libraries(luka lukad)
 target_compile_options(luka PRIVATE -Wall -Wextra -Wmost -Weverything -pedantic -Werror -Wno-padded)
 
 add_custom_target(docs cd ${PROJECT_SOURCE_DIR}/docs

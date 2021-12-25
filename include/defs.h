@@ -195,8 +195,8 @@ typedef enum
     BINOP_GEQ,      /**< A binary operator for greater or equal comparison */
     BINOP_SHL,      /**< A binary operator for shift left */
     BINOP_SHR,      /**< A binary operator for shift right */
-    BINOP_BAND,      /**< A binary operator for binary and */
-    BINOP_BXOR,      /**< A binary operator for binary xor */
+    BINOP_BAND,     /**< A binary operator for binary and */
+    BINOP_BXOR,     /**< A binary operator for binary xor */
     BINOP_BOR,      /**< A binary operator for binary or */
 } t_ast_binop_type; /**< An enum for differnt binary operators */
 
@@ -207,7 +207,7 @@ typedef enum
     UNOP_PLUS,     /**< A unary operator for plus */
     UNOP_DEREF,    /**< A unary operator for dereferencing */
     UNOP_REF,      /**< A unary operator for referencing */
-    UNOP_BNOT,      /**< A unary operator for binary not */
+    UNOP_BNOT,     /**< A unary operator for binary not */
 } t_ast_unop_type; /**< An enum for different unary operators */
 
 typedef enum

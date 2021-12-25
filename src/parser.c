@@ -2345,7 +2345,7 @@ t_ast_node *parser_parse_assignment(t_parser *parser)
     if (parser_match(parser, T_EQUALS))
     {
         parser_advance(parser);
-        rhs = parser_parse_assignment(parser);
+        rhs = parser_parse_expression(parser);
 
         if ((AST_TYPE_VARIABLE == lhs->type)
             || ((AST_TYPE_UNARY_EXPR == lhs->type)
@@ -2368,11 +2368,10 @@ t_ast_node *parser_parse_assignment(t_parser *parser)
 t_ast_node *parser_parse_bor(t_parser *parser)
 {
     t_ast_node *lhs = NULL, *rhs = NULL, *node = NULL;
-    t_token *token = NULL, *starting_token = NULL;
+    t_token *starting_token = NULL;
 
     starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     lhs = parser_parse_bxor(parser);
-    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
 
     if (!parser_match(parser, T_PIPE))
     {
@@ -2389,11 +2388,10 @@ t_ast_node *parser_parse_bor(t_parser *parser)
 t_ast_node *parser_parse_bxor(t_parser *parser)
 {
     t_ast_node *lhs = NULL, *rhs = NULL, *node = NULL;
-    t_token *token = NULL, *starting_token = NULL;
+    t_token *starting_token = NULL;
 
     starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     lhs = parser_parse_band(parser);
-    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
 
     if (!parser_match(parser, T_CARET))
     {
@@ -2410,11 +2408,10 @@ t_ast_node *parser_parse_bxor(t_parser *parser)
 t_ast_node *parser_parse_band(t_parser *parser)
 {
     t_ast_node *lhs = NULL, *rhs = NULL, *node = NULL;
-    t_token *token = NULL, *starting_token = NULL;
+    t_token *starting_token = NULL;
 
     starting_token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
     lhs = parser_parse_equality(parser);
-    token = VECTOR_GET_AS(t_token_ptr, parser->tokens, parser->index);
 
     if (!parser_match(parser, T_AMPERCENT))
     {

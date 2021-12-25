@@ -282,6 +282,7 @@ char *IO_resolve_path(const char *requested_path, const char *current_path,
     const char sep_string[2] = {PATH_SEPERATOR, '\0'};
     char *possible_path = NULL;
     bool resolved_from_system = false;
+    char *system_paths[] = {"/usr/local/lib/luka/", "/usr/lib/luka/", NULL};
 
     if (io_is_absolute(requested_path))
     {
@@ -299,23 +300,26 @@ char *IO_resolve_path(const char *requested_path, const char *current_path,
     {
         if (!io_is_relative(requested_path))
         {
-            possible_path = io_append_path(strdup("/usr/local/lib/luka/"),
-                                           requested_path);
-            possible_path
-                = io_append_path(strdup("/usr/lib/luka/"), requested_path);
-            if (!io_ends_with(possible_path, FILE_EXTENSION))
+            for (size_t i = 0; system_paths[i] != NULL; ++i)
             {
-                possible_path = io_append_path(possible_path, FILE_EXTENSION);
-            }
+                possible_path
+                    = io_append_path(strdup(system_paths[i]), requested_path);
+                if (!io_ends_with(possible_path, FILE_EXTENSION))
+                {
+                    possible_path
+                        = io_append_path(possible_path, FILE_EXTENSION);
+                }
 
-            if (!IO_file_exists(possible_path))
-            {
-                (void) free(possible_path);
-                possible_path = NULL;
-            }
-            else
-            {
-                resolved_from_system = true;
+                if (!IO_file_exists(possible_path))
+                {
+                    (void) free(possible_path);
+                    possible_path = NULL;
+                }
+                else
+                {
+                    resolved_from_system = true;
+                    break;
+                }
             }
         }
 

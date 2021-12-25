@@ -384,22 +384,22 @@ bool TYPE_is_signed(t_type *type)
         case TYPE_SINT32:
         case TYPE_SINT64:
             return true;
-case TYPE_ALIAS:
-case TYPE_ANY:
-case TYPE_ARRAY:
-case TYPE_BOOL:
-case TYPE_ENUM:
-case TYPE_F32:
-case TYPE_F64:
-case TYPE_PTR:
-case TYPE_STRING:
-case TYPE_STRUCT:
-case TYPE_TYPE:
-case TYPE_UINT16:
-case TYPE_UINT32:
-case TYPE_UINT64:
-case TYPE_UINT8:
-case TYPE_VOID:
+        case TYPE_ALIAS:
+        case TYPE_ANY:
+        case TYPE_ARRAY:
+        case TYPE_BOOL:
+        case TYPE_ENUM:
+        case TYPE_F32:
+        case TYPE_F64:
+        case TYPE_PTR:
+        case TYPE_STRING:
+        case TYPE_STRUCT:
+        case TYPE_TYPE:
+        case TYPE_UINT16:
+        case TYPE_UINT32:
+        case TYPE_UINT64:
+        case TYPE_UINT8:
+        case TYPE_VOID:
             return false;
     }
 }
@@ -590,7 +590,10 @@ t_type *TYPE_get_type(const t_ast_node *node, t_logger *logger,
             return TYPE_get_type(node->return_stmt.expr, logger, module);
         case AST_TYPE_ARRAY_DEREF:
             type = TYPE_get_type(node->array_deref.variable, logger, module);
-            inner = TYPE_dup_type(type->inner_type);
+            if (NULL != type)
+            {
+                inner = TYPE_dup_type(type->inner_type);
+            }
             (void) TYPE_free_type(type);
             return inner;
         case AST_TYPE_GET_EXPR:
@@ -650,6 +653,7 @@ t_type *TYPE_get_type(const t_ast_node *node, t_logger *logger,
             {
                 case UNOP_MINUS:
                 case UNOP_PLUS:
+                case UNOP_BNOT:
                     return TYPE_get_type(node->unary_expr.rhs, logger, module);
                 case UNOP_NOT:
                     return TYPE_initialize_type(TYPE_BOOL);
@@ -674,9 +678,9 @@ t_type *TYPE_get_type(const t_ast_node *node, t_logger *logger,
 
                 /* When passing NULL to pushed_first arg,
                  * UTILS_fill_function_name does not modify node */
-                (void) UTILS_fill_function_name(
-                    function_name_buffer, sizeof(function_name_buffer),
-                    node, NULL, &builtin, logger);
+                (void) UTILS_fill_function_name(function_name_buffer,
+                                                sizeof(function_name_buffer),
+                                                node, NULL, &builtin, logger);
 
                 if (builtin)
                 {

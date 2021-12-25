@@ -22,6 +22,10 @@ extern fwrite(ptr: any*, size: size_t, nmemb: size_t, stream: mut FILE*): size_t
 
 extern fflush(stream: mut FILE*): s32;
 extern fgets(s: mut u8*, n: s32, stream: mut FILE*): mut u8*;
+extern getchar(): s32;
+extern fgetc(stream: mut FILE*): s32;
+extern getc(stream: mut FILE*): s32;
+extern ungetc(c: s32, stream: mut FILE*): s32;
 
 let EOF: s32 = -1;
 
